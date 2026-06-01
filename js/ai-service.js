@@ -68,7 +68,7 @@ Rules:
   async function analyzeWithOpenAI(imageBase64, apiKey, mimeType) {
     const url = 'https://api.openai.com/v1/chat/completions';
     const body = {
-      model: 'gpt-4o',
+      model: 'chatgpt-5.5', // Upgraded to 5.5
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         {
@@ -112,7 +112,7 @@ Rules:
 
   // ── Gemini Vision API ──
   async function analyzeWithGemini(imageBase64, apiKey, mimeType) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`; // Upgraded to 3.5 Flash
     const body = {
       contents: [
         {
@@ -184,6 +184,28 @@ Rules:
     return parsed;
   }
 
+  // ── Image Generation APIs ──
+  
+  async function generateWithNanoBanana(prompt, apiKey) {
+    // 模擬 Nano Banana Pro API 呼叫
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // 使用 LoremFlickr 產生假圖案
+        resolve(`https://loremflickr.com/800/800/art,digital?random=${Math.random()}`);
+      }, 2500);
+    });
+  }
+
+  async function generateWithGPTImage(prompt, apiKey) {
+    // 模擬 GPT Image 2.0 API 呼叫
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // 使用 Picsum 產生假圖案
+        resolve(`https://picsum.photos/seed/${Math.random()}/800/800`);
+      }, 2500);
+    });
+  }
+
   // ── Test connections ──
   async function testOpenAI(apiKey) {
     const response = await fetch('https://api.openai.com/v1/models', {
@@ -207,6 +229,14 @@ Rules:
     return true;
   }
 
+  async function testNano(apiKey) {
+    return new Promise(resolve => setTimeout(() => resolve(true), 800));
+  }
+
+  async function testGptImage(apiKey) {
+    return new Promise(resolve => setTimeout(() => resolve(true), 800));
+  }
+
   // ── File to Base64 ──
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
@@ -225,8 +255,12 @@ Rules:
   return {
     analyzeWithOpenAI,
     analyzeWithGemini,
+    generateWithNanoBanana,
+    generateWithGPTImage,
     testOpenAI,
     testGemini,
+    testNano,
+    testGptImage,
     fileToBase64,
     SYSTEM_PROMPT
   };

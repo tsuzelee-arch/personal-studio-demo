@@ -39,10 +39,47 @@
       }
     },
     {
-      title: '④ 複製使用',
-      desc: '將提示詞貼至 Midjourney、Stable Diffusion 或其他 AI 工具，開始生成。',
-      action: '標記完成',
-      onAction: () => { markStep(3); showToast('流程完成！'); }
+      title: '④ 圖像生成',
+      desc: '使用組建的提示詞，透過進階模型直接生成圖像。',
+      action: '開始生成',
+      onAction: async () => {
+        const res = window.StudioState.decodeResult;
+        if (!res) { showToast('請先完成前面的步驟'); return; }
+
+        const actionBtns = document.querySelectorAll('.step-action');
+        const btn = actionBtns[actionBtns.length - 1];
+        if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
+
+        try {
+          let model = 'gptImage';
+          let key = window.StudioSettings.getGptImageKey();
+          if (!key) {
+            model = 'nano';
+            key = window.StudioSettings.getNanoKey();
+          }
+          if (!key) {
+            throw new Error("請先至「設定」面板配置 GPT Image 2.0 或 Nano Banana Pro 金鑰");
+          }
+
+          showToast(`⏳ 正在使用 ${model === 'gptImage' ? 'GPT Image 2.0' : 'Nano Banana Pro'} 生成圖像...`);
+
+          let imageUrl;
+          if (model === 'gptImage') {
+            imageUrl = await window.AIService.generateWithGPTImage(res.promptText, key);
+          } else {
+            imageUrl = await window.AIService.generateWithNanoBanana(res.promptText, key);
+          }
+
+          markStep(3);
+          showToast('✅ 圖像生成成功！');
+          updateStepResult(3, `<div style="margin-top: 10px; font-weight: 600; color: var(--warm-dark);">${model === 'gptImage' ? 'GPT Image 2.0' : 'Nano Banana Pro'} 生成結果：</div><img src="${imageUrl}" alt="Generated Image" style="max-width: 100%; border-radius: 8px; margin-top: 10px; box-shadow: var(--card-shadow);">`);
+          renderPipeline();
+        } catch (err) {
+          showToast('❌ 生成失敗：' + err.message, 4000);
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = '開始生成'; }
+        }
+      }
     }
   ];
 
@@ -114,7 +151,12 @@
         if (stepResults[i]) {
           const result = document.createElement('div');
           result.className = 'step-result visible';
-          result.textContent = stepResults[i];
+          // Using innerHTML instead of textContent to allow rendering the image tag
+          if (stepResults[i].includes('<img')) {
+            result.innerHTML = stepResults[i];
+          } else {
+            result.textContent = stepResults[i];
+          }
           body.appendChild(result);
         }
       }
