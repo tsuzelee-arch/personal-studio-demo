@@ -1,5 +1,5 @@
 (function() {
-  const STORAGE_KEY = 'hao-studio-prompts';
+  const STORAGE_KEY = 'personal-studio-prompts';
   const CATEGORIES = ['全部', 'Midjourney', 'SD', 'General', 'Style', '其他'];
   const CAT_CLASS = { Midjourney: 'cat-mj', SD: 'cat-sd', General: 'cat-general', Style: 'cat-style', '其他': 'cat-other' };
 
