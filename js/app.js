@@ -8,7 +8,8 @@ window.StudioState = {
 const panels = {
   decode: '圖像解碼',
   prompts: '提示詞庫',
-  workflow: '簡易工作流'
+  workflow: '簡易工作流',
+  settings: '設定'
 };
 
 document.querySelectorAll('.nav-item').forEach(item => {

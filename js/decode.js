@@ -78,7 +78,10 @@
   });
 
   // ── Image load → analyse ──
+  let currentFile = null; // keep reference for base64 conversion
+
   function loadImage(file) {
+    currentFile = file;
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -86,39 +89,154 @@
       dropZone.classList.add('hidden');
       // Show loading state
       decodeLoading.classList.remove('hidden');
-      simulateLoading(() => {
-        analyzeImage(img);
-        decodeLoading.classList.add('hidden');
-        decodeResult.classList.remove('hidden');
-        // Auto-expand first collapsible
-        document.querySelectorAll('.dash-collapsible').forEach(el => {
-          el.classList.add('expanded');
-        });
-        document.querySelectorAll('.dash-toggle').forEach(btn => {
-          btn.textContent = '收合 ▴';
-        });
-      });
+      startAnalysis(img, file);
     };
     img.src = url;
   }
 
-  function simulateLoading(callback) {
-    loadingBarFill.style.width = '0%';
-    const steps = [15, 35, 55, 72, 88, 100];
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < steps.length) {
-        loadingBarFill.style.width = steps[i] + '%';
-        i++;
-      } else {
-        clearInterval(interval);
-        setTimeout(callback, 200);
+  async function startAnalysis(img, file) {
+    const model = window.StudioSettings ? window.StudioSettings.getSelectedModel() : 'gemini';
+    const hasKey = window.StudioSettings ? window.StudioSettings.hasApiKey(model) : false;
+
+    if (hasKey) {
+      // ── Real AI analysis ──
+      try {
+        updateLoadingText('正在將圖像傳送至 AI 模型...');
+        startLoadingAnimation();
+
+        const { base64, mimeType } = await window.AIService.fileToBase64(file);
+        updateLoadingText(`正在使用 ${model === 'openai' ? 'ChatGPT' : 'Gemini'} 深度分析圖像...`);
+
+        let analysis;
+        if (model === 'openai') {
+          const key = window.StudioSettings.getOpenAIKey();
+          analysis = await window.AIService.analyzeWithOpenAI(base64, key, mimeType);
+        } else {
+          const key = window.StudioSettings.getGeminiKey();
+          analysis = await window.AIService.analyzeWithGemini(base64, key, mimeType);
+        }
+
+        currentAnalysis = analysis;
+        finishLoadingAnimation();
+        renderAnalysis(analysis);
+        showToast(`✅ AI 分析完成 (${model === 'openai' ? 'ChatGPT' : 'Gemini'})`);
+
+      } catch (err) {
+        console.error('AI analysis failed:', err);
+        stopLoadingAnimation();
+        decodeLoading.classList.add('hidden');
+        dropZone.classList.remove('hidden');
+        showToast('❌ AI 分析失敗：' + err.message, 5000);
+        return;
       }
-    }, 250);
+    } else {
+      // ── Fallback: client-side pixel analysis ──
+      updateLoadingText('未設定 API Key，使用本地端分析...');
+      await simulateLoadingSteps();
+      analyzeImageLocal(img);
+      showToast('⚠️ 使用本地端模擬分析 (前往設定頁面配置 API Key 以啟用 AI 分析)', 4000);
+    }
   }
 
-  // ── Core analysis ──
-  function analyzeImage(img) {
+  function updateLoadingText(text) {
+    const el = document.querySelector('.loading-text');
+    if (el) el.textContent = text;
+  }
+
+  let loadingInterval = null;
+  function startLoadingAnimation() {
+    loadingBarFill.style.width = '0%';
+    let progress = 0;
+    loadingInterval = setInterval(() => {
+      // Slowly advance but never reach 100% until we finish
+      progress += (90 - progress) * 0.03;
+      loadingBarFill.style.width = Math.min(progress, 90) + '%';
+    }, 200);
+  }
+
+  function finishLoadingAnimation() {
+    if (loadingInterval) clearInterval(loadingInterval);
+    loadingBarFill.style.width = '100%';
+    setTimeout(() => {
+      decodeLoading.classList.add('hidden');
+      decodeResult.classList.remove('hidden');
+      expandAllSections();
+    }, 300);
+  }
+
+  function stopLoadingAnimation() {
+    if (loadingInterval) clearInterval(loadingInterval);
+    loadingBarFill.style.width = '0%';
+  }
+
+  function expandAllSections() {
+    document.querySelectorAll('.dash-collapsible').forEach(el => {
+      el.classList.add('expanded');
+    });
+    document.querySelectorAll('.dash-toggle').forEach(btn => {
+      btn.textContent = '收合 ▴';
+    });
+  }
+
+  function simulateLoadingSteps() {
+    return new Promise(resolve => {
+      loadingBarFill.style.width = '0%';
+      const steps = [15, 35, 55, 72, 88, 100];
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i < steps.length) {
+          loadingBarFill.style.width = steps[i] + '%';
+          i++;
+        } else {
+          clearInterval(interval);
+          setTimeout(resolve, 200);
+        }
+      }, 250);
+    });
+  }
+
+  // Shared render entry point for both AI and local analysis
+  function renderAnalysis(analysis) {
+    currentAnalysis = analysis;
+    renderPalette(analysis.analysis_metadata.color_palette);
+    renderMood(analysis.analysis_metadata.mood_and_atmosphere);
+    renderMetadata(analysis.analysis_metadata);
+    // For AI analysis, we derive style tags from the estimated_style string
+    const styleTags = deriveStyleTags(analysis.analysis_metadata);
+    renderStyleTags(styleTags);
+    renderElements(analysis.separated_elements_breakdown);
+    renderLighting(analysis.lighting_physics, analysis.camera_simulation);
+    renderMaterials(analysis.material_and_texture_notes);
+    renderComposition(analysis.composition_analysis);
+    renderNegativeConstraints(analysis.inferred_negative_constraints);
+
+    const promptText = buildPromptText(analysis);
+    promptOutput.textContent = promptText;
+
+    window.StudioState.decodeResult = { palette: analysis.analysis_metadata.color_palette, styleTags, promptText, analysis };
+    if (window.workflowMarkReady) window.workflowMarkReady(1);
+
+    decodeLoading.classList.add('hidden');
+    decodeResult.classList.remove('hidden');
+    expandAllSections();
+  }
+
+  function deriveStyleTags(meta) {
+    const tags = [];
+    const style = (meta.estimated_style || '').toLowerCase();
+    if (style.includes('dark') || style.includes('noir') || style.includes('暗')) tags.push({ label: '暗沉', cls: 'dark-tag' });
+    if (style.includes('bright') || style.includes('vibrant') || style.includes('明')) tags.push({ label: '明亮', cls: 'bright-tag' });
+    if (style.includes('warm') || style.includes('暖')) tags.push({ label: '暖色調', cls: 'warm-tag' });
+    if (style.includes('cool') || style.includes('cold') || style.includes('冷')) tags.push({ label: '冷色調', cls: 'cool-tag' });
+    if (style.includes('contrast') || style.includes('對比')) tags.push({ label: '高對比', cls: '' });
+    if (style.includes('monochrom') || style.includes('black-and-white') || style.includes('黑白')) tags.push({ label: '單色', cls: 'dark-tag' });
+    if (style.includes('saturated') || style.includes('飽和')) tags.push({ label: '高飽和', cls: 'warm-tag' });
+    if (tags.length === 0) tags.push({ label: '已分析', cls: '' });
+    return tags;
+  }
+
+  // ── Core local analysis (fallback when no API key) ──
+  function analyzeImageLocal(img) {
     const size = 80;
     canvas.width = size;
     canvas.height = size;
@@ -130,24 +248,7 @@
 
     // Build full analysis report (structured like the JSON prompt)
     const analysis = buildAnalysisReport(palette, styleTags, data);
-    currentAnalysis = analysis;
-
-    // Render all dashboard sections
-    renderPalette(analysis.analysis_metadata.color_palette);
-    renderMood(analysis.analysis_metadata.mood_and_atmosphere);
-    renderMetadata(analysis.analysis_metadata);
-    renderStyleTags(styleTags);
-    renderElements(analysis.separated_elements_breakdown);
-    renderLighting(analysis.lighting_physics, analysis.camera_simulation);
-    renderMaterials(analysis.material_and_texture_notes);
-    renderComposition(analysis.composition_analysis);
-    renderNegativeConstraints(analysis.inferred_negative_constraints);
-
-    const promptText = buildPromptText(analysis);
-    promptOutput.textContent = promptText;
-
-    window.StudioState.decodeResult = { palette, styleTags, promptText, analysis };
-    if (window.workflowMarkReady) window.workflowMarkReady(1);
+    renderAnalysis(analysis);
   }
 
   // ── Build analysis report ──

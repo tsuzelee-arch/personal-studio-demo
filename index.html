@@ -18,6 +18,8 @@
       <div class="nav-item active" data-panel="decode">圖像解碼</div>
       <div class="nav-item" data-panel="prompts">提示詞庫</div>
       <div class="nav-item" data-panel="workflow">簡易工作流</div>
+      <div class="nav-cat" style="margin-top:12px">系統</div>
+      <div class="nav-item" data-panel="settings">⚙ 設定</div>
     </div>
     <div class="sidebar-footer">
       <div class="sidebar-footer-text">Personal Studio v1.0</div>
@@ -35,6 +37,16 @@
       <section class="panel active" id="panel-decode">
         <div class="decode-layout">
           <!-- Upload Area -->
+          <!-- Model Selector -->
+          <div class="model-selector-bar">
+            <label class="model-selector-label">分析模型：</label>
+            <select class="model-select" id="modelSelect">
+              <option value="gemini">Gemini</option>
+              <option value="openai">ChatGPT (OpenAI)</option>
+            </select>
+            <span class="model-status" id="modelStatus"></span>
+          </div>
+
           <div class="decode-upload-area" id="dropZone">
             <input type="file" id="imageInput" accept="image/*" hidden>
             <div class="drop-icon">&#9707;</div>
@@ -279,6 +291,52 @@
         <div class="workflow-pipeline" id="workflowPipeline"></div>
       </section>
 
+      <!-- Panel: 設定 -->
+      <section class="panel" id="panel-settings">
+        <div class="settings-layout">
+          <div class="settings-intro">
+            <p>在此設定您的 AI 模型 API 金鑰。金鑰僅儲存在您的瀏覽器本地端 (localStorage)，不會傳送至任何第三方伺服器。</p>
+          </div>
+
+          <!-- OpenAI Settings -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">🤖</span>
+              <span class="settings-card-title">OpenAI (ChatGPT)</span>
+            </div>
+            <div class="settings-card-body">
+              <label class="form-label">API KEY</label>
+              <div class="key-input-row">
+                <input type="password" class="form-input key-input" id="openaiKeyInput" placeholder="sk-...">
+                <button class="btn-primary" id="saveOpenaiBtn">儲存</button>
+                <button class="btn-ghost" id="testOpenaiBtn">測試連線</button>
+              </div>
+              <div class="conn-status" id="openaiStatus"></div>
+              <div class="settings-hint">模型：gpt-4o · 需要有 Vision 存取權限</div>
+            </div>
+          </div>
+
+          <!-- Gemini Settings -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">✦</span>
+              <span class="settings-card-title">Google Gemini</span>
+            </div>
+            <div class="settings-card-body">
+              <label class="form-label">API KEY</label>
+              <div class="key-input-row">
+                <input type="password" class="form-input key-input" id="geminiKeyInput" placeholder="AIza...">
+                <button class="btn-primary" id="saveGeminiBtn">儲存</button>
+                <button class="btn-ghost" id="testGeminiBtn">測試連線</button>
+              </div>
+              <div class="conn-status" id="geminiStatus"></div>
+              <div class="settings-hint">模型：gemini-2.5-flash · 使用 Google AI Studio 金鑰</div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
     </div>
   </main>
 </div>
@@ -315,6 +373,8 @@
 <div class="toast hidden" id="toast"></div>
 
 <script src="js/app.js"></script>
+<script src="js/ai-service.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/decode.js"></script>
 <script src="js/prompts.js"></script>
 <script src="js/workflow.js"></script>
