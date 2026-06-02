@@ -299,20 +299,7 @@ ${structuredPrompt}`;
     }
   }
 
-  async function generateWithNanoBanana2(prompt, apiKey) {
-    // Hypothetical endpoint for Nano Banana 2
-    const url = 'https://api.nanobanana.ai/v1/generate'; 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({ prompt, model: 'nano-banana-2' })
-      });
-      if (!response.ok) throw new Error();
-      const data = await response.json();
+
   async function generateWithNanoBanana(prompt, apiKey, width=1024, height=1024) {
     // Nano Banana Pro -> gemini-3-pro-image
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent?key=${apiKey}`;
