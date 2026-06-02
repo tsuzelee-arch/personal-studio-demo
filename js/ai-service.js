@@ -89,7 +89,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
           ]
         }
       ],
-      max_tokens: 4096,
+      max_completion_tokens: 4096,
       temperature: 0.3,
       response_format: { type: "json_object" }
     };
