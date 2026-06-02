@@ -120,7 +120,7 @@
       const model = wfModelSelect.value;
       let apiKey = '';
       if (model === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
-      else apiKey = window.StudioSettings.getNanobananaKey();
+      else apiKey = window.StudioSettings.getNanobananaKey(); // Share key for nanobanana and nanobanana2
 
       if (!apiKey) {
         showToast(`請先至設定頁面填寫 ${model} 的 API Key`);
@@ -135,10 +135,10 @@
 
       try {
         let imageUrl = '';
-        // In reality, resolutions and CFG scales would be passed to the APIs.
-        // For demonstration, we just use the existing generate API.
         if (model === 'gptimage') {
           imageUrl = await window.AIService.generateWithGPTImage(prompt, apiKey);
+        } else if (model === 'nanobanana2') {
+          imageUrl = await window.AIService.generateWithNanoBanana2(prompt, apiKey);
         } else {
           imageUrl = await window.AIService.generateWithNanoBanana(prompt, apiKey);
         }

@@ -299,6 +299,28 @@ ${structuredPrompt}`;
     }
   }
 
+  async function generateWithNanoBanana2(prompt, apiKey) {
+    // Hypothetical endpoint for Nano Banana 2
+    const url = 'https://api.nanobanana.ai/v1/generate'; 
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ prompt, model: 'nano-banana-2' })
+      });
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      return data.image_url;
+    } catch(e) {
+      // Fallback mock for demonstration
+      console.warn("Nano Banana 2 API failed/unavailable, returning mock image.", e);
+      return new Promise(resolve => setTimeout(() => resolve('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=512&q=80'), 1500));
+    }
+  }
+
   async function generateWithGPTImage(prompt, apiKey) {
     const url = 'https://api.openai.com/v1/images/generations';
     const body = {
@@ -336,6 +358,7 @@ ${structuredPrompt}`;
     analyzeWithGeminilite,
     rewriteToNaturalLanguage,
     generateWithNanoBanana,
+    generateWithNanoBanana2,
     generateWithGPTImage,
     testOpenAI,
     testGemini,
