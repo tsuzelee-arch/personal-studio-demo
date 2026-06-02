@@ -184,7 +184,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
 
   // ── Gemini 2.5 Lite API ──
   async function analyzeWithGeminilite(imageBase64, apiKey, mimeType) {
-    return analyzeWithGemini(imageBase64, apiKey, mimeType, 'gemini-2.5-lite');
+    return analyzeWithGemini(imageBase64, apiKey, mimeType, 'gemini-2.5-flash-lite');
   }
 
   // ── Parse AI response ──
