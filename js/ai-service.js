@@ -158,8 +158,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
           ]
         }
       ],
-      temperature: 0.2,
-      response_format: { type: "json_object" }
+      temperature: 0.2
     };
 
     const res = await fetch(url, {

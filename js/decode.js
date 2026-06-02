@@ -108,7 +108,13 @@
     if (!hasKey) {
       decodeLoading.classList.add('hidden');
       dropZone.classList.remove('hidden');
-      showToast(`❌ 請先前往設定面板輸入 ${model === 'openai' ? 'ChatGPT' : 'Gemini'} 的 API Key`, 4000);
+      const modelNames = {
+        'openai': 'ChatGPT 5.5',
+        'gemini': 'Gemini 3.5 Flash',
+        'geminilite': 'Gemini 2.5 Lite',
+        'groq': 'Groq'
+      };
+      showToast(`❌ 請先前往設定面板輸入 ${modelNames[model] || model} 的 API Key`, 4000);
       return;
     }
 
