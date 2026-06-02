@@ -359,24 +359,43 @@ ${structuredPrompt}`;
       model: "gpt-image-2",
       prompt: prompt,
       n: 1,
-      size: `${width}x${height}`
+      size: `${width}x${height}`,
+      quality: "low"
     };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(body)
-    });
-    
+    console.log('[GPT Image 2] Request body:', JSON.stringify(body));
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90000);
+
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+    } catch (fetchErr) {
+      if (fetchErr.name === 'AbortError') throw new Error('GPT Image 2 請求逾時（90秒），請重試');
+      throw new Error('網路錯誤：' + fetchErr.message);
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    console.log('[GPT Image 2] HTTP status:', response.status);
+
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
+      console.error('[GPT Image 2] API error:', err);
       throw new Error(err.error?.message || `GPT Image 2 API Error: HTTP ${response.status}`);
     }
-    
+
     const data = await response.json();
+    console.log('[GPT Image 2] Response keys:', Object.keys(data));
     const b64 = data.data?.[0]?.b64_json;
     if (!b64) throw new Error("No image data returned from GPT Image 2");
     return `data:image/png;base64,${b64}`;
