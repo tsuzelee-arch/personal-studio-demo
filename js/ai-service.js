@@ -356,11 +356,10 @@ ${structuredPrompt}`;
   async function generateWithGPTImage(prompt, apiKey, width=1024, height=1024) {
     const url = 'https://api.openai.com/v1/images/generations';
     const body = {
-      model: "gpt-image-2", // Real GPT Image 2 model ID
+      model: "gpt-image-2",
       prompt: prompt,
       n: 1,
-      size: `${width}x${height}`,
-      response_format: "url"
+      size: `${width}x${height}`
     };
 
     const response = await fetch(url, {
@@ -378,9 +377,9 @@ ${structuredPrompt}`;
     }
     
     const data = await response.json();
-    const imageUrl = data.data?.[0]?.url;
-    if (!imageUrl) throw new Error("No image URL returned from GPT Image 2");
-    return imageUrl;
+    const b64 = data.data?.[0]?.b64_json;
+    if (!b64) throw new Error("No image data returned from GPT Image 2");
+    return `data:image/png;base64,${b64}`;
   }
 
   // ── Public API ──
