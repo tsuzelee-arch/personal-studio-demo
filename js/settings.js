@@ -8,7 +8,8 @@
     geminiliteKey: 'ps_geminilite_key',
     nanobananaKey: 'ps_nanobanana_key',
     gptimageKey: 'ps_gptimage_key',
-    selectedModel: 'ps_selected_model'
+    selectedModel: 'ps_selected_model',
+    outputLanguage: 'ps_output_language'
   };
 
   // ── DOM refs ──
@@ -31,6 +32,7 @@
   const nanobananaStatus = document.getElementById('nanobananaStatus');
   const gptimageStatus = document.getElementById('gptimageStatus');
   const modelSelect     = document.getElementById('modelSelect');
+  const languageSelect  = document.getElementById('languageSelect');
 
   // ── Load saved keys ──
   function loadSettings() {
@@ -40,6 +42,7 @@
     const nbKey = localStorage.getItem(STORAGE_KEYS.nanobananaKey) || '';
     const giKey = localStorage.getItem(STORAGE_KEYS.gptimageKey) || '';
     const model = localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini';
+    const lang = localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文';
 
     if (openaiKeyInput) openaiKeyInput.value = oKey;
     if (geminiKeyInput) geminiKeyInput.value = gKey;
@@ -47,6 +50,7 @@
     if (nanobananaKeyInput) nanobananaKeyInput.value = nbKey;
     if (gptimageKeyInput) gptimageKeyInput.value = giKey;
     if (modelSelect)    modelSelect.value = model;
+    if (languageSelect) languageSelect.value = lang;
   }
 
   // ── Save keys ──
@@ -182,6 +186,12 @@
     });
   }
 
+  if (languageSelect) {
+    languageSelect.addEventListener('change', () => {
+      localStorage.setItem(STORAGE_KEYS.outputLanguage, languageSelect.value);
+    });
+  }
+
   // ── Button event listeners ──
   if (saveOpenaiBtn) saveOpenaiBtn.addEventListener('click', saveOpenaiKey);
   if (saveGeminiBtn) saveGeminiBtn.addEventListener('click', saveGeminiKey);
@@ -200,6 +210,7 @@
     getNanobananaKey: () => localStorage.getItem(STORAGE_KEYS.nanobananaKey) || '',
     getGptimageKey:   () => localStorage.getItem(STORAGE_KEYS.gptimageKey) || '',
     getSelectedModel:() => localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini',
+    getOutputLanguage:() => localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文',
     hasApiKey: function(model) {
       if (model === 'openai') return !!this.getOpenAIKey();
       if (model === 'gemini') return !!this.getGeminiKey();

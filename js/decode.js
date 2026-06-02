@@ -126,15 +126,17 @@
       updateLoadingText(`正在使用 ${model} 進行深度視覺解構...`);
 
       let analysis;
+      const lang = window.StudioSettings.getOutputLanguage();
+
       if (model === 'openai') {
         const key = window.StudioSettings.getOpenAIKey();
-        analysis = await window.AIService.analyzeWithOpenAI(base64, key, mimeType);
+        analysis = await window.AIService.analyzeWithOpenAI(base64, key, mimeType, lang);
       } else if (model === 'geminilite') {
         const key = window.StudioSettings.getGeminiliteKey();
-        analysis = await window.AIService.analyzeWithGeminilite(base64, key, mimeType);
+        analysis = await window.AIService.analyzeWithGeminilite(base64, key, mimeType, lang);
       } else {
         const key = window.StudioSettings.getGeminiKey();
-        analysis = await window.AIService.analyzeWithGemini(base64, key, mimeType);
+        analysis = await window.AIService.analyzeWithGemini(base64, key, mimeType, 'gemini-3.5-flash', lang);
       }
 
       currentAnalysis = analysis;

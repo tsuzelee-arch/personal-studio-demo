@@ -61,12 +61,13 @@ Analyze the user-provided image and reverse-engineer its visual components into 
 }`;
 
   // ── OpenAI Vision API (ChatGPT 5.5) ──
-  async function analyzeWithOpenAI(imageBase64, apiKey, mimeType) {
+  async function analyzeWithOpenAI(imageBase64, apiKey, mimeType, outputLanguage = '繁體中文') {
+    const dynamicPrompt = SYSTEM_PROMPT + `\n\nCRITICAL INSTRUCTION: You MUST output all descriptive text values (except JSON keys and structure) in ${outputLanguage} language.`;
     const url = 'https://api.openai.com/v1/chat/completions';
     const body = {
       model: 'chatgpt-5.5',
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: dynamicPrompt },
         {
           role: 'user',
           content: [
@@ -107,13 +108,14 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   }
 
   // ── Google Gemini API ──
-  async function analyzeWithGemini(imageBase64, apiKey, mimeType, modelName = 'gemini-3.5-flash') {
+  async function analyzeWithGemini(imageBase64, apiKey, mimeType, modelName = 'gemini-3.5-flash', outputLanguage = '繁體中文') {
+    const dynamicPrompt = SYSTEM_PROMPT + `\n\nCRITICAL INSTRUCTION: You MUST output all descriptive text values (except JSON keys and structure) in ${outputLanguage} language.`;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{
         role: "user",
         parts: [
-          { text: SYSTEM_PROMPT },
+          { text: dynamicPrompt },
           { inline_data: { mime_type: mimeType, data: imageBase64 } }
         ]
       }],
@@ -142,8 +144,8 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   }
 
   // ── Gemini 2.5 Lite API ──
-  async function analyzeWithGeminilite(imageBase64, apiKey, mimeType) {
-    return analyzeWithGemini(imageBase64, apiKey, mimeType, 'gemini-2.5-flash-lite');
+  async function analyzeWithGeminilite(imageBase64, apiKey, mimeType, outputLanguage = '繁體中文') {
+    return analyzeWithGemini(imageBase64, apiKey, mimeType, 'gemini-2.5-flash-lite', outputLanguage);
   }
 
   // ── Parse AI response ──

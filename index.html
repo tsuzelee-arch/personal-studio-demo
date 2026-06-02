@@ -37,14 +37,25 @@
       <section class="panel active" id="panel-decode">
         <div class="decode-layout">
           <!-- Model Selector -->
-          <div class="model-selector-bar">
-            <label class="model-selector-label">分析模型：</label>
-            <select class="model-select" id="modelSelect">
-              <option value="gemini">Gemini 3.5 Flash</option>
-              <option value="openai">ChatGPT 5.5</option>
-              <option value="geminilite">Gemini 2.5 Lite</option>
-            </select>
-            <span class="model-status" id="modelStatus"></span>
+          <div class="model-selector-bar" style="display: flex; align-items: center;">
+            <div class="control-group" style="display: flex; align-items: center;">
+              <label>分析模型：</label>
+              <select id="modelSelect" class="form-select form-select-sm">
+                <option value="gemini">Gemini 3.5 Flash</option>
+                <option value="openai">ChatGPT 5.5</option>
+                <option value="geminilite">Gemini 2.5 Lite</option>
+              </select>
+              <span class="model-status" id="modelStatus"></span>
+            </div>
+            <div class="control-group" style="margin-left:15px; display: flex; align-items: center;">
+              <label>輸出語言：</label>
+              <select id="languageSelect" class="form-select form-select-sm">
+                <option value="繁體中文">繁體中文</option>
+                <option value="English">English</option>
+                <option value="简体中文">简体中文</option>
+                <option value="日本語">日本語</option>
+              </select>
+            </div>
           </div>
 
           <div class="decode-upload-area" id="dropZone">
@@ -403,11 +414,11 @@
 <!-- Toast notification -->
 <div class="toast hidden" id="toast"></div>
 
-<script src="js/app.js?v=7"></script>
-<script src="js/ai-service.js?v=7"></script>
-<script src="js/settings.js?v=7"></script>
-<script src="js/decode.js?v=7"></script>
-<script src="js/prompts.js?v=7"></script>
-<script src="js/workflow.js?v=7"></script>
+<script src="js/app.js?v=8"></script>
+<script src="js/ai-service.js?v=8"></script>
+<script src="js/settings.js?v=8"></script>
+<script src="js/decode.js?v=8"></script>
+<script src="js/prompts.js?v=8"></script>
+<script src="js/workflow.js?v=8"></script>
 </body>
 </html>
