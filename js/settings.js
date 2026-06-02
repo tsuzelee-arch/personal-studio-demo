@@ -6,8 +6,6 @@
     openaiKey: 'ps_openai_key',
     geminiKey: 'ps_gemini_key',
     geminiliteKey: 'ps_geminilite_key',
-    groqKey: 'ps_groq_key',
-    groqModel: 'ps_groq_model',
     nanobananaKey: 'ps_nanobanana_key',
     gptimageKey: 'ps_gptimage_key',
     selectedModel: 'ps_selected_model'
@@ -17,25 +15,19 @@
   const openaiKeyInput  = document.getElementById('openaiKeyInput');
   const geminiKeyInput  = document.getElementById('geminiKeyInput');
   const geminiliteKeyInput = document.getElementById('geminiliteKeyInput');
-  const groqKeyInput = document.getElementById('groqKeyInput');
-  const groqModelInput = document.getElementById('groqModelInput');
   const nanobananaKeyInput = document.getElementById('nanobananaKeyInput');
   const gptimageKeyInput = document.getElementById('gptimageKeyInput');
   const saveOpenaiBtn   = document.getElementById('saveOpenaiBtn');
   const saveGeminiBtn   = document.getElementById('saveGeminiBtn');
   const saveGeminiliteBtn = document.getElementById('saveGeminiliteBtn');
-  const saveGroqBtn = document.getElementById('saveGroqBtn');
-  const saveGroqModelBtn = document.getElementById('saveGroqModelBtn');
   const saveNanobananaBtn = document.getElementById('saveNanobananaBtn');
   const saveGptimageBtn = document.getElementById('saveGptimageBtn');
   const testOpenaiBtn   = document.getElementById('testOpenaiBtn');
   const testGeminiBtn   = document.getElementById('testGeminiBtn');
   const testGeminiliteBtn = document.getElementById('testGeminiliteBtn');
-  const testGroqBtn = document.getElementById('testGroqBtn');
   const openaiStatus    = document.getElementById('openaiStatus');
   const geminiStatus    = document.getElementById('geminiStatus');
   const geminiliteStatus = document.getElementById('geminiliteStatus');
-  const groqStatus = document.getElementById('groqStatus');
   const nanobananaStatus = document.getElementById('nanobananaStatus');
   const gptimageStatus = document.getElementById('gptimageStatus');
   const modelSelect     = document.getElementById('modelSelect');
@@ -45,8 +37,6 @@
     const oKey = localStorage.getItem(STORAGE_KEYS.openaiKey) || '';
     const gKey = localStorage.getItem(STORAGE_KEYS.geminiKey) || '';
     const glKey = localStorage.getItem(STORAGE_KEYS.geminiliteKey) || '';
-    const groqKey = localStorage.getItem(STORAGE_KEYS.groqKey) || '';
-    const groqModelStr = localStorage.getItem(STORAGE_KEYS.groqModel) || 'llama-3.2-11b-vision-instruct';
     const nbKey = localStorage.getItem(STORAGE_KEYS.nanobananaKey) || '';
     const giKey = localStorage.getItem(STORAGE_KEYS.gptimageKey) || '';
     const model = localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini';
@@ -54,8 +44,6 @@
     if (openaiKeyInput) openaiKeyInput.value = oKey;
     if (geminiKeyInput) geminiKeyInput.value = gKey;
     if (geminiliteKeyInput) geminiliteKeyInput.value = glKey;
-    if (groqKeyInput) groqKeyInput.value = groqKey;
-    if (groqModelInput) groqModelInput.value = groqModelStr;
     if (nanobananaKeyInput) nanobananaKeyInput.value = nbKey;
     if (gptimageKeyInput) gptimageKeyInput.value = giKey;
     if (modelSelect)    modelSelect.value = model;
@@ -81,19 +69,6 @@
     localStorage.setItem(STORAGE_KEYS.geminiliteKey, key);
     showToast(key ? 'Gemini 2.5 Lite API Key 已儲存' : 'Gemini 2.5 Lite API Key 已清除');
     updateStatusIndicator(geminiliteStatus, 'saved');
-  }
-
-  function saveGroqKey() {
-    const key = groqKeyInput.value.trim();
-    localStorage.setItem(STORAGE_KEYS.groqKey, key);
-    showToast(key ? 'Groq API Key 已儲存' : 'Groq API Key 已清除');
-    updateStatusIndicator(groqStatus, 'saved');
-  }
-
-  function saveGroqModel() {
-    const m = groqModelInput.value.trim();
-    localStorage.setItem(STORAGE_KEYS.groqModel, m);
-    showToast('Groq 模型 ID 已更新');
   }
 
   function saveNanobananaKey() {
@@ -174,27 +149,6 @@
     }
   }
 
-  async function testGroq() {
-    const key = groqKeyInput.value.trim();
-    if (!key) { showToast('請先輸入 Groq API Key'); return; }
-
-    updateStatusIndicator(groqStatus, 'testing');
-    testGroqBtn.disabled = true;
-    testGroqBtn.textContent = '測試中...';
-
-    try {
-      await window.AIService.testGroq(key);
-      updateStatusIndicator(groqStatus, 'success');
-      showToast('✅ Groq 連線成功！');
-    } catch (err) {
-      updateStatusIndicator(groqStatus, 'error', err.message);
-      showToast('❌ Groq 連線失敗：' + err.message, 4000);
-    } finally {
-      testGroqBtn.disabled = false;
-      testGroqBtn.textContent = '測試連線';
-    }
-  }
-
   // ── Status indicator ──
   function updateStatusIndicator(el, state, message) {
     if (!el) return;
@@ -232,22 +186,17 @@
   if (saveOpenaiBtn) saveOpenaiBtn.addEventListener('click', saveOpenaiKey);
   if (saveGeminiBtn) saveGeminiBtn.addEventListener('click', saveGeminiKey);
   if (saveGeminiliteBtn) saveGeminiliteBtn.addEventListener('click', saveGeminiliteKey);
-  if (saveGroqBtn) saveGroqBtn.addEventListener('click', saveGroqKey);
-  if (saveGroqModelBtn) saveGroqModelBtn.addEventListener('click', saveGroqModel);
   if (saveNanobananaBtn) saveNanobananaBtn.addEventListener('click', saveNanobananaKey);
   if (saveGptimageBtn) saveGptimageBtn.addEventListener('click', saveGptimageKey);
   if (testOpenaiBtn) testOpenaiBtn.addEventListener('click', testOpenAI);
   if (testGeminiBtn) testGeminiBtn.addEventListener('click', testGemini);
   if (testGeminiliteBtn) testGeminiliteBtn.addEventListener('click', testGeminilite);
-  if (testGroqBtn) testGroqBtn.addEventListener('click', testGroq);
 
   // ── Public getters ──
   window.StudioSettings = {
     getOpenAIKey:    () => localStorage.getItem(STORAGE_KEYS.openaiKey) || '',
     getGeminiKey:    () => localStorage.getItem(STORAGE_KEYS.geminiKey) || '',
     getGeminiliteKey:() => localStorage.getItem(STORAGE_KEYS.geminiliteKey) || '',
-    getGroqKey:      () => localStorage.getItem(STORAGE_KEYS.groqKey) || '',
-    getGroqModel:    () => localStorage.getItem(STORAGE_KEYS.groqModel) || 'llama-3.2-11b-vision-instruct',
     getNanobananaKey: () => localStorage.getItem(STORAGE_KEYS.nanobananaKey) || '',
     getGptimageKey:   () => localStorage.getItem(STORAGE_KEYS.gptimageKey) || '',
     getSelectedModel:() => localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini',

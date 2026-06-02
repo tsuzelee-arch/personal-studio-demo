@@ -43,7 +43,6 @@
               <option value="gemini">Gemini 3.5 Flash</option>
               <option value="openai">ChatGPT 5.5</option>
               <option value="geminilite">Gemini 2.5 Lite</option>
-              <option value="groq">Groq</option>
             </select>
             <span class="model-status" id="modelStatus"></span>
           </div>
@@ -330,28 +329,7 @@
             </div>
           </div>
 
-          <!-- Groq Settings -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">⚡</span>
-              <span class="settings-card-title">Groq</span>
-            </div>
-            <div class="settings-card-body">
-              <label class="form-label">API KEY</label>
-              <div class="key-input-row">
-                <input type="password" class="form-input key-input" id="groqKeyInput" placeholder="gsk_...">
-                <button class="btn-primary" id="saveGroqBtn">儲存</button>
-                <button class="btn-ghost" id="testGroqBtn">測試連線</button>
-              </div>
-              <label class="form-label" style="margin-top:12px;">模型名稱 (Model ID)</label>
-              <div class="key-input-row">
-                <input type="text" class="form-input key-input" id="groqModelInput" placeholder="例如：llama-3.2-11b-vision-instruct" value="llama-3.2-11b-vision-instruct">
-                <button class="btn-primary" id="saveGroqModelBtn">儲存</button>
-              </div>
-              <div class="conn-status" id="groqStatus"></div>
-              <div class="settings-hint">預設使用 Groq 提供的視覺模型進行極速推論。若發生模型不存在錯誤，請前往 Groq Console 確認並在此填寫最新的模型 ID。</div>
-            </div>
-          </div>
+
 
           <!-- Nano Banana Pro Settings -->
           <div class="settings-card">
@@ -425,11 +403,11 @@
 <!-- Toast notification -->
 <div class="toast hidden" id="toast"></div>
 
-<script src="js/app.js?v=5"></script>
-<script src="js/ai-service.js?v=5"></script>
-<script src="js/settings.js?v=5"></script>
-<script src="js/decode.js?v=5"></script>
-<script src="js/prompts.js?v=5"></script>
-<script src="js/workflow.js?v=5"></script>
+<script src="js/app.js?v=6"></script>
+<script src="js/ai-service.js?v=6"></script>
+<script src="js/settings.js?v=6"></script>
+<script src="js/decode.js?v=6"></script>
+<script src="js/prompts.js?v=6"></script>
+<script src="js/workflow.js?v=6"></script>
 </body>
 </html>

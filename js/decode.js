@@ -129,10 +129,6 @@
       if (model === 'openai') {
         const key = window.StudioSettings.getOpenAIKey();
         analysis = await window.AIService.analyzeWithOpenAI(base64, key, mimeType);
-      } else if (model === 'groq') {
-        const key = window.StudioSettings.getGroqKey();
-        const groqModel = window.StudioSettings.getGroqModel();
-        analysis = await window.AIService.analyzeWithGroq(base64, key, mimeType, groqModel);
       } else if (model === 'geminilite') {
         const key = window.StudioSettings.getGeminiliteKey();
         analysis = await window.AIService.analyzeWithGeminilite(base64, key, mimeType);

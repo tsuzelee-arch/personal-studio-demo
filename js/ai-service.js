@@ -141,47 +141,6 @@ Analyze the user-provided image and reverse-engineer its visual components into 
     return parseAIResponse(textOutput);
   }
 
-  // ── Groq API ──
-  async function analyzeWithGroq(imageBase64, apiKey, mimeType, modelName = "llama-3.2-11b-vision-instruct") {
-    const url = 'https://api.groq.com/openai/v1/chat/completions';
-    const payload = {
-      model: modelName,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: SYSTEM_PROMPT },
-            {
-              type: "image_url",
-              image_url: { url: `data:${mimeType};base64,${imageBase64}` }
-            }
-          ]
-        }
-      ],
-      temperature: 0.2
-    };
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `Groq API Error: ${res.status}`);
-    }
-
-    const data = await res.json();
-    let content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Invalid response format from Groq');
-
-    return parseAIResponse(content);
-  }
-
   // ── Gemini 2.5 Lite API ──
   async function analyzeWithGeminilite(imageBase64, apiKey, mimeType) {
     return analyzeWithGemini(imageBase64, apiKey, mimeType, 'gemini-2.5-flash-lite');
