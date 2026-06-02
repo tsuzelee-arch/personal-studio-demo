@@ -39,49 +39,14 @@
       }
     },
     {
-      title: '④ 圖像生成',
-      desc: '使用組建的提示詞，透過進階模型直接生成圖像。',
-      action: '開始生成',
-      onAction: async () => {
-        const res = window.StudioState.decodeResult;
-        if (!res) { showToast('請先完成前面的步驟'); return; }
-
-        const actionBtns = document.querySelectorAll('.step-action');
-        const btn = actionBtns[actionBtns.length - 1];
-        if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
-
-        try {
-          let model = 'gptImage';
-          let key = window.StudioSettings.getGptImageKey();
-          if (!key) {
-            model = 'nano';
-            key = window.StudioSettings.getNanoKey();
-          }
-          if (!key) {
-            throw new Error("請先至「設定」面板配置 GPT Image 2.0 或 Nano Banana Pro 金鑰");
-          }
-
-          showToast(`⏳ 正在使用 ${model === 'gptImage' ? 'GPT Image 2.0' : 'Nano Banana Pro'} 生成圖像...`);
-
-          let imageUrl;
-          if (model === 'gptImage') {
-            imageUrl = await window.AIService.generateWithGPTImage(res.promptText, key);
-          } else {
-            imageUrl = await window.AIService.generateWithNanoBanana(res.promptText, key);
-          }
-
-          markStep(3);
-          showToast('✅ 圖像生成成功！');
-          updateStepResult(3, `<div style="margin-top: 10px; font-weight: 600; color: var(--warm-dark);">${model === 'gptImage' ? 'GPT Image 2.0' : 'Nano Banana Pro'} 生成結果：</div><img src="${imageUrl}" alt="Generated Image" style="max-width: 100%; border-radius: 8px; margin-top: 10px; box-shadow: var(--card-shadow);">`);
-          renderPipeline();
-        } catch (err) {
-          showToast('❌ 生成失敗：' + err.message, 4000);
-        } finally {
-          if (btn) { btn.disabled = false; btn.textContent = '開始生成'; }
-        }
-      }
+      title: '④ 圖像生成 (進階)',
+      desc: '使用高階模型將提示詞直接轉換為圖像。',
+      action: '選擇模型並生成',
+      onAction: () => { /* Custom handled in renderPipeline */ }
     }
   ];
+
+  let isGeneratingImage = false;
 
   let stepStates = [false, false, false, false];
   let stepResults = ['', '', '', ''];
@@ -139,25 +104,97 @@
       body.appendChild(desc);
 
       if (!isDone) {
-        const actionBtn = document.createElement('button');
-        actionBtn.className = 'step-action btn-primary';
-        actionBtn.textContent = step.action;
-        actionBtn.disabled = !isActive;
-        if (!isActive) actionBtn.style.opacity = '0.4';
-        actionBtn.addEventListener('click', step.onAction);
-        body.appendChild(actionBtn);
+        if (i === 3 && isActive) {
+          // Custom UI for Step 4 (Image Generation)
+          const genControls = document.createElement('div');
+          genControls.className = 'workflow-gen-controls';
+          genControls.style.display = 'flex';
+          genControls.style.gap = '10px';
+          genControls.style.marginTop = '10px';
+          genControls.style.alignItems = 'center';
+
+          const modelSel = document.createElement('select');
+          modelSel.className = 'form-input';
+          modelSel.style.minWidth = '180px';
+          modelSel.innerHTML = `
+            <option value="nanobanana">Nano Banana Pro</option>
+            <option value="gptimage">GPT Image 2.0</option>
+          `;
+
+          const genBtn = document.createElement('button');
+          genBtn.className = 'step-action btn-primary';
+          genBtn.textContent = isGeneratingImage ? '生成中...' : '開始生成';
+          genBtn.disabled = isGeneratingImage;
+
+          genBtn.addEventListener('click', async () => {
+            const prompt = stepResults[2] || window.StudioState.decodeResult?.promptText;
+            if (!prompt) { showToast('找不到提示詞'); return; }
+
+            const model = modelSel.value;
+            const hasKey = window.StudioSettings.hasApiKey(model);
+            
+            if (!hasKey) {
+              showToast(`請先在設定面板配置 ${model === 'nanobanana' ? 'Nano Banana Pro' : 'GPT Image 2.0'} 的 API Key`);
+              return;
+            }
+
+            isGeneratingImage = true;
+            renderPipeline(); // re-render to show loading state
+
+            try {
+              const key = model === 'nanobanana' ? window.StudioSettings.getNanobananaKey() : window.StudioSettings.getGptimageKey();
+              let imageUrl = '';
+              if (model === 'nanobanana') {
+                imageUrl = await window.AIService.generateWithNanoBanana(prompt, key);
+              } else {
+                imageUrl = await window.AIService.generateWithGPTImage(prompt, key);
+              }
+
+              isGeneratingImage = false;
+              markStep(3);
+              stepResults[3] = imageUrl;
+              showToast('✨ 圖像生成成功！');
+            } catch(e) {
+              isGeneratingImage = false;
+              renderPipeline();
+              showToast('❌ 生成失敗：' + e.message);
+            }
+          });
+
+          genControls.appendChild(modelSel);
+          genControls.appendChild(genBtn);
+          body.appendChild(genControls);
+
+        } else {
+          // Standard action button
+          const actionBtn = document.createElement('button');
+          actionBtn.className = 'step-action btn-primary';
+          actionBtn.textContent = step.action;
+          actionBtn.disabled = !isActive;
+          if (!isActive) actionBtn.style.opacity = '0.4';
+          actionBtn.addEventListener('click', step.onAction);
+          body.appendChild(actionBtn);
+        }
       } else {
         body.appendChild(status);
         if (stepResults[i]) {
-          const result = document.createElement('div');
-          result.className = 'step-result visible';
-          // Using innerHTML instead of textContent to allow rendering the image tag
-          if (stepResults[i].includes('<img')) {
-            result.innerHTML = stepResults[i];
+          if (i === 3) {
+             // Display generated image
+             const imgWrapper = document.createElement('div');
+             imgWrapper.style.marginTop = '12px';
+             const img = document.createElement('img');
+             img.src = stepResults[i];
+             img.style.maxWidth = '100%';
+             img.style.borderRadius = '8px';
+             img.style.border = '1px solid var(--border)';
+             imgWrapper.appendChild(img);
+             body.appendChild(imgWrapper);
           } else {
+            const result = document.createElement('div');
+            result.className = 'step-result visible';
             result.textContent = stepResults[i];
+            body.appendChild(result);
           }
-          body.appendChild(result);
         }
       }
 

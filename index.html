@@ -302,7 +302,7 @@
           <div class="settings-card">
             <div class="settings-card-header">
               <span class="settings-card-icon">🤖</span>
-              <span class="settings-card-title">ChatGPT 5.5</span>
+              <span class="settings-card-title">OpenAI (ChatGPT)</span>
             </div>
             <div class="settings-card-body">
               <label class="form-label">API KEY</label>
@@ -312,7 +312,7 @@
                 <button class="btn-ghost" id="testOpenaiBtn">測試連線</button>
               </div>
               <div class="conn-status" id="openaiStatus"></div>
-              <div class="settings-hint">模型：chatgpt-5.5 · 視覺解碼模型</div>
+              <div class="settings-hint">模型：chatgpt-5.5 · 需要有 Vision 存取權限</div>
             </div>
           </div>
 
@@ -320,7 +320,7 @@
           <div class="settings-card">
             <div class="settings-card-header">
               <span class="settings-card-icon">✦</span>
-              <span class="settings-card-title">Gemini 3.5 Flash</span>
+              <span class="settings-card-title">Google Gemini</span>
             </div>
             <div class="settings-card-body">
               <label class="form-label">API KEY</label>
@@ -330,12 +330,8 @@
                 <button class="btn-ghost" id="testGeminiBtn">測試連線</button>
               </div>
               <div class="conn-status" id="geminiStatus"></div>
-              <div class="settings-hint">模型：gemini-3.5-flash · 視覺解碼模型</div>
+              <div class="settings-hint">模型：gemini-3.5-flash · 使用 Google AI Studio 金鑰</div>
             </div>
-          </div>
-
-          <div class="settings-intro" style="margin-top: 10px;">
-            <p>圖像生成模型 API 金鑰（用於簡易工作流）</p>
           </div>
 
           <!-- Nano Banana Pro Settings -->
@@ -347,12 +343,11 @@
             <div class="settings-card-body">
               <label class="form-label">API KEY</label>
               <div class="key-input-row">
-                <input type="password" class="form-input key-input" id="nanoKeyInput" placeholder="nb-...">
-                <button class="btn-primary" id="saveNanoBtn">儲存</button>
-                <button class="btn-ghost" id="testNanoBtn">測試連線</button>
+                <input type="password" class="form-input key-input" id="nanobananaKeyInput" placeholder="nb-...">
+                <button class="btn-primary" id="saveNanobananaBtn">儲存</button>
               </div>
-              <div class="conn-status" id="nanoStatus"></div>
-              <div class="settings-hint">模型：nano-banana-pro · 圖像生成模型</div>
+              <div class="conn-status" id="nanobananaStatus"></div>
+              <div class="settings-hint">模型：nano-banana-pro · 用於工作流的進階圖像生成</div>
             </div>
           </div>
 
@@ -365,12 +360,11 @@
             <div class="settings-card-body">
               <label class="form-label">API KEY</label>
               <div class="key-input-row">
-                <input type="password" class="form-input key-input" id="gptImageKeyInput" placeholder="gi-...">
-                <button class="btn-primary" id="saveGptImageBtn">儲存</button>
-                <button class="btn-ghost" id="testGptImageBtn">測試連線</button>
+                <input type="password" class="form-input key-input" id="gptimageKeyInput" placeholder="sk-...">
+                <button class="btn-primary" id="saveGptimageBtn">儲存</button>
               </div>
-              <div class="conn-status" id="gptImageStatus"></div>
-              <div class="settings-hint">模型：gpt-image-2.0 · 圖像生成模型</div>
+              <div class="conn-status" id="gptimageStatus"></div>
+              <div class="settings-hint">模型：gpt-image-2.0 · 用於工作流的高階圖像生成</div>
             </div>
           </div>
 
