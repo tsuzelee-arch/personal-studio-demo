@@ -668,7 +668,12 @@ body {
   line-height: 1.55;
   position: relative;
   border-left: 3px solid #d09080;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
+.negative-list li .negative-text { flex: 1; min-width: 0; }
 .negative-list li::before {
   content: "✕";
   position: absolute;
@@ -873,9 +878,17 @@ body {
 .material-item:hover .add-to-vault-btn,
 .dash-card-body:hover > .add-to-vault-btn,
 .meta-vault-wrap:hover .add-to-vault-btn,
-.mood-vault-wrap:hover .add-to-vault-btn {
+.mood-vault-wrap:hover .add-to-vault-btn,
+#cardPalette:hover > .add-to-vault-btn,
+#cardNegative:hover > .add-to-vault-btn,
+.negative-list li:hover .add-to-vault-btn {
   opacity: 1;
   transform: translateX(0);
+}
+/* Group vault buttons sit below their card content */
+#cardPalette > .add-to-vault-btn,
+#cardNegative > .add-to-vault-btn {
+  margin-top: 10px;
 }
 .add-to-vault-btn:hover {
   background: var(--warm);
@@ -904,6 +917,46 @@ body {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ── Prompt Card Thumbnails ── */
+.prompt-card-thumbnail {
+  margin: 6px 0 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--paper);
+}
+.prompt-card-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+.prompt-card-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0 8px;
+}
+.prompt-card-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid rgba(0,0,0,.12);
+  flex-shrink: 0;
+}
+
+/* ── Modal Thumbnail Preview ── */
+.prompt-thumb-preview {
+  margin-top: 12px;
+}
+.prompt-thumb-preview.hidden { display: none; }
+.prompt-thumb-preview .prompt-card-thumbnail img { height: 140px; }
+.prompt-thumb-preview .btn-sm {
+  margin-top: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
 }
 
 .empty-state {

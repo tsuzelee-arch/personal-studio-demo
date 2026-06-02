@@ -40,6 +40,25 @@
 
   let currentAnalysis = null;
   let currentFile = null;
+  let currentImageThumb = null; // downscaled data-URL of the decoded image (for vault thumbnails)
+
+  // Produce a small, persistable JPEG data-URL so localStorage stays light
+  // and the thumbnail survives page reloads (blob: URLs do not).
+  function makeThumbnail(imgEl, maxSize = 320) {
+    try {
+      const w = imgEl.naturalWidth || imgEl.width;
+      const h = imgEl.naturalHeight || imgEl.height;
+      if (!w || !h) return null;
+      const scale = Math.min(1, maxSize / Math.max(w, h));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      canvas.getContext('2d').drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.72);
+    } catch {
+      return null; // e.g. tainted canvas — fall back to no thumbnail
+    }
+  }
 
   // ── Initialization ──
   // Sync selected model from settings
@@ -73,6 +92,7 @@
     imageInput.value = '';
     currentAnalysis = null;
     currentFile = null;
+    currentImageThumb = null;
     window.StudioState.decodeResult = null;
   }
 
@@ -95,6 +115,7 @@
     const img = new Image();
     img.onload = () => {
       previewImg.src = url;
+      currentImageThumb = makeThumbnail(img);
       dropZone.classList.add('hidden');
       decodeLoading.classList.remove('hidden');
       startAnalysis(file);
@@ -197,7 +218,11 @@
   }
 
   // ── Add-to-vault helper ──
-  function addVaultButton(container, title, schemaKey, value) {
+  // thumbnail (optional): overrides the default decoded-image thumbnail.
+  //   - omit  → uses the current decoded image (previewImg.src)
+  //   - object { type: 'palette', colors: [...] } → renders colour swatches
+  //   - null  → no thumbnail
+  function addVaultButton(container, title, schemaKey, value, thumbnail) {
     if (!container || !value || value === 'N/A' || value === 'null') return;
     // Remove any existing vault button in this container
     const existing = container.querySelector('.add-to-vault-btn');
@@ -213,11 +238,17 @@
         showToast('提示詞庫模組尚未載入');
         return;
       }
+      // Default thumbnail = the currently decoded image (persistable data-URL)
+      let thumb = thumbnail;
+      if (thumb === undefined) {
+        thumb = currentImageThumb || null;
+      }
       const category = window.PromptsService.getCategoryForSchemaKey(schemaKey);
       window.PromptsService.openAddModal({
         title: title,
         category: category || '其他',
-        content: value
+        content: value,
+        thumbnail: thumb
       });
     });
     container.appendChild(btn);
@@ -254,7 +285,7 @@
 
   function renderPalette(palette) {
     paletteRow.innerHTML = '';
-    palette.forEach(hex => {
+    (palette || []).forEach(hex => {
       const block = document.createElement('div');
       block.className = 'palette-color';
       block.style.backgroundColor = hex;
@@ -264,6 +295,18 @@
       block.appendChild(text);
       paletteRow.appendChild(block);
     });
+
+    // Allow saving the whole palette to the vault (thumbnail = colour swatches)
+    const paletteCard = paletteRow.closest('.dash-card');
+    if (paletteCard && palette && palette.length) {
+      addVaultButton(
+        paletteCard,
+        '色彩色盤',
+        'color_palette',
+        palette.join(', '),
+        { type: 'palette', colors: palette.slice() }
+      );
+    }
   }
 
   function renderMood(text) {
@@ -337,11 +380,23 @@
 
   function renderNegativeConstraints(constraints) {
     negativeList.innerHTML = '';
-    (constraints || []).forEach(text => {
+    const list = constraints || [];
+    list.forEach(text => {
       const li = document.createElement('li');
-      li.textContent = text;
+      const span = document.createElement('span');
+      span.className = 'negative-text';
+      span.textContent = text;
+      li.appendChild(span);
+      // Per-item vault button (single constraint)
+      addVaultButton(li, `負面約束：${text}`, 'negative', text);
       negativeList.appendChild(li);
     });
+
+    // Whole-group vault button (all constraints merged)
+    const negCard = negativeList.closest('.dash-card');
+    if (negCard && list.length) {
+      addVaultButton(negCard, '負面約束（整組）', 'negative', list.join(', '));
+    }
   }
 
   // ── Prompt builder ──

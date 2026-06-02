@@ -64,6 +64,7 @@
   let editingId = null;
   let activeCategory = '全部';
   let searchQuery = '';
+  let modalThumbnail = null; // thumbnail being edited in the open modal
 
   function load() {
     try {
@@ -112,6 +113,7 @@
             <button class="icon-btn danger del-btn" title="刪除" data-id="${p.id}">&#x2715;</button>
           </div>
         </div>
+        ${thumbnailHtml(p.thumbnail)}
         <span class="prompt-card-cat ${catCls}">${escHtml(p.category)}</span>
         <div class="prompt-card-text">${escHtml(p.content)}</div>
       `;
@@ -229,6 +231,22 @@
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // Render a card/modal thumbnail. Supports an image data-URL string or a
+  // palette object { type: 'palette', colors: [...] } rendered as swatches.
+  function thumbnailHtml(thumb) {
+    if (!thumb) return '';
+    if (typeof thumb === 'object' && thumb.type === 'palette' && Array.isArray(thumb.colors)) {
+      const swatches = thumb.colors
+        .map(c => `<span class="prompt-card-swatch" style="background:${escHtml(String(c))}" title="${escHtml(String(c))}"></span>`)
+        .join('');
+      return `<div class="prompt-card-swatches">${swatches}</div>`;
+    }
+    if (typeof thumb === 'string') {
+      return `<div class="prompt-card-thumbnail"><img src="${escHtml(thumb)}" alt="thumbnail" loading="lazy"></div>`;
+    }
+    return '';
+  }
+
   function openModal(id, prefill) {
     editingId = id || null;
     const modal = document.getElementById('promptModal');
@@ -240,15 +258,19 @@
       document.getElementById('promptTitleInput').value = p.title;
       document.getElementById('promptCategoryInput').value = p.category;
       document.getElementById('promptContentInput').value = p.content;
+      modalThumbnail = p.thumbnail || null;
     } else if (prefill) {
       document.getElementById('promptTitleInput').value = prefill.title || '';
       document.getElementById('promptCategoryInput').value = prefill.category || getCategoryOptions()[0];
       document.getElementById('promptContentInput').value = prefill.content || '';
+      modalThumbnail = prefill.thumbnail || null;
     } else {
       document.getElementById('promptTitleInput').value = '';
       document.getElementById('promptCategoryInput').value = getCategoryOptions()[0];
       document.getElementById('promptContentInput').value = '';
+      modalThumbnail = null;
     }
+    renderModalThumbnail();
     modal.classList.remove('hidden');
     document.getElementById('promptTitleInput').focus();
   }
@@ -256,6 +278,29 @@
   function closeModal() {
     document.getElementById('promptModal').classList.add('hidden');
     editingId = null;
+    modalThumbnail = null;
+  }
+
+  // Render the thumbnail preview area inside the modal (if present in DOM)
+  function renderModalThumbnail() {
+    const wrap = document.getElementById('promptThumbPreview');
+    if (!wrap) return;
+    if (!modalThumbnail) {
+      wrap.classList.add('hidden');
+      wrap.innerHTML = '';
+      return;
+    }
+    wrap.classList.remove('hidden');
+    wrap.innerHTML = `
+      <label class="form-label">縮略圖預覽</label>
+      ${thumbnailHtml(modalThumbnail)}
+      <button type="button" class="btn-ghost btn-sm" id="promptThumbClear">移除縮略圖</button>
+    `;
+    const clearBtn = document.getElementById('promptThumbClear');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+      modalThumbnail = null;
+      renderModalThumbnail();
+    });
   }
 
   function saveModal() {
@@ -265,9 +310,9 @@
     if (!title || !content) { showToast('請填寫標題與內容'); return; }
     if (editingId) {
       const p = prompts.find(x => x.id === editingId);
-      if (p) { p.title = title; p.category = category; p.content = content; }
+      if (p) { p.title = title; p.category = category; p.content = content; p.thumbnail = modalThumbnail || null; }
     } else {
-      prompts.unshift({ id: nextId(), title, category, content });
+      prompts.unshift({ id: nextId(), title, category, content, thumbnail: modalThumbnail || null });
     }
     save();
     closeModal();
