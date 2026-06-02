@@ -207,13 +207,6 @@ Analyze the user-provided image and reverse-engineer its visual components into 
     return true;
   }
 
-  async function testGroq(apiKey) {
-    const res = await fetch('https://api.groq.com/openai/v1/models', {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    });
-    if (!res.ok) throw new Error(`Groq HTTP ${res.status}`);
-    return true;
-  }
 
   // ── File to Base64 ──
   function fileToBase64(file) {
@@ -287,13 +280,11 @@ Analyze the user-provided image and reverse-engineer its visual components into 
     analyzeWithOpenAI,
     analyzeWithGemini,
     analyzeWithGeminilite,
-    analyzeWithGroq,
     generateWithNanoBanana,
     generateWithGPTImage,
     testOpenAI,
     testGemini,
     testGeminilite,
-    testGroq,
     fileToBase64,
     SYSTEM_PROMPT
   };
