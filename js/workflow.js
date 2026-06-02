@@ -110,51 +110,34 @@
 
   // Generation Logic
   if (wfGenerateBtn) {
-    wfGenerateBtn.addEventListener('click', async () => {
+    wfGenerateBtn.addEventListener('click', () => {
       const prompt = wfPromptInput.value.trim();
       if (!prompt) {
         showToast('請先輸入提示詞！');
         return;
       }
-      
-      const model = wfModelSelect.value;
-      let apiKey = '';
-      if (model === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
-      else apiKey = window.StudioSettings.getNanobananaKey(); // Share key for nanobanana and nanobanana2
 
-      if (!apiKey) {
-        showToast(`請先至設定頁面填寫 ${model} 的 API Key`);
-        return;
-      }
-
-      wfGenerateBtn.textContent = '生成中... (Generating)';
+      wfGenerateBtn.textContent = '生成中... (Simulating)';
       wfGenerateBtn.disabled = true;
       wfPreviewImg.style.display = 'none';
       wfPreviewPlaceholder.style.display = 'flex';
-      wfPreviewPlaceholder.textContent = 'Generating...';
+      wfPreviewPlaceholder.textContent = 'Processing Workflow...';
 
-      try {
-        let imageUrl = '';
-        if (model === 'gptimage') {
-          imageUrl = await window.AIService.generateWithGPTImage(prompt, apiKey);
-        } else if (model === 'nanobanana2') {
-          imageUrl = await window.AIService.generateWithNanoBanana2(prompt, apiKey);
-        } else {
-          imageUrl = await window.AIService.generateWithNanoBanana(prompt, apiKey);
-        }
-
+      // Simulate a local workflow generation delay without calling external APIs
+      setTimeout(() => {
         wfPreviewPlaceholder.style.display = 'none';
-        wfPreviewImg.src = imageUrl;
-        wfPreviewImg.style.display = 'block';
-        showToast('✅ 生成成功！');
-      } catch (e) {
-        console.error(e);
-        wfPreviewPlaceholder.textContent = '生成失敗 (Error)';
-        showToast('❌ ' + e.message, 5000);
-      } finally {
+        
+        // Since no external APIs are called, we just show a local generic placeholder or keep it blank.
+        // Or we could leave the placeholder as "Generation Complete"
+        wfPreviewPlaceholder.textContent = 'Workflow Executed (Mock)';
+        wfPreviewPlaceholder.style.display = 'flex';
+        wfPreviewPlaceholder.style.background = '#dcf2e3'; // success color tint
+        wfPreviewPlaceholder.style.color = '#2e6b43';
+        
         wfGenerateBtn.textContent = '生成圖片 (Generate)';
         wfGenerateBtn.disabled = false;
-      }
+        showToast('✅ 工作流執行完畢 (本機模擬)');
+      }, 1500);
     });
   }
 
