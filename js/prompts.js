@@ -1,17 +1,65 @@
 (function() {
   const STORAGE_KEY = 'personal-studio-prompts';
-  const CATEGORIES = ['全部', 'Midjourney', 'SD', 'General', 'Style', '其他'];
-  const CAT_CLASS = { Midjourney: 'cat-mj', SD: 'cat-sd', General: 'cat-general', Style: 'cat-style', '其他': 'cat-other' };
+  const CUSTOM_CAT_KEY = 'personal-studio-custom-categories';
 
-  const SEED_PROMPTS = [
-    { id: 1, title: '電影光效人像', category: 'Midjourney', content: 'cinematic portrait, golden hour lighting, shallow depth of field, film grain, analog photography, warm tones, 35mm lens, highly detailed skin, --ar 2:3 --v 6' },
-    { id: 2, title: '極簡建築空間', category: 'Midjourney', content: 'minimalist architecture interior, concrete walls, natural light, shadows, brutalist style, wide angle, muted palette, editorial photography --ar 16:9 --v 6' },
-    { id: 3, title: '水彩插畫風格', category: 'SD', content: 'watercolor illustration, loose brushstrokes, paper texture, soft edges, pastel colors, Japanese aesthetic, artbook style, (masterpiece:1.2), high quality' },
-    { id: 4, title: '科幻概念設計', category: 'SD', content: 'sci-fi concept art, cyberpunk city, neon lights, rain, holographic displays, dark atmosphere, (Greg Rutkowski style:0.8), 8k, ultra detailed' },
-    { id: 5, title: '自然寫實風景', category: 'General', content: 'photorealistic landscape, golden light, misty mountains, forest, morning fog, award winning photography, National Geographic style, ultra detailed' },
-    { id: 6, title: '油畫質感肖像', category: 'Style', content: 'oil painting portrait, visible brushstrokes, Renaissance lighting, chiaroscuro, warm earth tones, museum quality, impasto technique, classical art style' },
-  ];
+  // ── Dynamic category extraction from SYSTEM_PROMPT schema ──
+  // Maps JSON keys from the AI response schema to human-readable category names
+  const SCHEMA_CATEGORY_MAP = {
+    'identity':               { label: '身分 (Identity)',          catClass: 'cat-identity' },
+    'clothing_or_surface':    { label: '服裝 (Clothing)',          catClass: 'cat-clothing' },
+    'pose_and_action':        { label: '姿勢 (Pose)',             catClass: 'cat-pose' },
+    'foreground_fx':          { label: '前景 (Foreground)',        catClass: 'cat-foreground' },
+    'midground_objects':      { label: '中景 (Midground)',        catClass: 'cat-midground' },
+    'background_environment': { label: '背景 (Background)',       catClass: 'cat-background' },
+    'estimated_style':        { label: '風格 (Style)',            catClass: 'cat-style' },
+    'mood_and_atmosphere':    { label: '氛圍 (Mood)',             catClass: 'cat-mood' },
+    'lighting':               { label: '光影 (Lighting)',          catClass: 'cat-lighting' },
+    'camera':                 { label: '攝影 (Camera)',           catClass: 'cat-camera' },
+    'material':               { label: '材質 (Material)',         catClass: 'cat-material' },
+    'negative':               { label: '負面約束 (Negative)',      catClass: 'cat-negative' },
+    'color_palette':          { label: '色盤 (Palette)',          catClass: 'cat-color_palette' }
+  };
 
+  function getDefaultCategories() {
+    // Start with schema-derived categories
+    const cats = Object.values(SCHEMA_CATEGORY_MAP).map(v => v.label);
+    return cats;
+  }
+
+  function loadCustomCategories() {
+    try {
+      const raw = localStorage.getItem(CUSTOM_CAT_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+
+  function saveCustomCategories(cats) {
+    localStorage.setItem(CUSTOM_CAT_KEY, JSON.stringify(cats));
+  }
+
+  function getAllCategories() {
+    return ['全部', ...getDefaultCategories(), ...loadCustomCategories()];
+  }
+
+  function getCategoryOptions() {
+    // All categories except '全部' for the select dropdown
+    return [...getDefaultCategories(), ...loadCustomCategories()];
+  }
+
+  function getCatClass(category) {
+    // Check schema map first
+    for (const [, val] of Object.entries(SCHEMA_CATEGORY_MAP)) {
+      if (val.label === category) return val.catClass;
+    }
+    // Custom categories
+    return 'cat-custom';
+  }
+
+  function isCustomCategory(cat) {
+    return loadCustomCategories().includes(cat);
+  }
+
+  // ── Prompt data ──
   let prompts = [];
   let editingId = null;
   let activeCategory = '全部';
@@ -20,11 +68,10 @@
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      prompts = raw ? JSON.parse(raw) : SEED_PROMPTS;
+      prompts = raw ? JSON.parse(raw) : [];
     } catch {
-      prompts = [...SEED_PROMPTS];
+      prompts = [];
     }
-    if (!prompts.length) prompts = [...SEED_PROMPTS];
   }
 
   function save() {
@@ -55,7 +102,7 @@
     filtered.forEach(p => {
       const card = document.createElement('div');
       card.className = 'prompt-card';
-      const catCls = CAT_CLASS[p.category] || 'cat-other';
+      const catCls = getCatClass(p.category);
       card.innerHTML = `
         <div class="prompt-card-header">
           <div class="prompt-card-title">${escHtml(p.title)}</div>
@@ -88,10 +135,29 @@
   function renderChips() {
     const chips = document.getElementById('categoryChips');
     chips.innerHTML = '';
-    CATEGORIES.forEach(cat => {
+    const allCats = getAllCategories();
+
+    allCats.forEach(cat => {
       const chip = document.createElement('div');
       chip.className = 'chip' + (cat === activeCategory ? ' active' : '');
-      chip.textContent = cat;
+      
+      const label = document.createElement('span');
+      label.textContent = cat;
+      chip.appendChild(label);
+
+      // Add delete button for custom categories
+      if (isCustomCategory(cat)) {
+        const del = document.createElement('button');
+        del.className = 'chip-delete';
+        del.innerHTML = '&#x2715;';
+        del.title = '刪除此分類';
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteCategory(cat);
+        });
+        chip.appendChild(del);
+      }
+
       chip.addEventListener('click', () => {
         activeCategory = cat;
         renderChips();
@@ -99,24 +165,88 @@
       });
       chips.appendChild(chip);
     });
+
+    // Add "+ 新增分類" chip
+    const addChip = document.createElement('div');
+    addChip.className = 'chip chip-add';
+    addChip.textContent = '+ 新增分類';
+    addChip.addEventListener('click', () => addCategory());
+    chips.appendChild(addChip);
+  }
+
+  function addCategory() {
+    const name = prompt('請輸入新分類名稱：');
+    if (!name || !name.trim()) return;
+    const trimmed = name.trim();
+
+    // Check for duplicates
+    const allCats = getAllCategories();
+    if (allCats.includes(trimmed)) {
+      showToast('此分類已存在');
+      return;
+    }
+
+    const custom = loadCustomCategories();
+    custom.push(trimmed);
+    saveCustomCategories(custom);
+    renderChips();
+    populateCategorySelect();
+    showToast(`已新增分類「${trimmed}」`);
+  }
+
+  function deleteCategory(cat) {
+    if (!confirm(`確定刪除分類「${cat}」？該分類下的提示詞將被歸類至「其他」。`)) return;
+    const custom = loadCustomCategories().filter(c => c !== cat);
+    saveCustomCategories(custom);
+
+    // Reassign prompts in deleted category
+    prompts.forEach(p => {
+      if (p.category === cat) p.category = '其他';
+    });
+    save();
+
+    if (activeCategory === cat) activeCategory = '全部';
+    renderChips();
+    populateCategorySelect();
+    render();
+    showToast(`已刪除分類「${cat}」`);
+  }
+
+  function populateCategorySelect() {
+    const select = document.getElementById('promptCategoryInput');
+    if (!select) return;
+    const options = getCategoryOptions();
+    select.innerHTML = '';
+    options.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    });
   }
 
   function escHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function openModal(id) {
+  function openModal(id, prefill) {
     editingId = id || null;
     const modal = document.getElementById('promptModal');
     document.getElementById('modalTitle').textContent = id ? '編輯提示詞' : '新增提示詞';
+    populateCategorySelect();
+
     if (id) {
       const p = prompts.find(x => x.id === id);
       document.getElementById('promptTitleInput').value = p.title;
       document.getElementById('promptCategoryInput').value = p.category;
       document.getElementById('promptContentInput').value = p.content;
+    } else if (prefill) {
+      document.getElementById('promptTitleInput').value = prefill.title || '';
+      document.getElementById('promptCategoryInput').value = prefill.category || getCategoryOptions()[0];
+      document.getElementById('promptContentInput').value = prefill.content || '';
     } else {
       document.getElementById('promptTitleInput').value = '';
-      document.getElementById('promptCategoryInput').value = 'Midjourney';
+      document.getElementById('promptCategoryInput').value = getCategoryOptions()[0];
       document.getElementById('promptContentInput').value = '';
     }
     modal.classList.remove('hidden');
@@ -153,7 +283,7 @@
     showToast('已刪除');
   }
 
-  // Event bindings
+  // ── Event bindings ──
   document.getElementById('addPromptBtn').addEventListener('click', () => openModal(null));
   document.getElementById('modalClose').addEventListener('click', closeModal);
   document.getElementById('modalCancel').addEventListener('click', closeModal);
@@ -166,7 +296,20 @@
     render();
   });
 
-  // Init
+  // ── Public API for external modules (e.g., decode.js) ──
+  window.PromptsService = {
+    openAddModal: function(prefill) {
+      // Switch to prompts panel then open modal
+      if (window.switchPanel) window.switchPanel('prompts');
+      setTimeout(() => openModal(null, prefill), 100);
+    },
+    getCategoryForSchemaKey: function(key) {
+      const entry = SCHEMA_CATEGORY_MAP[key];
+      return entry ? entry.label : null;
+    }
+  };
+
+  // ── Init ──
   load();
   renderChips();
   render();

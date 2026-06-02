@@ -788,6 +788,114 @@ body {
 .cat-style { background: #fff0e0; color: #804020; }
 .cat-other { background: var(--paper); color: var(--muted); }
 
+/* ── Dynamic Category Chip Enhancements ── */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.chip-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  line-height: 1;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s, background .15s, color .15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.chip:hover .chip-delete { opacity: 1; }
+.chip-delete:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.chip-add {
+  border-style: dashed;
+  color: var(--warm);
+  border-color: var(--warm);
+  background: transparent;
+  font-weight: 600;
+}
+.chip-add:hover {
+  background: #fdf5e6;
+  border-style: solid;
+}
+
+/* ── Dynamic Category Badge Colors ── */
+.cat-identity        { background: #e8f0ff; color: #304080; }
+.cat-clothing        { background: #fff0e0; color: #804020; }
+.cat-pose            { background: #f0e8ff; color: #6030a0; }
+.cat-foreground      { background: #e0f0e8; color: #306040; }
+.cat-midground       { background: #f0f0e0; color: #606020; }
+.cat-background      { background: #e0e8f0; color: #2a4060; }
+.cat-style           { background: #fff0e0; color: #804020; }
+.cat-mood            { background: #fce4ec; color: #8a2040; }
+.cat-lighting        { background: #fff8e1; color: #6a5a10; }
+.cat-camera          { background: #e0f7fa; color: #006070; }
+.cat-material        { background: #efebe9; color: #5a4030; }
+.cat-negative        { background: #fbe9e7; color: #7a3020; }
+.cat-color_palette   { background: #f3e5f5; color: #6a2080; }
+.cat-custom          { background: #e8eaf6; color: #3040a0; }
+
+/* ── Add to Vault Button (Decode Dashboard) ── */
+.add-to-vault-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .2s;
+  opacity: 0;
+  transform: translateX(-4px);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.subject-item:hover .add-to-vault-btn,
+.element-section:hover .add-to-vault-btn,
+.lighting-detail:hover .add-to-vault-btn,
+.lighting-section:hover > .add-to-vault-btn,
+.camera-item:hover .add-to-vault-btn,
+.material-item:hover .add-to-vault-btn,
+.dash-card-body:hover > .add-to-vault-btn,
+.meta-vault-wrap:hover .add-to-vault-btn,
+.mood-vault-wrap:hover .add-to-vault-btn {
+  opacity: 1;
+  transform: translateX(0);
+}
+.add-to-vault-btn:hover {
+  background: var(--warm);
+  border-color: var(--warm);
+  color: var(--ink);
+}
+
+/* Wrapper for inline vault button placement */
+.vault-btn-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.vault-btn-row > p,
+.vault-btn-row > div {
+  flex: 1;
+  min-width: 0;
+}
+
 .prompt-card-text {
   font-size: 12px;
   color: var(--muted);

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Studio</title>
-<link rel="stylesheet" href="css/style.css?v=12">
+<link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body>
 <div class="shell">
@@ -448,11 +448,7 @@
       <input type="text" class="form-input" id="promptTitleInput" placeholder="提示詞名稱">
       <label class="form-label">分類</label>
       <select class="form-input" id="promptCategoryInput">
-        <option value="Midjourney">Midjourney</option>
-        <option value="SD">Stable Diffusion</option>
-        <option value="General">General</option>
-        <option value="Style">Style</option>
-        <option value="其他">其他</option>
+        <!-- Categories are dynamically populated by prompts.js -->
       </select>
       <label class="form-label">提示詞內容</label>
       <textarea class="form-textarea" id="promptContentInput" placeholder="輸入提示詞..."></textarea>
@@ -467,11 +463,11 @@
 <!-- Toast notification -->
 <div class="toast hidden" id="toast"></div>
 
-<script src="js/app.js?v=19"></script>
-<script src="js/ai-service.js?v=19"></script>
-<script src="js/settings.js?v=19"></script>
-<script src="js/decode.js?v=19"></script>
-<script src="js/prompts.js?v=19"></script>
-<script src="js/workflow.js?v=19"></script>
+<script src="js/app.js?v=20"></script>
+<script src="js/ai-service.js?v=20"></script>
+<script src="js/settings.js?v=20"></script>
+<script src="js/decode.js?v=20"></script>
+<script src="js/prompts.js?v=20"></script>
+<script src="js/workflow.js?v=20"></script>
 </body>
 </html>

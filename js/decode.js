@@ -196,6 +196,33 @@
     });
   }
 
+  // ── Add-to-vault helper ──
+  function addVaultButton(container, title, schemaKey, value) {
+    if (!container || !value || value === 'N/A' || value === 'null') return;
+    // Remove any existing vault button in this container
+    const existing = container.querySelector('.add-to-vault-btn');
+    if (existing) existing.remove();
+
+    const btn = document.createElement('button');
+    btn.className = 'add-to-vault-btn';
+    btn.innerHTML = '📥 存入詞庫';
+    btn.title = `將「${title}」存入提示詞庫`;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!window.PromptsService) {
+        showToast('提示詞庫模組尚未載入');
+        return;
+      }
+      const category = window.PromptsService.getCategoryForSchemaKey(schemaKey);
+      window.PromptsService.openAddModal({
+        title: title,
+        category: category || '其他',
+        content: value
+      });
+    });
+    container.appendChild(btn);
+  }
+
   // ── Rendering Functions ──
   function renderAnalysis(analysis) {
     renderPalette(analysis.analysis_metadata.color_palette);
@@ -239,19 +266,34 @@
     });
   }
 
-  function renderMood(text) { moodText.textContent = text; }
+  function renderMood(text) {
+    moodText.textContent = text;
+    addVaultButton(moodText.parentElement, '氛圍描述', 'mood_and_atmosphere', text);
+  }
   
   function renderMetadata(meta) {
     metaStyle.textContent = meta.estimated_style || 'N/A';
+    addVaultButton(metaStyle.parentElement, '風格推估', 'estimated_style', meta.estimated_style);
   }
 
   function renderElements(el) {
     elForeground.textContent = el.foreground_fx || 'N/A';
+    addVaultButton(elForeground.parentElement, '前景特效', 'foreground_fx', el.foreground_fx);
+
     elSubjectIdentity.textContent = el.main_subject?.identity || 'N/A';
+    addVaultButton(elSubjectIdentity.closest('.subject-item'), '主體身分', 'identity', el.main_subject?.identity);
+
     elSubjectClothing.textContent = el.main_subject?.clothing_or_surface || 'N/A';
+    addVaultButton(elSubjectClothing.closest('.subject-item'), '服裝/表面', 'clothing_or_surface', el.main_subject?.clothing_or_surface);
+
     elSubjectPose.textContent = el.main_subject?.pose_and_action || 'N/A';
+    addVaultButton(elSubjectPose.closest('.subject-item'), '姿勢與動作', 'pose_and_action', el.main_subject?.pose_and_action);
+
     elMidground.textContent = el.midground_objects || 'N/A';
+    addVaultButton(elMidground.parentElement, '中景物件', 'midground_objects', el.midground_objects);
+
     elBackground.textContent = el.background_environment || 'N/A';
+    addVaultButton(elBackground.parentElement, '背景環境', 'background_environment', el.background_environment);
   }
 
   function renderLighting(light, cam) {
@@ -259,9 +301,20 @@
     lightColorTemp.textContent = light.key_light?.color_temp || 'N/A';
     lightQuality.textContent = light.key_light?.quality || 'N/A';
     lightFill.textContent = light.fill_and_rim_lights || 'N/A';
+
+    // Combine all lighting info for vault
+    const lightingText = `Direction: ${light.key_light?.direction || 'N/A'}, Color Temp: ${light.key_light?.color_temp || 'N/A'}, Quality: ${light.key_light?.quality || 'N/A'}, Fill/Rim: ${light.fill_and_rim_lights || 'N/A'}`;
+    const lightSection = lightFill.closest('.lighting-section');
+    if (lightSection) addVaultButton(lightSection, '光影參數', 'lighting', lightingText);
+
     cameraLens.textContent = cam.estimated_lens || 'N/A';
     cameraDof.textContent = cam.depth_of_field || 'N/A';
     cameraAngle.textContent = cam.camera_angle || 'N/A';
+
+    // Combine all camera info for vault
+    const cameraText = `Lens: ${cam.estimated_lens || 'N/A'}, DoF: ${cam.depth_of_field || 'N/A'}, Angle: ${cam.camera_angle || 'N/A'}`;
+    const camItem = cameraAngle.closest('.camera-item');
+    if (camItem) addVaultButton(camItem, '攝影參數', 'camera', cameraText);
   }
 
   function renderMaterials(mats) {
@@ -277,6 +330,7 @@
       desc.textContent = value;
       item.appendChild(name);
       item.appendChild(desc);
+      addVaultButton(item, key.replace(/_/g, ' '), 'material', `${key.replace(/_/g, ' ')}: ${value}`);
       materialsList.appendChild(item);
     }
   }
