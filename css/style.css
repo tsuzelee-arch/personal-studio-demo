@@ -1148,5 +1148,101 @@ body {
 
 /* ── Utility ── */
 .hidden { display: none !important; }
-. d e c o d e - p r e v i e w - o n l y   {   d i s p l a y :   f l e x ;   f l e x - d i r e c t i o n :   c o l u m n ;   a l i g n - i t e m s :   c e n t e r ;   g a p :   1 5 p x ;   m a r g i n - t o p :   2 0 p x ;   }   . p r e v i e w - a c t i o n s   {   d i s p l a y :   f l e x ;   w i d t h :   1 0 0 % ;   j u s t i f y - c o n t e n t :   f l e x - e n d ;   }   . d e c o d e - p r e v i e w - o n l y   i m g   {   m a x - w i d t h :   1 0 0 % ;   m a x - h e i g h t :   6 0 v h ;   b o r d e r - r a d i u s :   8 p x ;   b o r d e r :   1 p x   s o l i d   v a r ( - - b o r d e r ) ;   b o x - s h a d o w :   v a r ( - - c a r d - s h a d o w ) ;   }  
- 
+.decode-preview-only { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 20px; } .preview-actions { display: flex; width: 100%; justify-content: flex-end; } .decode-preview-only img { max-width: 100%; max-height: 60vh; border-radius: 8px; border: 1px solid var(--border); box-shadow: var(--card-shadow); }
+
+/* ── Custom Workflow (Node-based) ── */
+.workflow-canvas {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  background-color: #f8f8f8;
+  background-image: radial-gradient(#d5d5d5 1px, transparent 1px);
+  background-size: 20px 20px;
+  overflow: hidden;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.workflow-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.workflow-svg path {
+  fill: none;
+  stroke: #888;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.wf-node {
+  position: absolute;
+  width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  z-index: 2;
+  cursor: grab;
+  user-select: none;
+}
+.wf-node:active { cursor: grabbing; z-index: 3; }
+
+.wf-node-header {
+  padding: 10px 12px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.wf-node-body {
+  padding: 12px;
+  cursor: default;
+}
+
+.wf-node-body label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+  margin-top: 8px;
+}
+.wf-node-body label:first-child { margin-top: 0; }
+
+.wf-prompt-input {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.wf-port {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #666;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  z-index: 4;
+}
+
+.wf-port-in { left: -8px; }
+.wf-port-out { right: -8px; }
+
+.wf-port:hover { background: var(--warm); transform: translateY(-50%) scale(1.2); }
