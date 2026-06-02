@@ -142,10 +142,10 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   }
 
   // ── Groq API ──
-  async function analyzeWithGroq(imageBase64, apiKey, mimeType) {
+  async function analyzeWithGroq(imageBase64, apiKey, mimeType, modelName = "llama-3.2-11b-vision-instruct") {
     const url = 'https://api.groq.com/openai/v1/chat/completions';
     const payload = {
-      model: "llama-3.2-11b-vision-preview",
+      model: modelName,
       messages: [
         {
           role: "user",
