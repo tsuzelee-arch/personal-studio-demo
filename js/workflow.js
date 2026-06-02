@@ -110,7 +110,7 @@
 
   // Generation Logic
   if (wfGenerateBtn) {
-    wfGenerateBtn.addEventListener('click', () => {
+    wfGenerateBtn.addEventListener('click', async () => {
       const prompt = wfPromptInput.value.trim();
       if (!prompt) {
         showToast('請先輸入提示詞！');
