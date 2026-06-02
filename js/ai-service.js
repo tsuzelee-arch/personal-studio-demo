@@ -17,9 +17,9 @@ Analyze the user-provided image and reverse-engineer its visual components into 
 5. Negative Space: Deduce what elements are intentionally omitted or kept clean to form the "negative_constraints".
 
 # Output Constraints
-- You must output ONLY valid, parsable JSON.
-- Do not wrap the JSON in markdown code blocks if the system strictly requires raw JSON payload. (Otherwise, use standard json formatting).
-- No conversational filler. No introductory or concluding remarks.
+- You MUST output strictly valid JSON, and absolutely nothing else.
+- Do NOT wrap the output in markdown code blocks (\`\`\`json). Just return the raw JSON object.
+- NO conversational filler. NO introductory or concluding remarks.
 
 # Expected JSON Schema
 {
@@ -83,7 +83,8 @@ Analyze the user-provided image and reverse-engineer its visual components into 
         }
       ],
       max_tokens: 4096,
-      temperature: 0.3
+      temperature: 0.3,
+      response_format: { type: "json_object" }
     };
 
     const response = await fetch(url, {
@@ -146,6 +147,57 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   // ── Gemini 2.5 Lite API ──
   async function analyzeWithGeminilite(imageBase64, apiKey, mimeType, outputLanguage = '繁體中文') {
     return analyzeWithGemini(imageBase64, apiKey, mimeType, 'gemini-2.5-flash-lite', outputLanguage);
+  }
+
+  // ── Natural Language Rewriter ──
+  async function rewriteToNaturalLanguage(structuredPrompt, apiKey, model, outputLanguage = '繁體中文') {
+    const rewritePrompt = `You are an expert prompt engineer. Your task is to convert the following structured visual analysis prompt into a single, cohesive, beautifully flowing natural language paragraph.
+
+CRITICAL INSTRUCTIONS:
+- Combine all details (style, subject, environment, lighting, camera, materials) smoothly without using brackets or bullet points.
+- Preserve all negative constraints at the very end of the prompt starting with "--no".
+- Keep any parameter flags (like --v 6.0) exactly as they are at the end.
+- You MUST write the descriptive paragraph in ${outputLanguage} language, BUT keep technical photography/lighting terms and parameter flags in English where appropriate.
+- DO NOT output any introductory text, just the final natural language prompt.
+
+Structured Prompt to Rewrite:
+${structuredPrompt}`;
+
+    if (model === 'openai') {
+      const url = 'https://api.openai.com/v1/chat/completions';
+      const body = {
+        model: 'chatgpt-5.5',
+        messages: [{ role: 'user', content: rewritePrompt }],
+        temperature: 0.5
+      };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error('Rewrite API Error');
+      const data = await res.json();
+      return data.choices[0].message.content.trim();
+    } else {
+      // Use Gemini for gemini and geminilite
+      const modelName = model === 'geminilite' ? 'gemini-2.5-flash-lite' : 'gemini-3.5-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: rewritePrompt }] }],
+        generationConfig: { temperature: 0.5 }
+      };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Rewrite API Error');
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text.trim() || '';
+    }
   }
 
   // ── Parse AI response ──
@@ -282,6 +334,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
     analyzeWithOpenAI,
     analyzeWithGemini,
     analyzeWithGeminilite,
+    rewriteToNaturalLanguage,
     generateWithNanoBanana,
     generateWithGPTImage,
     testOpenAI,

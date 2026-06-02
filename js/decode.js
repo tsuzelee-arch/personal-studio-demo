@@ -11,6 +11,7 @@
   const copyPromptBtn  = document.getElementById('copyPromptBtn');
   const sendToWorkflowBtn = document.getElementById('sendToWorkflowBtn');
   const exportJsonBtn  = document.getElementById('exportJsonBtn');
+  const toNaturalBtn  = document.getElementById('toNaturalBtn');
   const resetDecodeBtn = document.getElementById('resetDecodeBtn');
   const modelSelect    = document.getElementById('modelSelect');
 
@@ -304,6 +305,42 @@
   }
 
   // ── Button handlers ──
+  if (toNaturalBtn) {
+    toNaturalBtn.addEventListener('click', async () => {
+      const state = window.StudioState.decodeResult;
+      if (!state || !state.promptText) {
+        showToast('目前沒有可轉換的提示詞');
+        return;
+      }
+      
+      const prevText = toNaturalBtn.textContent;
+      toNaturalBtn.textContent = '轉換中...';
+      toNaturalBtn.disabled = true;
+      
+      try {
+        const model = modelSelect ? modelSelect.value : 'gemini';
+        let key = '';
+        if (model === 'openai') key = window.StudioSettings.getOpenAIKey();
+        else if (model === 'geminilite') key = window.StudioSettings.getGeminiliteKey();
+        else key = window.StudioSettings.getGeminiKey();
+        
+        const lang = window.StudioSettings.getOutputLanguage();
+        
+        const newPrompt = await window.AIService.rewriteToNaturalLanguage(state.promptText, key, model, lang);
+        
+        promptOutput.textContent = newPrompt;
+        window.StudioState.decodeResult.promptText = newPrompt;
+        showToast('✅ 轉換成功！');
+      } catch (e) {
+        console.error(e);
+        showToast('❌ 轉換失敗：' + e.message, 5000);
+      } finally {
+        toNaturalBtn.textContent = prevText;
+        toNaturalBtn.disabled = false;
+      }
+    });
+  }
+
   copyPromptBtn.addEventListener('click', () => {
     const text = promptOutput.textContent;
     if (!text) return;
