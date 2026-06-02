@@ -107,7 +107,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   }
 
   // ── Google Gemini API ──
-  async function analyzeWithGemini(imageBase64, apiKey, mimeType, modelName = 'gemini-1.5-flash') {
+  async function analyzeWithGemini(imageBase64, apiKey, mimeType, modelName = 'gemini-3.5-flash') {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{
