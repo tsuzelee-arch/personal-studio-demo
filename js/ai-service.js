@@ -4,65 +4,61 @@
  */
 window.AIService = (function() {
 
-  // ── System Prompt ──
-  // Forces the AI to return a strict JSON structure matching our dashboard
-  const SYSTEM_PROMPT = `You are an elite image analyst specialized in visual deconstruction for generative AI prompt engineering. 
-Given an image, you must produce a comprehensive analysis in **strict JSON format only** — no markdown, no commentary, no code fences, just raw JSON.
+  // ── System Prompt (Visual Decompiler) ──
+  const SYSTEM_PROMPT = `# Role & Objective 
+Your task is to act as a "Visual Decompiler." 
+Analyze the user-provided image and reverse-engineer its visual components into a strict, highly detailed JSON structure. You must dissect the image into separated elements (foreground, subject, lighting, background) and estimate the physical rendering parameters.
 
-Your JSON output MUST follow this exact structure:
+# Analysis Guidelines
+1. Dimensional Decoupling: Do not describe the image as a single flat scene. Deconstruct it into distinct spatial layers.
+2. Parameterization: Estimate realistic values for lighting intensity, color temperatures (in Kelvin), and camera settings (lens focal length, aperture).
+3. Material & Texture: Closely inspect the surfaces of objects to describe their micro-details (e.g., "matte porous leather", "high-gloss subsurface scattering").
+4. Drawing Style/Photography style: Define the exact type and process of drawing style or photography. analysis how the image design/created/drawn.
+5. Negative Space: Deduce what elements are intentionally omitted or kept clean to form the "negative_constraints".
 
+# Output Constraints
+- You must output ONLY valid, parsable JSON.
+- Do not wrap the JSON in markdown code blocks if the system strictly requires raw JSON payload. (Otherwise, use standard json formatting).
+- No conversational filler. No introductory or concluding remarks.
+
+# Expected JSON Schema
 {
   "analysis_metadata": {
-    "estimated_style": "string — describe the visual style, art movement, rendering technique",
-    "creation_process": "string — infer how the image was likely created (photography, digital art, AI, painting, etc.)",
-    "color_palette": ["#hex1", "#hex2", "#hex3", "#hex4", "#hex5"],
-    "mood_and_atmosphere": "string — describe the emotional tone and atmosphere"
+    "estimated_style": "[e.g., Cinematic Photography, 3D Render, Anime Concept Art, with Drawing/Photography process]",
+    "color_palette": ["[Hex code 1]", "[Hex code 2]", "[Hex code 3]", "[Hex code 4]", "[Hex code 5]"],
+    "mood_and_atmosphere": "[1-2 sentences describing the overall vibe]"
   },
   "separated_elements_breakdown": {
-    "foreground_fx": "string — describe any foreground effects, particles, overlays",
+    "foreground_fx": "[Identify elements closest to the camera, e.g., dust particles, out-of-focus leaves, lens flares. If none, write 'null']",
     "main_subject": {
-      "identity": "string — what/who is the main subject",
-      "clothing_or_surface": "string — describe clothing, skin, surface textures in detail",
-      "pose_and_action": "string — describe pose, gesture, movement, expression"
+      "identity": "[Who or what is it?]",
+      "clothing_or_surface": "[Detailed description of the subject's outer layer]",
+      "pose_and_action": "[Specific posture and directional gaze]"
     },
-    "midground_objects": "string — describe objects, props, secondary elements",
-    "background_environment": "string — describe the background setting, scenery, atmosphere"
+    "midground_objects": "[Props or elements interacting with the subject]",
+    "background_environment": "[The setting, depth, and specific background structures]"
   },
   "lighting_physics": {
     "key_light": {
-      "direction": "string — light direction relative to subject",
-      "color_temp": "string — estimated color temperature",
-      "quality": "string — hard/soft, diffused/directional"
+      "direction": "[e.g., Top-left, 45 degrees]",
+      "color_temp": "[e.g., Warm 3200K]",
+      "quality": "[Hard shadows or soft diffuse]"
     },
-    "fill_and_rim_lights": "string — describe fill, rim, accent lighting"
+    "fill_and_rim_lights": "[Identify secondary light sources, edge lighting, or bounced light]"
   },
   "camera_simulation": {
-    "estimated_lens": "string — focal length estimation",
-    "depth_of_field": "string — shallow/deep, bokeh quality",
-    "camera_angle": "string — eye-level, low angle, high angle, etc."
+    "estimated_lens": "[e.g., 24mm Wide Angle, 85mm Portrait]",
+    "depth_of_field": "[e.g., Shallow (f/1.8) with heavy bokeh, or Deep focus]",
+    "camera_angle": "[e.g., Low-angle hero shot, Eye-level, Top-down]"
   },
   "material_and_texture_notes": {
-    "key1_descriptive_name": "string — material description",
-    "key2_descriptive_name": "string — material description"
-  },
-  "composition_analysis": {
-    "framing": "string — describe framing and spatial arrangement",
-    "silhouette": "string — describe silhouette readability",
-    "value_structure": "string — describe light/dark distribution",
-    "visual_hierarchy": "string — what draws the eye first, second, third"
+    "[key_descriptive_name]": "[material description]",
+    "[key_descriptive_name2]": "[material description]"
   },
   "inferred_negative_constraints": [
-    "string — things to AVOID when recreating this image",
-    "string — another constraint"
+    "[Identify 3-5 visual flaws or elements intentionally kept out of this image to maintain its quality]"
   ]
-}
-
-Rules:
-- The color_palette MUST contain exactly 5 hex color codes extracted from the image.
-- material_and_texture_notes should have 3-6 entries with descriptive snake_case keys.
-- inferred_negative_constraints should have 4-7 entries.
-- All strings should be detailed and descriptive (2-4 sentences each).
-- Output ONLY the JSON object, nothing else.`;
+}`;
 
   // ── OpenAI Vision API (ChatGPT 5.5) ──
   async function analyzeWithOpenAI(imageBase64, apiKey, mimeType) {
@@ -171,9 +167,14 @@ Rules:
     if (!parsed.analysis_metadata) throw new Error('Missing analysis_metadata in AI response');
     if (!parsed.separated_elements_breakdown) throw new Error('Missing separated_elements_breakdown in AI response');
 
-    // Ensure color_palette is an array of hex strings
+    // Ensure color_palette is an array of strings
     if (!Array.isArray(parsed.analysis_metadata.color_palette)) {
-      parsed.analysis_metadata.color_palette = ['#333333', '#666666', '#999999', '#cccccc', '#eeeeee'];
+      parsed.analysis_metadata.color_palette = ['#333333', '#666666', '#999999'];
+    }
+
+    // Ensure material_and_texture_notes exists
+    if (!parsed.material_and_texture_notes) {
+       parsed.material_and_texture_notes = {};
     }
 
     // Ensure inferred_negative_constraints is an array
