@@ -210,8 +210,14 @@
       palette: analysis.analysis_metadata.color_palette, 
       styleTags: [], // Kept for workflow compatibility
       promptText, 
+      originalPromptText: promptText,
+      isNaturalLanguage: false,
+      naturalPromptText: null,
       analysis 
     };
+    if (document.getElementById('toNaturalBtn')) {
+      document.getElementById('toNaturalBtn').textContent = '轉換為自然語言';
+    }
     
     if (window.workflowMarkReady) window.workflowMarkReady(1);
   }
@@ -308,8 +314,26 @@
   if (toNaturalBtn) {
     toNaturalBtn.addEventListener('click', async () => {
       const state = window.StudioState.decodeResult;
-      if (!state || !state.promptText) {
+      if (!state || !state.originalPromptText) {
         showToast('目前沒有可轉換的提示詞');
+        return;
+      }
+      
+      if (state.isNaturalLanguage) {
+        state.isNaturalLanguage = false;
+        state.promptText = state.originalPromptText;
+        promptOutput.value = state.originalPromptText;
+        toNaturalBtn.textContent = '轉換為自然語言';
+        showToast('已切換回結構化提示詞');
+        return;
+      }
+
+      if (state.naturalPromptText) {
+        state.isNaturalLanguage = true;
+        state.promptText = state.naturalPromptText;
+        promptOutput.value = state.naturalPromptText;
+        toNaturalBtn.textContent = '切換回結構化提示詞';
+        showToast('已切換為自然語言');
         return;
       }
       
@@ -326,16 +350,19 @@
         
         const lang = window.StudioSettings.getOutputLanguage();
         
-        const newPrompt = await window.AIService.rewriteToNaturalLanguage(state.promptText, key, model, lang);
+        const newPrompt = await window.AIService.rewriteToNaturalLanguage(state.originalPromptText, key, model, lang);
         
+        state.naturalPromptText = newPrompt;
+        state.isNaturalLanguage = true;
+        state.promptText = newPrompt;
         promptOutput.value = newPrompt;
-        window.StudioState.decodeResult.promptText = newPrompt;
+        toNaturalBtn.textContent = '切換回結構化提示詞';
         showToast('✅ 轉換成功！');
       } catch (e) {
         console.error(e);
         showToast('❌ 轉換失敗：' + e.message, 5000);
-      } finally {
         toNaturalBtn.textContent = prevText;
+      } finally {
         toNaturalBtn.disabled = false;
       }
     });
@@ -343,8 +370,14 @@
 
   if (promptOutput) {
     promptOutput.addEventListener('input', (e) => {
-      if (window.StudioState.decodeResult) {
-        window.StudioState.decodeResult.promptText = e.target.value;
+      const state = window.StudioState.decodeResult;
+      if (state) {
+        state.promptText = e.target.value;
+        if (state.isNaturalLanguage) {
+          state.naturalPromptText = e.target.value;
+        } else {
+          state.originalPromptText = e.target.value;
+        }
       }
     });
   }
