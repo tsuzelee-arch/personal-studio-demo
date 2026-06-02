@@ -70,9 +70,11 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   // ── OpenAI Vision API ──
   async function analyzeWithOpenAI(imageBase64, apiKey, mimeType, outputLanguage = '繁體中文', dropdownModel = 'openai') {
     const dynamicPrompt = SYSTEM_PROMPT + `\n\nCRITICAL INSTRUCTION: You MUST output all descriptive text values (except JSON keys and structure) in ${outputLanguage} language.`;
+    const modelId = OPENAI_MODELS[dropdownModel] || 'gpt-5.5';
+    const isLegacy = modelId === 'gpt-4o';
     const url = 'https://api.openai.com/v1/chat/completions';
     const body = {
-      model: OPENAI_MODELS[dropdownModel] || 'gpt-5.5',
+      model: modelId,
       messages: [
         { role: 'system', content: dynamicPrompt },
         {
@@ -90,8 +92,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
         }
       ],
       max_completion_tokens: 4096,
-      temperature: 0.3,
-      response_format: { type: "json_object" }
+      ...(isLegacy && { temperature: 0.3, response_format: { type: "json_object" } })
     };
 
     const response = await fetch(url, {
@@ -176,7 +177,7 @@ ${structuredPrompt}`;
       const body = {
         model: openaiModelId,
         messages: [{ role: 'user', content: rewritePrompt }],
-        temperature: 0.5
+        ...(openaiModelId === 'gpt-4o' && { temperature: 0.5 })
       };
       const res = await fetch(url, {
         method: 'POST',
