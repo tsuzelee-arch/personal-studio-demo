@@ -42,6 +42,8 @@
             <select class="model-select" id="modelSelect">
               <option value="gemini">Gemini 3.5 Flash</option>
               <option value="openai">ChatGPT 5.5</option>
+              <option value="geminilite">Gemini 2.5 Lite</option>
+              <option value="groq">Groq</option>
             </select>
             <span class="model-status" id="modelStatus"></span>
           </div>
@@ -307,6 +309,42 @@
               </div>
               <div class="conn-status" id="geminiStatus"></div>
               <div class="settings-hint">模型：gemini-3.5-flash · 使用 Google AI Studio 金鑰</div>
+            </div>
+          </div>
+
+          <!-- Gemini 2.5 Lite Settings -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">✧</span>
+              <span class="settings-card-title">Google Gemini 2.5 Lite</span>
+            </div>
+            <div class="settings-card-body">
+              <label class="form-label">API KEY</label>
+              <div class="key-input-row">
+                <input type="password" class="form-input key-input" id="geminiliteKeyInput" placeholder="AIza...">
+                <button class="btn-primary" id="saveGeminiliteBtn">儲存</button>
+                <button class="btn-ghost" id="testGeminiliteBtn">測試連線</button>
+              </div>
+              <div class="conn-status" id="geminiliteStatus"></div>
+              <div class="settings-hint">模型：gemini-2.5-lite · 快速輕量版分析模型</div>
+            </div>
+          </div>
+
+          <!-- Groq Settings -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">⚡</span>
+              <span class="settings-card-title">Groq</span>
+            </div>
+            <div class="settings-card-body">
+              <label class="form-label">API KEY</label>
+              <div class="key-input-row">
+                <input type="password" class="form-input key-input" id="groqKeyInput" placeholder="gsk_...">
+                <button class="btn-primary" id="saveGroqBtn">儲存</button>
+                <button class="btn-ghost" id="testGroqBtn">測試連線</button>
+              </div>
+              <div class="conn-status" id="groqStatus"></div>
+              <div class="settings-hint">預設使用 Groq 提供的 Llama 或 Mixtral 視覺相容模型進行極速推論</div>
             </div>
           </div>
 

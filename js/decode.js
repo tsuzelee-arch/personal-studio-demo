@@ -117,12 +117,18 @@
       startLoadingAnimation();
 
       const { base64, mimeType } = await window.AIService.fileToBase64(file);
-      updateLoadingText(`正在使用 ${model === 'openai' ? 'ChatGPT 5.5' : 'Gemini 3.5 Flash'} 進行深度視覺解構...`);
+      updateLoadingText(`正在使用 ${model} 進行深度視覺解構...`);
 
       let analysis;
       if (model === 'openai') {
         const key = window.StudioSettings.getOpenAIKey();
         analysis = await window.AIService.analyzeWithOpenAI(base64, key, mimeType);
+      } else if (model === 'groq') {
+        const key = window.StudioSettings.getGroqKey();
+        analysis = await window.AIService.analyzeWithGroq(base64, key, mimeType);
+      } else if (model === 'geminilite') {
+        const key = window.StudioSettings.getGeminiliteKey();
+        analysis = await window.AIService.analyzeWithGeminilite(base64, key, mimeType);
       } else {
         const key = window.StudioSettings.getGeminiKey();
         analysis = await window.AIService.analyzeWithGemini(base64, key, mimeType);

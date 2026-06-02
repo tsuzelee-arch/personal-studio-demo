@@ -106,46 +106,86 @@ Analyze the user-provided image and reverse-engineer its visual components into 
     return parseAIResponse(content);
   }
 
-  // ── Gemini Vision API (Gemini 3.5 Flash) ──
-  async function analyzeWithGemini(imageBase64, apiKey, mimeType) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
-    const body = {
-      contents: [
+  // ── Google Gemini API ──
+  async function analyzeWithGemini(imageBase64, apiKey, mimeType, modelName = 'gemini-1.5-pro-latest') {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const payload = {
+      contents: [{
+        role: "user",
+        parts: [
+          { text: SYSTEM_PROMPT },
+          { inline_data: { mime_type: mimeType, data: imageBase64 } }
+        ]
+      }],
+      generationConfig: {
+        temperature: 0.2,
+        response_mime_type: "application/json"
+      }
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `Gemini API Error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    let textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!textOutput) throw new Error('Invalid response format from Gemini');
+
+    return parseAIResponse(textOutput);
+  }
+
+  // ── Groq API ──
+  async function analyzeWithGroq(imageBase64, apiKey, mimeType) {
+    const url = 'https://api.groq.com/openai/v1/chat/completions';
+    const payload = {
+      model: "llama-3.2-90b-vision-preview",
+      messages: [
         {
-          parts: [
-            { text: SYSTEM_PROMPT + '\n\nAnalyze this image thoroughly and return the JSON analysis.' },
+          role: "user",
+          content: [
+            { type: "text", text: SYSTEM_PROMPT },
             {
-              inline_data: {
-                mime_type: mimeType,
-                data: imageBase64
-              }
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${imageBase64}` }
             }
           ]
         }
       ],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 4096,
-        responseMimeType: 'application/json'
-      }
+      temperature: 0.2,
+      response_format: { type: "json_object" }
     };
 
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(payload)
     });
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(`Gemini API error (${response.status}): ${err.error?.message || response.statusText}`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `Groq API Error: ${res.status}`);
     }
 
-    const data = await response.json();
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!content) throw new Error('Gemini returned empty response');
+    const data = await res.json();
+    let content = data.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Invalid response format from Groq');
 
     return parseAIResponse(content);
+  }
+
+  // ── Gemini 2.5 Lite API ──
+  async function analyzeWithGeminilite(imageBase64, apiKey, mimeType) {
+    return analyzeWithGemini(imageBase64, apiKey, mimeType, 'gemini-2.5-lite');
   }
 
   // ── Parse AI response ──
@@ -185,7 +225,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
     return parsed;
   }
 
-  // ── Test connections ──
+  // ── Testing Functions ──
   async function testOpenAI(apiKey) {
     const response = await fetch('https://api.openai.com/v1/models', {
       headers: { 'Authorization': `Bearer ${apiKey}` }
@@ -198,13 +238,22 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   }
 
   async function testGemini(apiKey) {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-    );
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `HTTP ${response.status}`);
-    }
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+    return true;
+  }
+  
+  async function testGeminilite(apiKey) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+    return true;
+  }
+
+  async function testGroq(apiKey) {
+    const res = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (!res.ok) throw new Error(`Groq HTTP ${res.status}`);
     return true;
   }
 
@@ -279,10 +328,14 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   return {
     analyzeWithOpenAI,
     analyzeWithGemini,
+    analyzeWithGeminilite,
+    analyzeWithGroq,
     generateWithNanoBanana,
     generateWithGPTImage,
     testOpenAI,
     testGemini,
+    testGeminilite,
+    testGroq,
     fileToBase64,
     SYSTEM_PROMPT
   };
