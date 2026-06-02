@@ -1148,3 +1148,5 @@ body {
 
 /* ── Utility ── */
 .hidden { display: none !important; }
+. d e c o d e - p r e v i e w - o n l y   {   d i s p l a y :   f l e x ;   f l e x - d i r e c t i o n :   c o l u m n ;   a l i g n - i t e m s :   c e n t e r ;   g a p :   1 5 p x ;   m a r g i n - t o p :   2 0 p x ;   }   . p r e v i e w - a c t i o n s   {   d i s p l a y :   f l e x ;   w i d t h :   1 0 0 % ;   j u s t i f y - c o n t e n t :   f l e x - e n d ;   }   . d e c o d e - p r e v i e w - o n l y   i m g   {   m a x - w i d t h :   1 0 0 % ;   m a x - h e i g h t :   6 0 v h ;   b o r d e r - r a d i u s :   8 p x ;   b o r d e r :   1 p x   s o l i d   v a r ( - - b o r d e r ) ;   b o x - s h a d o w :   v a r ( - - c a r d - s h a d o w ) ;   }  
+ 
