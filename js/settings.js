@@ -212,7 +212,7 @@
     getSelectedModel:() => localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini',
     getOutputLanguage:() => localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文',
     hasApiKey: function(model) {
-      if (model === 'openai') return !!this.getOpenAIKey();
+      if (model.startsWith('openai')) return !!this.getOpenAIKey();
       if (model === 'gemini') return !!this.getGeminiKey();
       if (model === 'geminilite') return !!this.getGeminiliteKey();
       if (model === 'groq') return !!this.getGroqKey();

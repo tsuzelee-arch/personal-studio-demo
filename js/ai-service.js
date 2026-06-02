@@ -4,6 +4,13 @@
  */
 window.AIService = (function() {
 
+  const OPENAI_MODELS = {
+    'openai':        'gpt-5.5',
+    'openai-54':     'gpt-5.4',
+    'openai-54mini': 'gpt-5.4-mini',
+    'openai-4o':     'gpt-4o'
+  };
+
   // ── System Prompt (Visual Decompiler) ──
   const SYSTEM_PROMPT = `# Role & Objective 
 Your task is to act as a "Visual Decompiler." 
@@ -60,12 +67,12 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   ]
 }`;
 
-  // ── OpenAI Vision API (ChatGPT 5.5) ──
-  async function analyzeWithOpenAI(imageBase64, apiKey, mimeType, outputLanguage = '繁體中文') {
+  // ── OpenAI Vision API ──
+  async function analyzeWithOpenAI(imageBase64, apiKey, mimeType, outputLanguage = '繁體中文', dropdownModel = 'openai') {
     const dynamicPrompt = SYSTEM_PROMPT + `\n\nCRITICAL INSTRUCTION: You MUST output all descriptive text values (except JSON keys and structure) in ${outputLanguage} language.`;
     const url = 'https://api.openai.com/v1/chat/completions';
     const body = {
-      model: 'chatgpt-5.5',
+      model: OPENAI_MODELS[dropdownModel] || 'gpt-5.5',
       messages: [
         { role: 'system', content: dynamicPrompt },
         {
@@ -163,10 +170,11 @@ CRITICAL INSTRUCTIONS:
 Structured Prompt to Rewrite:
 ${structuredPrompt}`;
 
-    if (model === 'openai') {
+    const openaiModelId = OPENAI_MODELS[model];
+    if (openaiModelId) {
       const url = 'https://api.openai.com/v1/chat/completions';
       const body = {
-        model: 'chatgpt-5.5',
+        model: openaiModelId,
         messages: [{ role: 'user', content: rewritePrompt }],
         temperature: 0.5
       };

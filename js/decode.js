@@ -110,10 +110,13 @@
       decodeLoading.classList.add('hidden');
       dropZone.classList.remove('hidden');
       const modelNames = {
-        'openai': 'ChatGPT 5.5',
-        'gemini': 'Gemini 3.5 Flash',
-        'geminilite': 'Gemini 2.5 Lite',
-        'groq': 'Groq'
+        'openai':        'GPT-5.5',
+        'openai-54':     'GPT-5.4',
+        'openai-54mini': 'GPT-5.4 Mini',
+        'openai-4o':     'GPT-4o',
+        'gemini':        'Gemini 3.5 Flash',
+        'geminilite':    'Gemini 2.5 Lite',
+        'groq':          'Groq'
       };
       showToast(`❌ 請先前往設定面板輸入 ${modelNames[model] || model} 的 API Key`, 4000);
       return;
@@ -129,9 +132,9 @@
       let analysis;
       const lang = window.StudioSettings.getOutputLanguage();
 
-      if (model === 'openai') {
+      if (model.startsWith('openai')) {
         const key = window.StudioSettings.getOpenAIKey();
-        analysis = await window.AIService.analyzeWithOpenAI(base64, key, mimeType, lang);
+        analysis = await window.AIService.analyzeWithOpenAI(base64, key, mimeType, lang, model);
       } else if (model === 'geminilite') {
         const key = window.StudioSettings.getGeminiliteKey();
         analysis = await window.AIService.analyzeWithGeminilite(base64, key, mimeType, lang);
@@ -344,7 +347,7 @@
       try {
         const model = modelSelect ? modelSelect.value : 'gemini';
         let key = '';
-        if (model === 'openai') key = window.StudioSettings.getOpenAIKey();
+        if (model.startsWith('openai')) key = window.StudioSettings.getOpenAIKey();
         else if (model === 'geminilite') key = window.StudioSettings.getGeminiliteKey();
         else key = window.StudioSettings.getGeminiKey();
         
