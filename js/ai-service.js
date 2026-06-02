@@ -278,50 +278,42 @@ ${structuredPrompt}`;
 
   // ── Image Generation APIs ──
   async function generateWithNanoBanana(prompt, apiKey) {
-    // Hypothetical endpoint for Nano Banana Pro
     const url = 'https://api.nanobanana.ai/v1/generate'; 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({ prompt, model: 'nano-banana-pro' })
-      });
-      if (!response.ok) throw new Error();
-      const data = await response.json();
-      return data.image_url;
-    } catch(e) {
-      // Fallback mock for demonstration since the API is hypothetical
-      console.warn("Nano Banana API failed/unavailable, returning mock image.", e);
-      return new Promise(resolve => setTimeout(() => resolve('https://images.unsplash.com/photo-1549490349-8643362247b5?w=512&q=80'), 1500));
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({ prompt, model: 'nano-banana' })
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Nano Banana API 錯誤 (HTTP ${response.status}): ${text}`);
     }
+    const data = await response.json();
+    return data.image_url;
   }
 
-  async function generateWithNanoBanana2(prompt, apiKey) {
-    // Hypothetical endpoint for Nano Banana 2
+  async function generateWithNanoBananaPro(prompt, apiKey) {
     const url = 'https://api.nanobanana.ai/v1/generate'; 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({ prompt, model: 'nano-banana-2' })
-      });
-      if (!response.ok) throw new Error();
-      const data = await response.json();
-      return data.image_url;
-    } catch(e) {
-      // Fallback mock for demonstration
-      console.warn("Nano Banana 2 API failed/unavailable, returning mock image.", e);
-      return new Promise(resolve => setTimeout(() => resolve('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=512&q=80'), 1500));
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({ prompt, model: 'nano-banana-pro' })
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Nano Banana Pro API 錯誤 (HTTP ${response.status}): ${text}`);
     }
+    const data = await response.json();
+    return data.image_url;
   }
 
-  async function generateWithGPTImage(prompt, apiKey) {
+  async function generateWithGPTImage2(prompt, apiKey) {
     const url = 'https://api.openai.com/v1/images/generations';
     const body = {
       model: "gpt-image-2.0",
@@ -330,25 +322,20 @@ ${structuredPrompt}`;
       size: "1024x1024"
     };
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(body)
-      });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(`GPT Image API error (${response.status}): ${err.error?.message || response.statusText}`);
-      }
-      const data = await response.json();
-      return data.data[0].url;
-    } catch(e) {
-       console.warn("GPT Image 2.0 API failed/unavailable, returning mock image.", e);
-       return new Promise(resolve => setTimeout(() => resolve('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=512&q=80'), 1500));
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(`GPT Image API 錯誤 (HTTP ${response.status}): ${err.error?.message || response.statusText}`);
     }
+    const data = await response.json();
+    return data.data[0].url;
   }
 
   // ── Public API ──
@@ -358,8 +345,8 @@ ${structuredPrompt}`;
     analyzeWithGeminilite,
     rewriteToNaturalLanguage,
     generateWithNanoBanana,
-    generateWithNanoBanana2,
-    generateWithGPTImage,
+    generateWithNanoBananaPro,
+    generateWithGPTImage2,
     testOpenAI,
     testGemini,
     testGeminilite,
