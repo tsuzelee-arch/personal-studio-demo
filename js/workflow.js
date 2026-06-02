@@ -110,7 +110,7 @@
 
   // Generation Logic
   if (wfGenerateBtn) {
-    wfGenerateBtn.addEventListener('click', async () => {
+    wfGenerateBtn.addEventListener('click', () => {
       const prompt = wfPromptInput.value.trim();
       if (!prompt) {
         showToast('請先輸入提示詞！');
@@ -118,12 +118,15 @@
       }
 
       const model = wfModelSelect.value;
+      const resVal = wfResolution ? wfResolution.value : '1024x1024';
+      const [width, height] = resVal.split('x').map(Number);
+      
       let apiKey = '';
-      if (model === 'gptimage2.0') apiKey = window.StudioSettings.getGptimageKey();
-      else apiKey = window.StudioSettings.getNanobananaKey();
+      if (model === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
+      else apiKey = window.StudioSettings.getNanobananaKey(); // Share key for nanobanana and nanobanana2
 
       if (!apiKey) {
-        showToast(`請先至設定頁面填寫 API Key`);
+        showToast(`請先至設定頁面填寫對應模型的 API Key`);
         return;
       }
 
@@ -131,29 +134,25 @@
       wfGenerateBtn.disabled = true;
       wfPreviewImg.style.display = 'none';
       wfPreviewPlaceholder.style.display = 'flex';
-      wfPreviewPlaceholder.textContent = '發送真實 API 請求中...';
-      wfPreviewPlaceholder.style.background = '#eee';
-      wfPreviewPlaceholder.style.color = '#888';
+      wfPreviewPlaceholder.textContent = 'Processing API Request...';
 
       try {
         let imageUrl = '';
-        if (model === 'gptimage2.0') {
-          imageUrl = await window.AIService.generateWithGPTImage2(prompt, apiKey);
-        } else if (model === 'nanobananapro') {
-          imageUrl = await window.AIService.generateWithNanoBananaPro(prompt, apiKey);
+        if (model === 'gptimage') {
+          imageUrl = await window.AIService.generateWithGPTImage(prompt, apiKey, width, height);
+        } else if (model === 'nanobanana2') {
+          imageUrl = await window.AIService.generateWithNanoBanana2(prompt, apiKey, width, height);
         } else {
-          imageUrl = await window.AIService.generateWithNanoBanana(prompt, apiKey);
+          imageUrl = await window.AIService.generateWithNanoBanana(prompt, apiKey, width, height);
         }
-
+        
         wfPreviewPlaceholder.style.display = 'none';
         wfPreviewImg.src = imageUrl;
         wfPreviewImg.style.display = 'block';
-        showToast('✅ 產圖 API 呼叫成功！');
+        showToast('✅ 真實產圖成功！');
       } catch (e) {
         console.error(e);
-        wfPreviewPlaceholder.textContent = '生成失敗 (Error)';
-        wfPreviewPlaceholder.style.background = '#f2dcdc';
-        wfPreviewPlaceholder.style.color = '#8a2b2b';
+        wfPreviewPlaceholder.textContent = 'API Error';
         showToast('❌ ' + e.message, 5000);
       } finally {
         wfGenerateBtn.textContent = '生成圖片 (Generate)';
