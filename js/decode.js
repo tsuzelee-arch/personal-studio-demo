@@ -204,7 +204,7 @@
     renderNegativeConstraints(analysis.inferred_negative_constraints);
 
     const promptText = buildPromptText(analysis);
-    promptOutput.textContent = promptText;
+    promptOutput.value = promptText;
 
     window.StudioState.decodeResult = { 
       palette: analysis.analysis_metadata.color_palette, 
@@ -328,7 +328,7 @@
         
         const newPrompt = await window.AIService.rewriteToNaturalLanguage(state.promptText, key, model, lang);
         
-        promptOutput.textContent = newPrompt;
+        promptOutput.value = newPrompt;
         window.StudioState.decodeResult.promptText = newPrompt;
         showToast('✅ 轉換成功！');
       } catch (e) {
@@ -341,14 +341,22 @@
     });
   }
 
+  if (promptOutput) {
+    promptOutput.addEventListener('input', (e) => {
+      if (window.StudioState.decodeResult) {
+        window.StudioState.decodeResult.promptText = e.target.value;
+      }
+    });
+  }
+
   copyPromptBtn.addEventListener('click', () => {
-    const text = promptOutput.textContent;
+    const text = promptOutput.value;
     if (!text) return;
     navigator.clipboard.writeText(text).then(() => showToast('提示詞已複製！'));
   });
 
   sendToWorkflowBtn.addEventListener('click', () => {
-    if (window.workflowReceivePrompt) window.workflowReceivePrompt(promptOutput.textContent);
+    if (window.workflowReceivePrompt) window.workflowReceivePrompt(promptOutput.value);
     switchPanel('workflow');
     showToast('已送至工作流 Step 3');
   });

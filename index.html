@@ -81,7 +81,6 @@
                 <span class="dashboard-icon">◈</span> 視覺解構分析報告
               </div>
               <div class="dashboard-actions">
-                <button class="btn-primary" id="toNaturalBtn">轉換為自然語言</button>
                 <button class="btn-primary" id="copyPromptBtn">複製提示詞</button>
                 <button class="btn-ghost" id="sendToWorkflowBtn">送至工作流</button>
                 <button class="btn-ghost" id="exportJsonBtn">匯出 JSON</button>
@@ -242,12 +241,15 @@
 
                 <!-- Prompt Output Card -->
                 <div class="dash-card dash-card-prompt" id="cardPrompt">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">✨</span>
-                    <span class="dash-card-title">視覺解構提示詞 (Prompt)</span>
+                  <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <span class="dash-card-icon">✨</span>
+                      <span class="dash-card-title">視覺解構提示詞 (Prompt)</span>
+                    </div>
+                    <button class="btn-primary btn-sm" id="toNaturalBtn" style="font-size: 12px; padding: 4px 10px;">轉換為自然語言</button>
                   </div>
                   <div class="dash-card-body">
-                    <div class="prompt-output" id="promptOutput"></div>
+                    <textarea class="prompt-output" id="promptOutput" style="width: 100%; min-height: 150px; resize: vertical; border: none; outline: none; background: transparent; color: inherit; font-family: inherit; font-size: inherit;"></textarea>
                   </div>
                 </div>
 
@@ -415,11 +417,11 @@
 <!-- Toast notification -->
 <div class="toast hidden" id="toast"></div>
 
-<script src="js/app.js?v=9"></script>
-<script src="js/ai-service.js?v=9"></script>
-<script src="js/settings.js?v=9"></script>
-<script src="js/decode.js?v=9"></script>
-<script src="js/prompts.js?v=9"></script>
-<script src="js/workflow.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
+<script src="js/ai-service.js?v=10"></script>
+<script src="js/settings.js?v=10"></script>
+<script src="js/decode.js?v=10"></script>
+<script src="js/prompts.js?v=10"></script>
+<script src="js/workflow.js?v=10"></script>
 </body>
 </html>
