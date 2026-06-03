@@ -230,7 +230,7 @@ ${JSON.stringify(analysis)}`;
       const body = {
         model: openaiModelId,
         messages: [{ role: 'user', content: prompt }],
-        max_completion_tokens: 4096,
+        max_completion_tokens: 16384,
         ...(isLegacy && { temperature: 0.1, response_format: { type: 'json_object' } })
       };
       const res = await fetch(url, {
@@ -251,7 +251,7 @@ ${JSON.stringify(analysis)}`;
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
       const payload = {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, response_mime_type: 'application/json' }
+        generationConfig: { temperature: 0.1, response_mime_type: 'application/json', maxOutputTokens: 8192 }
       };
       const res = await fetch(url, {
         method: 'POST',
