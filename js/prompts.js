@@ -17,7 +17,8 @@
     'camera':                 { label: '攝影 (Camera)',           catClass: 'cat-camera' },
     'material':               { label: '材質 (Material)',         catClass: 'cat-material' },
     'negative':               { label: '負面約束 (Negative)',      catClass: 'cat-negative' },
-    'color_palette':          { label: '色盤 (Palette)',          catClass: 'cat-color_palette' }
+    'color_palette':          { label: '色盤 (Palette)',          catClass: 'cat-color_palette' },
+    'other_elements':         { label: '其他元素 (Other)',        catClass: 'cat-other_elements' }
   };
 
   function getDefaultCategories() {

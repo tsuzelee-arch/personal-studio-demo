@@ -12,16 +12,17 @@ window.AIService = (function() {
   };
 
   // ── System Prompt (Visual Decompiler) ──
-  const SYSTEM_PROMPT = `# Role & Objective 
-Your task is to act as a "Visual Decompiler." 
+  const SYSTEM_PROMPT = `# Role & Objective
+Your task is to act as a "Visual Decompiler."
 Analyze the user-provided image and reverse-engineer its visual components into a strict, highly detailed JSON structure. You must dissect the image into separated elements (foreground, subject, lighting, background) and estimate the physical rendering parameters.
 
 # Analysis Guidelines
 1. Dimensional Decoupling: Do not describe the image as a single flat scene. Deconstruct it into distinct spatial layers.
 2. Parameterization: Estimate realistic values for lighting intensity, color temperatures (in Kelvin), and camera settings (lens focal length, aperture).
 3. Material & Texture: Closely inspect the surfaces of objects to describe their micro-details (e.g., "matte porous leather", "high-gloss subsurface scattering").
-4. Drawing Style/Photography style: Define the exact type and process of drawing style or photography. analysis how the image design/created/drawn.
+4. Drawing Style / Photography Style: Define the exact type and process of drawing style or photography. Analyze how the image was designed, created, or drawn.
 5. Negative Space: Deduce what elements are intentionally omitted or kept clean to form the "negative_constraints".
+6. Other Elements: Capture any notable visual elements that do not fit the standard layers — e.g., graphic overlays, text, UI, special effects, particles, or abstract compositional devices. If none, write "null".
 
 # Output Constraints
 - You MUST output strictly valid JSON, and absolutely nothing else.
@@ -43,7 +44,8 @@ Analyze the user-provided image and reverse-engineer its visual components into 
       "pose_and_action": "[Specific posture and directional gaze]"
     },
     "midground_objects": "[Props or elements interacting with the subject]",
-    "background_environment": "[The setting, depth, and specific background structures]"
+    "background_environment": "[The setting, depth, and specific background structures]",
+    "other_elements": "[Any notable elements not captured above: overlays, text, UI, particles, abstract devices. If none, write 'null']"
   },
   "lighting_physics": {
     "key_light": {
@@ -241,6 +243,11 @@ ${structuredPrompt}`;
     // Ensure inferred_negative_constraints is an array
     if (!Array.isArray(parsed.inferred_negative_constraints)) {
       parsed.inferred_negative_constraints = ['No constraints extracted'];
+    }
+
+    // Ensure other_elements exists (older AI responses may omit it)
+    if (!parsed.separated_elements_breakdown.other_elements) {
+      parsed.separated_elements_breakdown.other_elements = null;
     }
 
     return parsed;

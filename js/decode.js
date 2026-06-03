@@ -37,6 +37,8 @@
   
   const materialsList  = document.getElementById('materialsList');
   const negativeList   = document.getElementById('negativeList');
+  const elOther        = document.getElementById('elOther');
+  const elOtherSection = document.getElementById('elOtherSection');
 
   let currentAnalysis = null;
   let currentFile = null;
@@ -337,6 +339,13 @@
 
     elBackground.textContent = el.background_environment || 'N/A';
     addVaultButton(elBackground.parentElement, '背景環境', 'background_environment', el.background_environment);
+
+    const otherVal = el.other_elements && el.other_elements !== 'null' ? el.other_elements : null;
+    if (elOtherSection) elOtherSection.style.display = otherVal ? '' : 'none';
+    if (elOther) {
+      elOther.textContent = otherVal || '';
+      if (otherVal) addVaultButton(elOther.parentElement, '其他元素', 'other_elements', otherVal);
+    }
   }
 
   function renderLighting(light, cam) {
@@ -414,6 +423,7 @@
       `[Style & Vibe] ${meta.estimated_style}. ${meta.mood_and_atmosphere}.`,
       `[Subject] ${el.main_subject.identity}, wearing/surfaced with ${el.main_subject.clothing_or_surface}, posing as ${el.main_subject.pose_and_action}.`,
       `[Environment] Foreground: ${el.foreground_fx}. Midground: ${el.midground_objects}. Background: ${el.background_environment}.`,
+      (el.other_elements && el.other_elements !== 'null') ? `[Other Elements] ${el.other_elements}.` : '',
       `[Lighting & Camera] Key light from ${light.key_light.direction} (${light.key_light.color_temp}, ${light.key_light.quality}). Fill/Rim: ${light.fill_and_rim_lights}. Shot with ${cam.estimated_lens}, ${cam.depth_of_field}, ${cam.camera_angle}.`,
       matStr ? `[Materials & Textures] ${matStr}.` : '',
       `[Color Palette] ${meta.color_palette.join(', ')}`,
