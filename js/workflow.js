@@ -37,16 +37,10 @@
       portsHTML = `<div class="wf-port wf-port-out" data-node="${id}" data-type="out" title="Output to Prompt"></div>`;
       bodyHTML = `
         <label>Model</label>
-        <select class="form-select form-select-sm wf-model-sel" style="margin-bottom: 10px;">
+        <select class="form-select form-select-sm wf-model-sel">
           <option value="nanobanana2">Nano Banana 2</option>
           <option value="nanobanana">Nano Banana Pro</option>
           <option value="gptimage">GPT Image 2.0</option>
-        </select>
-        <label>Resolution</label>
-        <select class="form-select form-select-sm wf-res-sel">
-          <option value="1024x1024">1024x1024 (1:1)</option>
-          <option value="1024x576">1024x576 (16:9)</option>
-          <option value="576x1024">576x1024 (9:16)</option>
         </select>
       `;
     } else if (type === 'prompt') {
@@ -70,29 +64,28 @@
         <label>Denoising (0.0 - 1.0)</label>
         <input type="number" class="form-input wf-i2i-denoise" min="0" max="1" step="0.1" value="0.7">
       `;
-    } else if (type === 'upscale') {
-      headerText = '放大 (Upscale)';
+    } else if (type === 'parameters') {
+      headerText = '參數 (Parameters)';
       portsHTML = `
         <div class="wf-port wf-port-in" data-node="${id}" data-type="in"></div>
         <div class="wf-port wf-port-out" data-node="${id}" data-type="out"></div>
       `;
       bodyHTML = `
-        <label>Scale Factor</label>
+        <label>Resolution</label>
+        <select class="form-select form-select-sm wf-res-sel" style="margin-bottom:8px;">
+          <option value="1024x1024">1024x1024 (1:1)</option>
+          <option value="1024x576">1024x576 (16:9)</option>
+          <option value="576x1024">576x1024 (9:16)</option>
+        </select>
+        <label>CFG Scale</label>
+        <input type="range" class="wf-temp-cfg" min="1" max="20" value="7" style="width:100%;">
+        <div style="text-align:right;font-size:11px;" class="wf-temp-val">7</div>
+        <label>Upscale</label>
         <select class="form-select form-select-sm wf-up-scale">
+          <option value="1">None (1x)</option>
           <option value="2">2x</option>
           <option value="4">4x</option>
         </select>
-      `;
-    } else if (type === 'temperature') {
-      headerText = '隨機性 (Temperature)';
-      portsHTML = `
-        <div class="wf-port wf-port-in" data-node="${id}" data-type="in"></div>
-        <div class="wf-port wf-port-out" data-node="${id}" data-type="out"></div>
-      `;
-      bodyHTML = `
-        <label>CFG Scale</label>
-        <input type="range" class="wf-temp-cfg" min="1" max="20" value="7" style="width: 100%;">
-        <div style="text-align: right; font-size: 11px;" class="wf-temp-val">7</div>
       `;
     } else if (type === 'mask') {
       headerText = '遮罩 (Mask)';
@@ -155,26 +148,32 @@
 
     // Ports
     nodeEl.querySelectorAll('.wf-port').forEach(port => {
-      port.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
-        if (port.dataset.type === 'out') {
+      if (port.dataset.type === 'out') {
+        // Start a link on mousedown of an out-port
+        port.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
           linkingFrom = port;
-        } else if (port.dataset.type === 'in' && linkingFrom) {
-          // Connect
-          connections.push({
-            from: linkingFrom,
-            fromNode: linkingFrom.dataset.node,
-            to: port,
-            toNode: port.dataset.node
-          });
-          linkingFrom = null;
-          drawConnections();
-        }
-      });
+        });
+      } else if (port.dataset.type === 'in') {
+        // Complete the link on mouseup of an in-port (drag-and-release gesture)
+        port.addEventListener('mouseup', (e) => {
+          e.stopPropagation(); // prevent document mouseup from clearing linkingFrom
+          if (linkingFrom) {
+            connections.push({
+              from: linkingFrom,
+              fromNode: linkingFrom.dataset.node,
+              to: port,
+              toNode: port.dataset.node
+            });
+            linkingFrom = null;
+            drawConnections();
+          }
+        });
+      }
     });
 
-    // Temp range sync
-    if (type === 'temperature') {
+    // CFG range sync (Parameters node)
+    if (type === 'parameters') {
       const range = nodeEl.querySelector('.wf-temp-cfg');
       const val = nodeEl.querySelector('.wf-temp-val');
       range.addEventListener('input', () => val.textContent = range.value);
@@ -268,21 +267,25 @@
     });
   }
 
-  // Initial Default Setup
+  // Initial Default Setup: Model → Prompt → Parameters → Preview
   setTimeout(() => {
     if (nodes.length === 0) {
-      const nModel = createNode('model', 50, 50);
-      const nPrompt = createNode('prompt', 350, 50);
-      const nPreview = createNode('preview', 650, 50);
-      
-      // Auto connect
+      const nModel  = createNode('model',      50,  60);
+      const nPrompt = createNode('prompt',     310,  60);
+      const nParams = createNode('parameters', 570,  60);
+      const nPreview= createNode('preview',    830,  60);
+
       connections.push({
-        from: nModel.querySelector('.wf-port-out'), fromNode: nModel.id,
-        to: nPrompt.querySelector('.wf-port-in'), toNode: nPrompt.id
+        from: nModel.querySelector('.wf-port-out'),  fromNode: nModel.id,
+        to:   nPrompt.querySelector('.wf-port-in'),  toNode:   nPrompt.id
       });
       connections.push({
         from: nPrompt.querySelector('.wf-port-out'), fromNode: nPrompt.id,
-        to: nPreview.querySelector('.wf-port-in'), toNode: nPreview.id
+        to:   nParams.querySelector('.wf-port-in'),  toNode:   nParams.id
+      });
+      connections.push({
+        from: nParams.querySelector('.wf-port-out'), fromNode: nParams.id,
+        to:   nPreview.querySelector('.wf-port-in'), toNode:   nPreview.id
       });
       drawConnections();
     }
@@ -330,19 +333,18 @@
         pipeline.forEach(n => {
           if (n.dataset.type === 'model') {
             params.model = n.querySelector('.wf-model-sel').value;
+          } else if (n.dataset.type === 'parameters') {
             params.resolution = n.querySelector('.wf-res-sel').value;
+            params.cfg = parseInt(n.querySelector('.wf-temp-cfg').value);
+            params.upscale = parseInt(n.querySelector('.wf-up-scale').value);
           } else if (n.dataset.type === 'prompt') {
             const ta = n.querySelector('.wf-prompt-input');
             params.prompt += ' ' + (window.EditorService ? window.EditorService.getContent(ta.id) : ta.value);
-          } else if (n.dataset.type === 'temperature') {
-            params.cfg = parseInt(n.querySelector('.wf-temp-cfg').value);
           } else if (n.dataset.type === 'img2img') {
             params.i2i_base = n.querySelector('.wf-i2i-base').value;
             params.i2i_denoise = parseFloat(n.querySelector('.wf-i2i-denoise').value);
           } else if (n.dataset.type === 'mask') {
             params.mask = n.dataset.maskData || null;
-          } else if (n.dataset.type === 'upscale') {
-            params.upscale = parseInt(n.querySelector('.wf-up-scale').value);
           }
         });
         

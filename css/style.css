@@ -280,11 +280,13 @@ body {
   gap: 14px;
   position: sticky;
   top: 68px;
+  min-width: 0;
 }
 .dashboard-right {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
 }
 
 /* ── Dashboard Card ── */
@@ -451,7 +453,7 @@ body {
   opacity: 0;
 }
 .dash-collapsible.expanded {
-  max-height: 2000px;
+  max-height: 9999px;
   opacity: 1;
 }
 
@@ -1623,7 +1625,6 @@ body {
   display: block;
   overflow: hidden;
   min-height: 2.5em;
-  field-sizing: content;
   transition: border-color 0.15s, background 0.15s;
 }
 .editable-field:hover {

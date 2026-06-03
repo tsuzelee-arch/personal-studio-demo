@@ -86,6 +86,18 @@
   });
   dropZone.addEventListener('click', e => { if (e.target !== uploadBtn) imageInput.click(); });
 
+  // Paste image directly (Ctrl+V) when decode panel is active
+  document.addEventListener('paste', (e) => {
+    const panelActive = document.getElementById('panel-decode')?.classList.contains('active');
+    const dropVisible = !dropZone.classList.contains('hidden');
+    if (!panelActive || !dropVisible) return;
+    const item = Array.from(e.clipboardData?.items || []).find(i => i.type.startsWith('image/'));
+    if (!item) return;
+    e.preventDefault();
+    const file = item.getAsFile();
+    if (file) loadImage(file);
+  });
+
   resetDecodeBtn.addEventListener('click', resetDecode);
 
   function resetDecode() {

@@ -403,13 +403,25 @@ ${JSON.stringify(analysis)}`;
     return `data:image/png;base64,${base64}`;
   }
 
+  // Map pixel dimensions to the nearest Gemini-supported aspect ratio string
+  function toAspectRatio(w, h) {
+    const r = w / h;
+    if (r > 1.7) return '16:9';
+    if (r < 0.6) return '9:16';
+    if (r > 1.2) return '4:3';
+    if (r < 0.85) return '3:4';
+    return '1:1';
+  }
+
   async function generateWithNanoBanana2(prompt, apiKey, width=1024, height=1024, image=null, mask=null, cfg=7) {
     // Nano Banana 2 -> gemini-3.1-flash-image (supports img2img + mask + cfg)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
 
     const stripPrefix = (dataUrl) => dataUrl ? dataUrl.replace(/^data:[^;]+;base64,/, '') : null;
 
-    const parts = [{ text: prompt }];
+    // Prepend size hint so the model knows the intended dimensions
+    const sizedPrompt = `[${width}x${height}] ${prompt}`;
+    const parts = [{ text: sizedPrompt }];
     if (image) {
       const mimeMatch = image.match(/^data:([^;]+);/);
       parts.push({ inline_data: { mime_type: mimeMatch ? mimeMatch[1] : 'image/jpeg', data: stripPrefix(image) } });
@@ -423,7 +435,8 @@ ${JSON.stringify(analysis)}`;
       contents: [{ parts }],
       generationConfig: {
         temperature: Math.min(1.0, Math.max(0.0, (cfg - 1) / 19)),
-        responseModalities: ['IMAGE', 'TEXT']
+        responseModalities: ['IMAGE', 'TEXT'],
+        aspectRatio: toAspectRatio(width, height)
       }
     };
 
