@@ -362,7 +362,7 @@ ${JSON.stringify(analysis)}`;
   }
 
   // ── Image Generation APIs ──
-  async function generateWithNanoBanana(prompt, apiKey) {
+  async function generateWithNanoBanana(prompt, apiKey, width=1024, height=1024) {
     // Hypothetical endpoint for Nano Banana Pro
     const url = 'https://api.nanobanana.ai/v1/generate'; 
     try {
@@ -372,7 +372,7 @@ ${JSON.stringify(analysis)}`;
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify({ prompt, model: 'nano-banana-pro' })
+        body: JSON.stringify({ prompt, model: 'nano-banana-pro', width, height })
       });
       if (!response.ok) throw new Error();
       const data = await response.json();
@@ -380,93 +380,29 @@ ${JSON.stringify(analysis)}`;
     } catch(e) {
       // Fallback mock for demonstration since the API is hypothetical
       console.warn("Nano Banana API failed/unavailable, returning mock image.", e);
-      return new Promise(resolve => setTimeout(() => resolve('https://images.unsplash.com/photo-1549490349-8643362247b5?w=512&q=80'), 1500));
+      return new Promise(resolve => setTimeout(() => resolve(`https://images.unsplash.com/photo-1549490349-8643362247b5?w=${width}&q=80`), 1500));
     }
-  }
-
-
-  async function generateWithNanoBanana(prompt, apiKey, width=1024, height=1024) {
-    // Nano Banana Pro -> gemini-3-pro-image
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent?key=${apiKey}`;
-    const payload = {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        // Assume basic output config for image model if applicable
-      }
-    };
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Nano Banana Pro API Error: HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
-    // Assuming Gemini returns base64 in a typical structure, usually inlineData
-    // e.g. candidates[0].content.parts[0].inlineData.data
-    const base64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64) throw new Error("No image data returned from Nano Banana Pro");
-    return `data:image/png;base64,${base64}`;
-  }
-
-  // Map pixel dimensions to the nearest Gemini-supported aspect ratio string
-  function toAspectRatio(w, h) {
-    const r = w / h;
-    if (r > 1.7) return '16:9';
-    if (r < 0.6) return '9:16';
-    if (r > 1.2) return '4:3';
-    if (r < 0.85) return '3:4';
-    return '1:1';
   }
 
   async function generateWithNanoBanana2(prompt, apiKey, width=1024, height=1024, image=null, mask=null, cfg=7) {
-    // Nano Banana 2 -> gemini-3.1-flash-image (supports img2img + mask + cfg)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
-
-    const stripPrefix = (dataUrl) => dataUrl ? dataUrl.replace(/^data:[^;]+;base64,/, '') : null;
-
-    // Prepend size hint so the model knows the intended dimensions
-    const sizedPrompt = `[${width}x${height}] ${prompt}`;
-    const parts = [{ text: sizedPrompt }];
-    if (image) {
-      const mimeMatch = image.match(/^data:([^;]+);/);
-      parts.push({ inline_data: { mime_type: mimeMatch ? mimeMatch[1] : 'image/jpeg', data: stripPrefix(image) } });
+    // Hypothetical endpoint for Nano Banana 2 (supports i2i)
+    const url = 'https://api.nanobanana.ai/v2/generate'; 
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ prompt, model: 'nano-banana-2', width, height, image, mask, cfg })
+      });
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      return data.image_url;
+    } catch(e) {
+      console.warn("Nano Banana 2 API failed/unavailable, returning mock image.", e);
+      return new Promise(resolve => setTimeout(() => resolve(`https://images.unsplash.com/photo-1549490349-8643362247b5?w=${width}&q=80`), 1500));
     }
-    if (mask) {
-      const mimeMask = mask.match(/^data:([^;]+);/);
-      parts.push({ inline_data: { mime_type: mimeMask ? mimeMask[1] : 'image/png', data: stripPrefix(mask) } });
-    }
-
-    const payload = {
-      contents: [{ parts }],
-      generationConfig: {
-        temperature: Math.min(1.0, Math.max(0.0, (cfg - 1) / 19)),
-        responseModalities: ['IMAGE', 'TEXT'],
-        aspectRatio: toAspectRatio(width, height)
-      }
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Nano Banana 2 API Error: HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-    if (!imagePart) throw new Error('No image data returned from Nano Banana 2');
-    const { mime_type, data: b64 } = imagePart.inlineData;
-    return `data:${mime_type || 'image/png'};base64,${b64}`;
   }
 
   async function generateWithGPTImage(prompt, apiKey, width=1024, height=1024) {
