@@ -407,7 +407,42 @@ window.IDEAgent = (function() {
 
     const data = await res.json();
     const reply = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '(無回覆)';
+
+    // Check if the user's intent seems to be image generation
+    const wantsImage = detectImageGenIntent(text);
+    if (wantsImage) {
+      try {
+        const imgResult = await generateWithGeminiImagen(apiKey, text);
+        return { text: reply || '圖片生成完成！', image: imgResult };
+      } catch (imgErr) {
+        return { text: reply + `\n\n⚠️ 圖片生成失敗：${imgErr.message}` };
+      }
+    }
+
     return { text: reply };
+  }
+
+  // ── Gemini Imagen 3 (AI Studio) ──
+  async function generateWithGeminiImagen(apiKey, prompt) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt: prompt }],
+        parameters: { sampleCount: 1 }
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Gemini Imagen API 錯誤 (${res.status})`);
+    }
+
+    const data = await res.json();
+    if (data.predictions?.[0]?.bytesBase64Encoded) {
+      return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
+    }
+    throw new Error('未收到生成的圖片');
   }
 
   // ════════════════════════════════════════════════════════
@@ -415,7 +450,7 @@ window.IDEAgent = (function() {
   // ════════════════════════════════════════════════════════
 
   function detectImageGenIntent(text) {
-    const keywords = ['生成', '畫', '繪', '創建', '製作', '畫一', '生成一', '幫我畫', 'generate', 'create', 'draw', 'make an image', '圖片', '圖像'];
+    const keywords = ['生成', '畫', '繪', '創建', '製作', '畫一', '生成一', '幫我畫', 'generate', 'create', 'draw', 'make an image', '圖片', '圖像', '圖呢', '產圖'];
     const lower = text.toLowerCase();
     return keywords.some(k => lower.includes(k));
   }
