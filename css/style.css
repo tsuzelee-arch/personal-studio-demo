@@ -1092,10 +1092,13 @@ body {
 
 /* ── Prompts Body: Sidebar + Content ── */
 #panel-prompts {
-  display: flex;
+  display: none;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+}
+#panel-prompts.active {
+  display: flex;
 }
 #panel-prompts .prompts-toolbar {
   flex-shrink: 0;
