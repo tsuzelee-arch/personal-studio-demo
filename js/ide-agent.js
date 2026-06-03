@@ -1,6 +1,9 @@
 /**
  * ide-agent.js — IDE Agent Chat Interface & Left Pane Asset Explorer
- * Integrates ChatGPT (GPT Image 2.0) and Gemini for conversation + image generation.
+ * Dual-track image generation:
+ *   Track A: Direct image mode — bypasses chat models, sends prompt directly to GPT Image 2.0
+ *   Track B: Tool Calling — chat models can invoke generate_image tool
+ * Models: ChatGPT 5.5, Gemini 3.5 Flash, Gemini 3.1 Pro (High)
  */
 window.IDEAgent = (function() {
   // ── DOM refs ──
@@ -13,12 +16,18 @@ window.IDEAgent = (function() {
   const attachmentsEl = document.getElementById('agentAttachments');
   const modelSelect   = document.getElementById('agentModelSelect');
   const agentPane     = document.querySelector('.ide-right-agent');
+  const imageModeBtn  = document.getElementById('agentImageModeToggle');
+  const genParamsEl   = document.getElementById('agentGenParams');
+  const genSizeEl     = document.getElementById('agentGenSize');
+  const genQualityEl  = document.getElementById('agentGenQuality');
+  const inputContainer = document.getElementById('agentInputContainer');
 
   // ── State ──
   let chatHistory = [];        // { role: 'user'|'assistant', content: string, images?: string[] }
   let pendingAttachments = []; // base64 data URLs
   let activeFolder = '根目錄';
   let isLoading = false;
+  let isImageMode = false;     // Track A: direct image generation mode
 
   // ════════════════════════════════════════════════════════
   //  LEFT PANE: Asset File Explorer
@@ -83,6 +92,21 @@ window.IDEAgent = (function() {
       });
     } catch (e) {
       console.error('IDE Assets render error:', e);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  IMAGE MODE TOGGLE
+  // ════════════════════════════════════════════════════════
+  function toggleImageMode() {
+    isImageMode = !isImageMode;
+    if (imageModeBtn) imageModeBtn.classList.toggle('active', isImageMode);
+    if (genParamsEl)  genParamsEl.classList.toggle('hidden', !isImageMode);
+    if (inputContainer) inputContainer.classList.toggle('image-mode', isImageMode);
+    if (textarea) {
+      textarea.placeholder = isImageMode
+        ? '🎨 描述您想要生成的圖片（直接呼叫 GPT Image 2.0，不消耗對話 Token）...'
+        : '輸入描述來生成圖像，或附加圖片進行分析...';
     }
   }
 
@@ -184,7 +208,7 @@ window.IDEAgent = (function() {
   }
 
   // ════════════════════════════════════════════════════════
-  //  API Calls
+  //  SEND MESSAGE — Dual Track Router
   // ════════════════════════════════════════════════════════
 
   async function sendMessage() {
@@ -192,7 +216,6 @@ window.IDEAgent = (function() {
     if (!text && pendingAttachments.length === 0) return;
     if (isLoading) return;
 
-    const model = modelSelect.value;
     const images = [...pendingAttachments];
 
     // Add to UI
@@ -210,10 +233,18 @@ window.IDEAgent = (function() {
 
     try {
       let response;
-      if (model === 'openai') {
-        response = await callOpenAI(text, images);
+
+      if (isImageMode) {
+        // ── TRACK A: Direct Image Generation (zero chat token cost) ──
+        response = await directImageGeneration(text, images);
       } else {
-        response = await callGemini(text, images, model);
+        // ── TRACK B: Chat with Tool Calling for image generation ──
+        const model = modelSelect.value;
+        if (model === 'gpt-5.5') {
+          response = await callOpenAI(text, images);
+        } else {
+          response = await callGemini(text, images, model);
+        }
       }
 
       removeLoadingIndicator();
@@ -233,23 +264,138 @@ window.IDEAgent = (function() {
     }
   }
 
-  // ── OpenAI (ChatGPT + GPT Image 2.0) ──
+  // ════════════════════════════════════════════════════════
+  //  TRACK A: Direct Image Generation (GPT Image 2.0)
+  // ════════════════════════════════════════════════════════
+
+  async function directImageGeneration(prompt, refImages) {
+    const apiKey = window.StudioSettings.getGptimageKey() || window.StudioSettings.getOpenAIKey();
+    if (!apiKey) throw new Error('請先在設定中配置 OpenAI / GPT Image API Key');
+
+    const size = genSizeEl ? genSizeEl.value : '1024x1024';
+    const quality = genQualityEl ? genQualityEl.value : 'high';
+
+    const imgResult = await generateWithGPTImage2(apiKey, prompt, refImages, size, quality);
+    return { text: `🎨 生圖完成！\n尺寸：${size} · 畫質：${quality}`, image: imgResult };
+  }
+
+  // ── GPT Image 2.0 Core ──
+  async function generateWithGPTImage2(apiKey, prompt, refImages, size, quality) {
+    const formData = new FormData();
+    formData.append('model', 'gpt-image-1');
+    formData.append('prompt', prompt);
+    formData.append('size', size || '1024x1024');
+    formData.append('quality', quality || 'high');
+    formData.append('n', '1');
+
+    // Attach reference images if available
+    if (refImages && refImages.length > 0) {
+      for (let i = 0; i < Math.min(refImages.length, 4); i++) {
+        const blob = dataURLtoBlob(refImages[i]);
+        formData.append('image[]', blob, `ref_${i}.png`);
+      }
+    }
+
+    const res = await fetch('https://api.openai.com/v1/images/edits', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      body: formData
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `GPT Image 2.0 API 錯誤 (${res.status})`);
+    }
+
+    const data = await res.json();
+    if (data.data?.[0]?.b64_json) {
+      return `data:image/png;base64,${data.data[0].b64_json}`;
+    } else if (data.data?.[0]?.url) {
+      return data.data[0].url;
+    }
+    throw new Error('未收到生成的圖片');
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  TRACK B: Chat with Tool Calling
+  // ════════════════════════════════════════════════════════
+
+  // ── Tool definition for function calling ──
+  const IMAGE_GEN_TOOL = {
+    type: 'function',
+    function: {
+      name: 'generate_image',
+      description: '使用 GPT Image 2.0 生成圖片。當用戶要求生成、繪製、創建圖片時呼叫此工具。',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: {
+            type: 'string',
+            description: '用於生成圖片的詳細英文提示詞 (prompt)。請將用戶的描述翻譯為英文並擴充細節。'
+          },
+          size: {
+            type: 'string',
+            enum: ['1024x1024', '1792x1024', '1024x1792'],
+            description: '圖片尺寸。1024x1024 為正方形，1792x1024 為橫向，1024x1792 為直向。'
+          },
+          quality: {
+            type: 'string',
+            enum: ['standard', 'high'],
+            description: '圖片品質。high 為高解析度，standard 為標準。'
+          }
+        },
+        required: ['prompt']
+      }
+    }
+  };
+
+  // Gemini equivalent tool declaration
+  const GEMINI_IMAGE_GEN_TOOL = {
+    functionDeclarations: [{
+      name: 'generate_image',
+      description: '使用 GPT Image 2.0 生成圖片。當用戶要求生成、繪製、創建圖片時呼叫此工具。',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          prompt: {
+            type: 'STRING',
+            description: '用於生成圖片的詳細英文提示詞 (prompt)。請將用戶的描述翻譯為英文並擴充細節。'
+          },
+          size: {
+            type: 'STRING',
+            enum: ['1024x1024', '1792x1024', '1024x1792'],
+            description: '圖片尺寸。1024x1024 為正方形，1792x1024 為橫向，1024x1792 為直向。'
+          },
+          quality: {
+            type: 'STRING',
+            enum: ['standard', 'high'],
+            description: '圖片品質。high 為高解析度，standard 為標準。'
+          }
+        },
+        required: ['prompt']
+      }
+    }]
+  };
+
+  // ── OpenAI (ChatGPT 5.5 with Tool Calling) ──
   async function callOpenAI(text, images) {
     const apiKey = window.StudioSettings.getOpenAIKey();
     if (!apiKey) throw new Error('請先在設定中配置 OpenAI API Key');
 
-    // Build message array for multi-turn
     const messages = buildOpenAIMessages(text, images);
 
-    // First, try regular chat completion (GPT-4o handles vision + text)
+    const body = {
+      model: 'gpt-5.5',
+      messages,
+      max_tokens: 2048,
+      tools: [IMAGE_GEN_TOOL],
+      tool_choice: 'auto'
+    };
+
     const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages,
-        max_tokens: 2048
-      })
+      body: JSON.stringify(body)
     });
 
     if (!chatRes.ok) {
@@ -258,16 +404,30 @@ window.IDEAgent = (function() {
     }
 
     const chatData = await chatRes.json();
-    const reply = chatData.choices?.[0]?.message?.content || '';
+    const choice = chatData.choices?.[0];
+    const reply = choice?.message?.content || '';
 
-    // Check if the user's intent seems to be image generation
-    const wantsImage = detectImageGenIntent(text);
-    if (wantsImage) {
-      try {
-        const imgResult = await generateWithGPTImage2(apiKey, text, images);
-        return { text: reply || '圖片生成完成！', image: imgResult };
-      } catch (imgErr) {
-        return { text: reply + `\n\n⚠️ 圖片生成失敗：${imgErr.message}` };
+    // Check if model wants to call generate_image tool
+    const toolCalls = choice?.message?.tool_calls;
+    if (toolCalls && toolCalls.length > 0) {
+      for (const tc of toolCalls) {
+        if (tc.function?.name === 'generate_image') {
+          try {
+            const args = JSON.parse(tc.function.arguments);
+            const imgApiKey = window.StudioSettings.getGptimageKey() || apiKey;
+            const imgResult = await generateWithGPTImage2(
+              imgApiKey,
+              args.prompt,
+              images,
+              args.size || '1024x1024',
+              args.quality || 'high'
+            );
+            const desc = reply || `🎨 已根據您的要求生成圖片！\nPrompt: ${args.prompt}`;
+            return { text: desc, image: imgResult };
+          } catch (imgErr) {
+            return { text: reply + `\n\n⚠️ 圖片生成失敗：${imgErr.message}` };
+          }
+        }
       }
     }
 
@@ -276,8 +436,7 @@ window.IDEAgent = (function() {
 
   function buildOpenAIMessages(text, images) {
     const msgs = [];
-    // System prompt
-    msgs.push({ role: 'system', content: '你是一位專業的創意 AI 助手，擅長圖像生成、藝術分析和創意設計。回覆請使用繁體中文。' });
+    msgs.push({ role: 'system', content: '你是一位專業的創意 AI 助手，擅長圖像生成、藝術分析和創意設計。回覆請使用繁體中文。當用戶要求生成或繪製圖片時，請使用 generate_image 工具。' });
 
     // History (last 10 turns)
     const recent = chatHistory.slice(-10);
@@ -313,52 +472,12 @@ window.IDEAgent = (function() {
     return msgs;
   }
 
-  // ── GPT Image 2.0 (gpt-image-2) ──
-  async function generateWithGPTImage2(apiKey, prompt, refImages) {
-    // Use the GPT Image 2.0 endpoint
-    const gptImgKey = window.StudioSettings.getGptimageKey() || apiKey;
-
-    const formData = new FormData();
-    formData.append('model', 'gpt-image-1');
-    formData.append('prompt', prompt);
-    formData.append('size', '1024x1024');
-    formData.append('quality', 'high');
-    formData.append('n', '1');
-
-    // Attach reference images if available
-    if (refImages.length > 0) {
-      for (let i = 0; i < Math.min(refImages.length, 4); i++) {
-        const blob = dataURLtoBlob(refImages[i]);
-        formData.append('image[]', blob, `ref_${i}.png`);
-      }
-    }
-
-    const res = await fetch('https://api.openai.com/v1/images/edits', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${gptImgKey}` },
-      body: formData
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `GPT Image 2.0 API 錯誤 (${res.status})`);
-    }
-
-    const data = await res.json();
-    if (data.data?.[0]?.b64_json) {
-      return `data:image/png;base64,${data.data[0].b64_json}`;
-    } else if (data.data?.[0]?.url) {
-      return data.data[0].url;
-    }
-    throw new Error('未收到生成的圖片');
-  }
-
-  // ── Google Gemini ──
+  // ── Google Gemini (3.5 Flash / 3.1 Pro with Tool Calling) ──
   async function callGemini(text, images, modelType) {
     const apiKey = window.StudioSettings.getGeminiKey();
     if (!apiKey) throw new Error('請先在設定中配置 Gemini API Key');
 
-    const modelName = modelType === 'gemini-pro' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+    const modelName = modelType === 'gemini-3.1-pro' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
 
     // Build parts
     const parts = [];
@@ -395,8 +514,9 @@ window.IDEAgent = (function() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents,
+        tools: [GEMINI_IMAGE_GEN_TOOL],
         generationConfig: { maxOutputTokens: 2048 },
-        systemInstruction: { parts: [{ text: '你是一位專業的創意 AI 助手，擅長圖像分析、藝術設計和創意指導。回覆請使用繁體中文。' }] }
+        systemInstruction: { parts: [{ text: '你是一位專業的創意 AI 助手，擅長圖像分析、藝術設計和創意指導。回覆請使用繁體中文。當用戶要求生成或繪製圖片時，請使用 generate_image 工具。' }] }
       })
     });
 
@@ -406,33 +526,44 @@ window.IDEAgent = (function() {
     }
 
     const data = await res.json();
-    const reply = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '(無回覆)';
+    const candidate = data.candidates?.[0]?.content;
 
-    // Check if the user's intent seems to be image generation
-    const wantsImage = detectImageGenIntent(text);
-    if (wantsImage) {
-      try {
-        const openaiKeyForImg = window.StudioSettings.getGptimageKey() || window.StudioSettings.getOpenAIKey();
-        if (!openaiKeyForImg) throw new Error('生圖需要配置 GPT Image 2.0 或 OpenAI API Key');
-        const imgResult = await generateWithGPTImage2(openaiKeyForImg, text, images);
-        return { text: reply || '圖片生成完成！', image: imgResult };
-      } catch (imgErr) {
-        return { text: reply + `\n\n⚠️ 圖片生成失敗：${imgErr.message}` };
+    // Check for function call response
+    if (candidate?.parts) {
+      const funcCall = candidate.parts.find(p => p.functionCall);
+      const textParts = candidate.parts.filter(p => p.text).map(p => p.text).join('');
+
+      if (funcCall && funcCall.functionCall.name === 'generate_image') {
+        try {
+          const args = funcCall.functionCall.args;
+          const imgApiKey = window.StudioSettings.getGptimageKey() || window.StudioSettings.getOpenAIKey();
+          if (!imgApiKey) throw new Error('生圖需要配置 OpenAI API Key');
+          const imgResult = await generateWithGPTImage2(
+            imgApiKey,
+            args.prompt,
+            images,
+            args.size || '1024x1024',
+            args.quality || 'high'
+          );
+          const desc = textParts || `🎨 已根據您的要求生成圖片！\nPrompt: ${args.prompt}`;
+          return { text: desc, image: imgResult };
+        } catch (imgErr) {
+          return { text: (textParts || '') + `\n\n⚠️ 圖片生成失敗：${imgErr.message}` };
+        }
+      }
+
+      if (textParts) {
+        return { text: textParts };
       }
     }
 
+    const reply = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '(無回覆)';
     return { text: reply };
   }
 
   // ════════════════════════════════════════════════════════
   //  Utilities
   // ════════════════════════════════════════════════════════
-
-  function detectImageGenIntent(text) {
-    const keywords = ['生成', '畫', '繪', '創建', '製作', '畫一', '生成一', '幫我畫', 'generate', 'create', 'draw', 'make an image', '圖片', '圖像', '圖呢', '產圖'];
-    const lower = text.toLowerCase();
-    return keywords.some(k => lower.includes(k));
-  }
 
   function dataURLtoBlob(dataURL) {
     const parts = dataURL.split(',');
@@ -498,6 +629,11 @@ window.IDEAgent = (function() {
       textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
     });
 
+    // Image mode toggle
+    if (imageModeBtn) {
+      imageModeBtn.addEventListener('click', toggleImageMode);
+    }
+
     // Attach button — open file picker
     if (attachBtn) {
       const fileInput = document.createElement('input');
@@ -520,7 +656,6 @@ window.IDEAgent = (function() {
     // Drag & Drop into agent chat pane
     if (agentPane) {
       agentPane.addEventListener('dragover', (e) => {
-        // Only respond to IDE asset drags or file drags
         if (e.dataTransfer.types.includes('text/ide-asset') || e.dataTransfer.types.includes('Files')) {
           e.preventDefault();
           agentPane.classList.add('drag-over');
@@ -542,7 +677,7 @@ window.IDEAgent = (function() {
             const asset = JSON.parse(assetData);
             addAttachment(asset.data);
             window.showToast(`📎 已附加「${asset.name}」`);
-          } catch {}
+          } catch (ex) { console.error(ex); }
           return;
         }
 
@@ -566,7 +701,6 @@ window.IDEAgent = (function() {
 
   // Wait for AssetsService to be ready
   if (window.AssetsService) {
-    // AssetsService init is async, give it a moment
     setTimeout(init, 300);
   } else {
     document.addEventListener('DOMContentLoaded', () => setTimeout(init, 300));

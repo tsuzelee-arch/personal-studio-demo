@@ -108,6 +108,14 @@ body {
 
 .panel { display: none; min-height: calc(100vh - 100px); }
 .panel.active { display: block; }
+/* Workflow panel needs flex to fill height correctly */
+#panel-workflow.active {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 56px);
+  min-height: 0;
+  overflow: hidden;
+}
 
 /* ── Buttons ── */
 .btn-primary {
@@ -1985,7 +1993,8 @@ input.editable-field:focus { resize: none; }
 .workflow-ide-layout {
   display: grid;
   grid-template-columns: 240px 1fr 360px;
-  height: calc(100vh - 100px);
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -2401,3 +2410,84 @@ input.editable-field:focus { resize: none; }
   background: rgba(200,169,110,0.04);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Image Generation Mode — Toggle, Params Panel & Glow Effect
+   ══════════════════════════════════════════════════════════════ */
+
+/* 🎨 Image Mode Toggle Button */
+.agent-imgmode-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: color 0.15s, background 0.15s, box-shadow 0.2s;
+}
+.agent-imgmode-btn:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
+.agent-imgmode-btn.active {
+  background: linear-gradient(135deg, #c8a96e33, #e8c47722);
+  color: var(--warm-dark);
+  box-shadow: 0 0 8px rgba(200,169,110,0.3);
+}
+
+/* Glow effect on input container when image mode is active */
+.agent-input-container.image-mode {
+  border-color: var(--warm);
+  box-shadow: 0 0 0 3px rgba(200,169,110,0.15), 0 0 16px rgba(200,169,110,0.08);
+}
+.agent-input-container.image-mode .agent-textarea::placeholder {
+  color: var(--warm-dark);
+}
+
+/* Generation Parameters Panel */
+.agent-gen-params {
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(200,169,110,0.06), rgba(200,169,110,0.02));
+  border: 1px solid rgba(200,169,110,0.2);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  animation: genParamsSlideDown 0.25s ease both;
+}
+.agent-gen-params.hidden {
+  display: none;
+}
+@keyframes genParamsSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.gen-param-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.gen-param-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warm-dark);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+.gen-param-select {
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.gen-param-select:focus { border-color: var(--warm); }

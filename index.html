@@ -374,23 +374,42 @@
             <div class="agent-header">
               <span class="agent-header-title">✨ IDE Agent</span>
               <select class="agent-model-select" id="agentModelSelect">
-                <option value="openai">ChatGPT (GPT Image 2.0)</option>
-                <option value="gemini">Gemini 3.5 Flash</option>
-                <option value="gemini-pro">Gemini 3.5 Pro</option>
+                <option value="gpt-5.5">ChatGPT 5.5</option>
+                <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash</option>
+                <option value="gemini-3.1-pro">Gemini 3.1 Pro (High)</option>
               </select>
             </div>
             <div class="agent-messages" id="agentMessages">
               <div class="agent-welcome">
                 <div class="agent-welcome-icon">✨</div>
                 <div class="agent-welcome-title">歡迎使用 IDE Agent</div>
-                <div class="agent-welcome-sub">您可以輸入描述來生成圖像，或將左側資產庫的圖片拖曳至此進行分析。</div>
+                <div class="agent-welcome-sub">選擇模型進行對話，或開啟「🎨 生圖模式」直接生成圖片。可將左側資產庫的圖片拖曳至此作為參考。</div>
               </div>
             </div>
             <div class="agent-input-area">
+              <!-- Image Generation Parameters Panel (hidden by default) -->
+              <div class="agent-gen-params hidden" id="agentGenParams">
+                <div class="gen-param-row">
+                  <label class="gen-param-label">尺寸</label>
+                  <select class="gen-param-select" id="agentGenSize">
+                    <option value="1024x1024">1024×1024 (1:1)</option>
+                    <option value="1792x1024">1792×1024 (16:9)</option>
+                    <option value="1024x1792">1024×1792 (9:16)</option>
+                  </select>
+                </div>
+                <div class="gen-param-row">
+                  <label class="gen-param-label">畫質</label>
+                  <select class="gen-param-select" id="agentGenQuality">
+                    <option value="high">High (高解析度)</option>
+                    <option value="standard">Standard (標準)</option>
+                  </select>
+                </div>
+              </div>
               <div class="agent-attachments" id="agentAttachments"></div>
-              <div class="agent-input-container">
+              <div class="agent-input-container" id="agentInputContainer">
                 <button class="agent-attach-btn" id="agentAttachBtn" title="附加圖片">📎</button>
                 <textarea class="agent-textarea" id="agentTextarea" placeholder="輸入描述來生成圖像，或附加圖片進行分析..." rows="1"></textarea>
+                <button class="agent-imgmode-btn" id="agentImageModeToggle" title="切換生圖模式">🎨</button>
                 <button class="agent-send-btn" id="agentSendBtn" title="發送">⬆️</button>
               </div>
             </div>
@@ -552,14 +571,14 @@
 <div class="toast hidden" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-<script src="js/app.js?v=35"></script>
-<script src="js/assets.js?v=35"></script>
-<script src="js/editor.js?v=35"></script>
-<script src="js/ai-service.js?v=35"></script>
-<script src="js/settings.js?v=35"></script>
-<script src="js/decode.js?v=35"></script>
-<script src="js/prompts.js?v=35"></script>
-<script src="js/workflow.js?v=35"></script>
-<script src="js/ide-agent.js?v=35"></script>
+<script src="js/app.js?v=36"></script>
+<script src="js/assets.js?v=36"></script>
+<script src="js/editor.js?v=36"></script>
+<script src="js/ai-service.js?v=36"></script>
+<script src="js/settings.js?v=36"></script>
+<script src="js/decode.js?v=36"></script>
+<script src="js/prompts.js?v=36"></script>
+<script src="js/workflow.js?v=36"></script>
+<script src="js/ide-agent.js?v=36"></script>
 </body>
 </html>
