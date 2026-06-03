@@ -29,7 +29,9 @@
   const PINNED_CATEGORIES = ['創作主題', '編輯模式'];
 
   function getDefaultCategories() {
-    return Object.values(SCHEMA_CATEGORY_MAP).map(v => v.label);
+    return Object.values(SCHEMA_CATEGORY_MAP)
+      .map(v => v.label)
+      .filter(label => !PINNED_CATEGORIES.includes(label));
   }
 
   function loadCustomCategories() {

@@ -124,15 +124,6 @@
 
               <!-- Right Column: Analysis Cards -->
               <div class="dashboard-right">
-                <div class="dash-card" id="cardTheme">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">💡</span>
-                    <span class="dash-card-title">創作主題 (Creative Theme)</span>
-                  </div>
-                  <div class="dash-card-body">
-                    <textarea class="editable-field" id="elCreativeTheme" rows="2"></textarea>
-                  </div>
-                </div>
                 <!-- Metadata Card -->
                 <div class="dash-card" id="cardMeta">
                   <div class="dash-card-header">
@@ -163,6 +154,10 @@
                     <button class="dash-toggle" data-target="elementsBody">展開 ▾</button>
                   </div>
                   <div class="dash-card-body dash-collapsible" id="elementsBody">
+                    <div class="element-section">
+                      <div class="element-layer-badge">創作主題 (Creative Theme)</div>
+                      <textarea class="editable-field" id="elCreativeTheme" rows="2"></textarea>
+                    </div>
                     <div class="element-section">
                       <div class="element-layer-badge">前景特效 (Foreground)</div>
                       <textarea class="editable-field" id="elForeground" rows="2"></textarea>
@@ -513,13 +508,13 @@
 <div class="toast hidden" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-<script src="js/app.js?v=30"></script>
-<script src="js/assets.js?v=30"></script>
-<script src="js/editor.js?v=30"></script>
-<script src="js/ai-service.js?v=30"></script>
-<script src="js/settings.js?v=30"></script>
-<script src="js/decode.js?v=30"></script>
-<script src="js/prompts.js?v=30"></script>
+<script src="js/app.js?v=31"></script>
+<script src="js/assets.js?v=31"></script>
+<script src="js/editor.js?v=31"></script>
+<script src="js/ai-service.js?v=31"></script>
+<script src="js/settings.js?v=31"></script>
+<script src="js/decode.js?v=31"></script>
+<script src="js/prompts.js?v=31"></script>
 <script src="js/workflow.js?v=28"></script>
 </body>
 </html>
