@@ -132,16 +132,16 @@
         const preview = el.querySelector('.wf-i2i-preview');
         input.addEventListener('input', () => {
           if (input.value) {
-            preview.innerHTML = \`<img src="\${input.value}" style="width:100%; height:100%; object-fit:cover;">\`;
+            preview.innerHTML = `<img src="${input.value}" style="width:100%; height:100%; object-fit:cover;">`;
           } else {
-            preview.innerHTML = \`<span style="color:#aaa; font-size:12px;">No Image</span>\`;
+            preview.innerHTML = `<span style="color:#aaa; font-size:12px;">No Image</span>`;
           }
         });
         
         // Handle injected image (from paste)
         if (datum.data.initialImage) {
           input.value = datum.data.initialImage;
-          preview.innerHTML = \`<img src="\${datum.data.initialImage}" style="width:100%; height:100%; object-fit:cover;">\`;
+          preview.innerHTML = `<img src="${datum.data.initialImage}" style="width:100%; height:100%; object-fit:cover;">`;
         }
       }
 
@@ -155,7 +155,7 @@
           const reader = new FileReader();
           reader.onload = (ev) => {
             el.dataset.maskData = ev.target.result;
-            preview.innerHTML = \`<img src="\${ev.target.result}" style="width:100%; height:100%; object-fit:cover;">\`;
+            preview.innerHTML = `<img src="${ev.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
           };
           reader.readAsDataURL(file);
         });
@@ -180,10 +180,10 @@
     // Default graph data
     const initialData = {
       nodes: [
-        { id: 'node_1', data: { type: 'model' }, x: 100, y: 150 },
-        { id: 'node_2', data: { type: 'prompt' }, x: 380, y: 150 },
-        { id: 'node_3', data: { type: 'parameters' }, x: 740, y: 150 },
-        { id: 'node_4', data: { type: 'preview' }, x: 1080, y: 150 }
+        { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 150 } },
+        { id: 'node_2', data: { type: 'prompt' }, style: { x: 380, y: 150 } },
+        { id: 'node_3', data: { type: 'parameters' }, style: { x: 740, y: 150 } },
+        { id: 'node_4', data: { type: 'preview' }, style: { x: 1080, y: 150 } }
       ],
       edges: [
         { source: 'node_1', target: 'node_2' },
@@ -217,12 +217,12 @@
 
     const graph = new Graph({
       container: container,
-      autoFit: 'view',
+      autoFit: 'center',
       data: initialData,
       node: {
         type: 'html',
         style: {
-          html: (datum) => createNodeDOM(datum),
+          innerHTML: (datum) => createNodeDOM(datum),
           size: (datum) => getNodeSize(datum.data.type),
           ports: (datum) => getPorts(datum.data.type),
           portR: 6,
@@ -275,14 +275,13 @@
           nodeIdCounter++;
           const id = 'node_new_' + Date.now() + '_' + nodeIdCounter;
           
-          // Get current center of view
-          const center = graph.getViewportCenter();
+          const x = 300 + Math.random() * 50;
+          const y = 200 + Math.random() * 50;
           
           graph.addNodeData([{
             id,
             data: { type },
-            x: center.x,
-            y: center.y
+            style: { x, y }
           }]);
           graph.draw();
         });
@@ -346,13 +345,13 @@
             
             nodeIdCounter++;
             const id = 'node_paste_' + Date.now() + '_' + nodeIdCounter;
-            const center = graph.getViewportCenter();
+            const x = 300 + Math.random() * 50;
+            const y = 200 + Math.random() * 50;
             
             graph.addNodeData([{
               id,
               data: { type: 'img2img', initialImage: base64 },
-              x: center.x,
-              y: center.y
+              style: { x, y }
             }]);
             graph.draw();
             if (window.showToast) window.showToast('✅ 已從剪貼簿匯入圖片為圖生圖節點');
@@ -500,7 +499,7 @@
         targetId = promptNodes[0].id;
       } else {
         targetId = 'node_p_' + Date.now();
-        graph.addNodeData([{ id: targetId, data: { type: 'prompt' }, x: 300, y: 200 }]);
+        graph.addNodeData([{ id: targetId, data: { type: 'prompt' }, style: { x: 300, y: 200 } }]);
         graph.draw();
       }
       
