@@ -108,11 +108,10 @@ body {
 
 .panel { display: none; min-height: calc(100vh - 100px); }
 .panel.active { display: block; }
-/* Workflow panel needs flex to fill height correctly */
 #panel-workflow.active {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 56px);
+  height: calc(100vh - 105px);
   min-height: 0;
   overflow: hidden;
 }
