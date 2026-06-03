@@ -43,6 +43,7 @@
   let currentAnalysis = null;
   let currentFile = null;
   let currentImageThumb = null; // downscaled data-URL of the decoded image (for vault thumbnails)
+  const translationsCache = {}; // keyed by language code
 
   // Produce a small, persistable JPEG data-URL so localStorage stays light
   // and the thumbnail survives page reloads (blob: URLs do not).
@@ -96,6 +97,7 @@
     currentFile = null;
     currentImageThumb = null;
     window.StudioState.decodeResult = null;
+    Object.keys(translationsCache).forEach(k => delete translationsCache[k]);
   }
 
   // ── Collapsible toggle ──
@@ -167,8 +169,7 @@
       }
 
       currentAnalysis = analysis;
-      finishLoadingAnimation();
-      renderAnalysis(analysis);
+      finishLoadingAnimation(() => renderAnalysis(analysis));
       showToast(`✅ 視覺解構完成`);
 
     } catch (err) {
@@ -195,13 +196,14 @@
     }, 200);
   }
 
-  function finishLoadingAnimation() {
+  function finishLoadingAnimation(onVisible) {
     if (loadingInterval) clearInterval(loadingInterval);
     loadingBarFill.style.width = '100%';
     setTimeout(() => {
       decodeLoading.classList.add('hidden');
       decodeResult.classList.remove('hidden');
       expandAllSections();
+      if (onVisible) onVisible();
       // Re-run autoResize now that elements are visible (scrollHeight is valid)
       decodeResult.querySelectorAll('textarea.editable-field').forEach(autoResize);
     }, 300);
@@ -311,7 +313,24 @@
       const text = document.createElement('span');
       text.className = 'color-hex';
       text.textContent = hex.toUpperCase();
+      const del = document.createElement('button');
+      del.className = 'palette-delete-btn';
+      del.title = '移除此色';
+      del.textContent = '×';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = currentAnalysis.analysis_metadata.color_palette.indexOf(hex);
+        if (idx !== -1) currentAnalysis.analysis_metadata.color_palette.splice(idx, 1);
+        renderPalette(currentAnalysis.analysis_metadata.color_palette);
+        // Re-attach vault button after re-render
+        const paletteCard = paletteRow.closest('.dash-card');
+        const pal = currentAnalysis.analysis_metadata.color_palette;
+        if (paletteCard && pal.length) {
+          addVaultButton(paletteCard, '色彩色盤', 'color_palette', pal.join(', '), { type: 'palette', colors: pal.slice() });
+        }
+      });
       block.appendChild(text);
+      block.appendChild(del);
       paletteRow.appendChild(block);
     });
 
@@ -422,19 +441,23 @@
     const list = constraints || [];
     list.forEach(text => {
       const li = document.createElement('li');
-      const span = document.createElement('span');
-      span.className = 'negative-text';
-      span.textContent = text;
-      li.appendChild(span);
-      // Per-item vault button (single constraint)
-      addVaultButton(li, `負面約束：${text}`, 'negative', text);
+      const ta = document.createElement('textarea');
+      ta.className = 'negative-text editable-field';
+      ta.value = text;
+      autoResize(ta);
+      ta.addEventListener('input', () => autoResize(ta));
+      li.appendChild(ta);
+      // Per-item vault button reads live textarea value
+      addVaultButton(li, `負面約束：${text}`, 'negative', () => ta.value);
       negativeList.appendChild(li);
     });
 
-    // Whole-group vault button (all constraints merged)
+    // Whole-group vault button reads live textarea values
     const negCard = negativeList.closest('.dash-card');
     if (negCard && list.length) {
-      addVaultButton(negCard, '負面約束（整組）', 'negative', list.join(', '));
+      addVaultButton(negCard, '負面約束（整組）', 'negative', () =>
+        Array.from(negativeList.querySelectorAll('textarea.negative-text')).map(t => t.value).join(', ')
+      );
     }
   }
 
@@ -446,20 +469,24 @@
     const cam = analysis.camera_simulation;
     const mats = analysis.material_and_texture_notes || {};
 
-    let matStr = Object.values(mats).join(', ');
+    const matStr = Object.values(mats).join(', ');
+    const subject = [el.main_subject.identity, el.main_subject.clothing_or_surface, el.main_subject.pose_and_action]
+      .filter(s => s && s !== 'null' && s !== 'N/A').join(', ');
+    const env = [el.foreground_fx, el.midground_objects, el.background_environment]
+      .filter(s => s && s !== 'null' && s !== 'N/A').join(', ');
 
     const parts = [
-      `/imagine prompt:`,
-      `[Style & Vibe] ${meta.estimated_style}. ${meta.mood_and_atmosphere}.`,
-      `[Subject] ${el.main_subject.identity}, wearing/surfaced with ${el.main_subject.clothing_or_surface}, posing as ${el.main_subject.pose_and_action}.`,
-      `[Environment] Foreground: ${el.foreground_fx}. Midground: ${el.midground_objects}. Background: ${el.background_environment}.`,
-      (el.other_elements && el.other_elements !== 'null') ? `[Other Elements] ${el.other_elements}.` : '',
-      `[Lighting & Camera] Key light from ${light.key_light.direction} (${light.key_light.color_temp}, ${light.key_light.quality}). Fill/Rim: ${light.fill_and_rim_lights}. Shot with ${cam.estimated_lens}, ${cam.depth_of_field}, ${cam.camera_angle}.`,
-      matStr ? `[Materials & Textures] ${matStr}.` : '',
-      `[Color Palette] ${meta.color_palette.join(', ')}`,
-      `--no ${analysis.inferred_negative_constraints.join(', ')} --v 6.0`
+      `${meta.estimated_style}, ${meta.mood_and_atmosphere}`,
+      subject,
+      env,
+      (el.other_elements && el.other_elements !== 'null') ? el.other_elements : '',
+      `key light ${light.key_light.direction}, ${light.key_light.color_temp}, ${light.key_light.quality}, ${light.fill_and_rim_lights}`,
+      `${cam.estimated_lens}, ${cam.depth_of_field}, ${cam.camera_angle}`,
+      matStr,
+      meta.color_palette.join(', '),
+      `--no ${analysis.inferred_negative_constraints.join(', ')}`
     ];
-    return parts.filter(p => p.trim() !== '').join('\n');
+    return parts.filter(p => p && p.trim() !== '').join(', ');
   }
 
   // ── Button handlers ──
@@ -575,11 +602,17 @@
       decodeResult.classList.add('hidden');
       decodeLoading.classList.remove('hidden');
       try {
-        let key = '';
-        if (model.startsWith('openai')) key = window.StudioSettings.getOpenAIKey();
-        else if (model === 'geminilite') key = window.StudioSettings.getGeminiliteKey();
-        else key = window.StudioSettings.getGeminiKey();
-        const translated = await window.AIService.translateAnalysis(currentAnalysis, lang, key, model);
+        let translated;
+        if (translationsCache[lang]) {
+          translated = translationsCache[lang];
+        } else {
+          let key = '';
+          if (model.startsWith('openai')) key = window.StudioSettings.getOpenAIKey();
+          else if (model === 'geminilite') key = window.StudioSettings.getGeminiliteKey();
+          else key = window.StudioSettings.getGeminiKey();
+          translated = await window.AIService.translateAnalysis(currentAnalysis, lang, key, model);
+          translationsCache[lang] = translated;
+        }
         currentAnalysis = translated;
         // Reset natural language state since the language changed
         if (window.StudioState.decodeResult) {
@@ -589,9 +622,10 @@
         if (document.getElementById('toNaturalBtn')) {
           document.getElementById('toNaturalBtn').textContent = '轉換為自然語言';
         }
-        finishLoadingAnimation();
-        renderAnalysis(translated);
-        showToast('✅ 翻譯完成');
+        finishLoadingAnimation(() => {
+          renderAnalysis(translated);
+          showToast('✅ 翻譯完成');
+        });
       } catch (err) {
         console.error('Translation failed:', err);
         stopLoadingAnimation();

@@ -34,7 +34,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
 {
   "analysis_metadata": {
     "estimated_style": "[e.g., Cinematic Photography, 3D Render, Anime Concept Art, with Drawing/Photography process]",
-    "color_palette": ["[Hex code 1]", "[Hex code 2]", "[Hex code 3]", "... extract ALL key colors present in the image, no fixed count limit"],
+    "color_palette": ["[Hex code 1]", "[Hex code 2]", "... up to 8 most distinct key colors only; avoid near-duplicate shades"],
     "mood_and_atmosphere": "[1-2 sentences describing the overall vibe]"
   },
   "separated_elements_breakdown": {
