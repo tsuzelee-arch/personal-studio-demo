@@ -1094,7 +1094,7 @@ body {
 #panel-prompts {
   display: none;
   flex-direction: column;
-  height: 100%;
+  height: calc(100vh - 100px);
   overflow: hidden;
 }
 #panel-prompts.active {
