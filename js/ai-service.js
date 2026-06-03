@@ -417,8 +417,7 @@ ${JSON.stringify(analysis)}`;
       contents: [{ parts }],
       generationConfig: {
         temperature: Math.min(1.0, Math.max(0.0, (cfg - 1) / 19)),
-        responseModalities: ['IMAGE', 'TEXT'],
-        aspectRatio: toAspectRatio(width, height)
+        responseModalities: ['IMAGE']
       }
     };
 
