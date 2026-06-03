@@ -169,6 +169,9 @@
       }
 
       currentAnalysis = analysis;
+      if (window.StudioSettings && window.StudioSettings.getOutputLanguage) {
+        translationsCache[window.StudioSettings.getOutputLanguage()] = analysis;
+      }
       finishLoadingAnimation(() => renderAnalysis(analysis));
       showToast(`✅ 視覺解構完成`);
 
@@ -206,6 +209,11 @@
       if (onVisible) onVisible();
       // Re-run autoResize now that elements are visible (scrollHeight is valid)
       decodeResult.querySelectorAll('textarea.editable-field').forEach(autoResize);
+      setTimeout(() => {
+        if (!decodeResult.classList.contains('hidden')) {
+          decodeResult.querySelectorAll('textarea.editable-field').forEach(autoResize);
+        }
+      }, 450);
     }, 300);
   }
 
@@ -308,10 +316,10 @@
     paletteRow.innerHTML = '';
     (palette || []).forEach(hex => {
       const block = document.createElement('div');
-      block.className = 'palette-color';
+      block.className = 'swatch';
       block.style.backgroundColor = hex;
       const text = document.createElement('span');
-      text.className = 'color-hex';
+      text.className = 'swatch-hex';
       text.textContent = hex.toUpperCase();
       const del = document.createElement('button');
       del.className = 'palette-delete-btn';
