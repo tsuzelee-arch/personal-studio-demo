@@ -31,9 +31,10 @@
       
       const el = document.createElement('div');
       el.className = 'wf-node';
-      el.style.width = '100%';
+      el.style.width = 'calc(100% - 24px)';
       el.style.height = '100%';
       el.style.position = 'relative';
+      el.style.left = '12px';
       el.dataset.type = type;
 
       let headerText = '';
@@ -106,6 +107,7 @@
       el.innerHTML = `
         <div class="wf-node-header" style="background:#333; color:#fff; padding:6px 10px; font-size:12px; font-weight:600; border-top-left-radius:6px; border-top-right-radius:6px; cursor:move;">
           ${headerText}
+          <span class="wf-node-del" style="float:right; cursor:pointer; color:#ccc;" title="刪除節點">&times;</span>
         </div>
         <div class="wf-node-body" style="padding:10px; background:#fff; border:1px solid #ccc; border-top:none; border-bottom-left-radius:6px; border-bottom-right-radius:6px; height:calc(100% - 28px); overflow-y:auto; box-sizing:border-box;">
           ${bodyHTML}
@@ -175,6 +177,19 @@
         body.addEventListener('mousedown', e => e.stopPropagation());
         body.addEventListener('wheel', e => e.stopPropagation());
       }
+      
+      const delBtn = el.querySelector('.wf-node-del');
+      if (delBtn) {
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const graph = window.workflowGraph;
+          if (graph) {
+            graph.removeNodeData([id]);
+            delete nodeDOMCache[id];
+            graph.draw();
+          }
+        });
+      }
 
       nodeDOMCache[id] = el;
       return el;
@@ -208,13 +223,13 @@
 
     function getNodeSize(type) {
       switch(type) {
-        case 'model': return [200, 90];
-        case 'prompt': return [280, 150];
-        case 'parameters': return [240, 220];
-        case 'img2img': return [240, 260];
-        case 'mask': return [200, 160];
-        case 'preview': return [250, 240];
-        default: return [200, 100];
+        case 'model': return [224, 90];
+        case 'prompt': return [304, 150];
+        case 'parameters': return [264, 220];
+        case 'img2img': return [264, 260];
+        case 'mask': return [224, 160];
+        case 'preview': return [274, 240];
+        default: return [224, 100];
       }
     }
 
