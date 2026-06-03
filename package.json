@@ -11,6 +11,7 @@
     "setup": "npm install && npm install -g n8n"
   },
   "dependencies": {
+    "@antv/g6": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
