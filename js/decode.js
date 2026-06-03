@@ -224,8 +224,8 @@
   //   - null  → no thumbnail
   function addVaultButton(container, title, schemaKey, value, thumbnail) {
     if (!container || !value || value === 'N/A' || value === 'null') return;
-    // Remove any existing vault button in this container
-    const existing = container.querySelector('.add-to-vault-btn');
+    // Remove only a direct-child vault button (not those in descendant elements)
+    const existing = container.querySelector(':scope > .add-to-vault-btn');
     if (existing) existing.remove();
 
     const btn = document.createElement('button');
