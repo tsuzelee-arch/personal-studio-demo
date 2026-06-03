@@ -168,10 +168,13 @@
         });
       }
 
-      // Stop drag events from inputs to avoid conflicting with canvas drag
-      el.querySelectorAll('input, textarea, select').forEach(input => {
-        input.addEventListener('mousedown', e => e.stopPropagation());
-      });
+      // Ensure node body elements capture pointer events so they can be clicked/focused
+      const body = el.querySelector('.wf-node-body');
+      if (body) {
+        body.addEventListener('pointerdown', e => e.stopPropagation());
+        body.addEventListener('mousedown', e => e.stopPropagation());
+        body.addEventListener('wheel', e => e.stopPropagation());
+      }
 
       nodeDOMCache[id] = el;
       return el;
@@ -322,6 +325,39 @@
           graph.removeNodeData([id]);
           delete nodeDOMCache[id];
           graph.draw();
+        }
+      }
+    });
+
+    // Drag and Drop from Asset Panel
+    container.addEventListener('dragover', (e) => {
+      if (e.dataTransfer.types.includes('text/ide-asset')) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }
+    });
+
+    container.addEventListener('drop', (e) => {
+      const assetData = e.dataTransfer.getData('text/ide-asset');
+      if (assetData) {
+        e.preventDefault();
+        try {
+          const asset = JSON.parse(assetData);
+          let x = e.offsetX || 300;
+          let y = e.offsetY || 200;
+          
+          nodeIdCounter++;
+          const id = 'node_drop_' + Date.now() + '_' + nodeIdCounter;
+          
+          graph.addNodeData([{
+            id,
+            data: { type: 'img2img', initialImage: asset.data },
+            style: { x, y }
+          }]);
+          graph.draw();
+          if (window.showToast) window.showToast('✅ 已從資產庫匯入圖片為圖生圖節點');
+        } catch (err) {
+          console.error('Drop error', err);
         }
       }
     });
