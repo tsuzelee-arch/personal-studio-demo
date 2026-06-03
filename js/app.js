@@ -6,7 +6,7 @@ window.StudioState = {
 
 // Navigation
 const panels = {
-  decode: '圖像解碼',
+  decode: '提示詞解構',
   prompts: '提示詞庫與熔爐',
   workflow: '簡易工作流',
   assets: '資產庫',

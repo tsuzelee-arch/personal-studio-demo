@@ -9,21 +9,20 @@ window.AIService = (function() {
     'openai-54':     'gpt-5.4',
     'openai-54mini': 'gpt-5.4-mini',
     'openai-4o':     'gpt-4o'
-  };
-
-  // ── System Prompt (Visual Decompiler) ──
+  };  // ── System Prompt (Visual Decompiler) ──
   const SYSTEM_PROMPT = `# Role & Objective
 Your task is to act as a "Visual Decompiler."
 Analyze the user-provided image and reverse-engineer its visual components into a strict, highly detailed JSON structure. You must dissect the image into separated elements (foreground, subject, lighting, background) and estimate the physical rendering parameters.
 
 # Analysis Guidelines
-1.define image: analyze the main motif of image, define the emphasis and sencondary , the processing Dimensional Decoupling.
-1. Dimensional Decoupling: Do not describe the image as a single flat scene. Deconstruct it into distinct spatial layers.
-2. Parameterization: Estimate realistic values for lighting intensity, color temperatures (in Kelvin), and camera settings (lens focal length, aperture).
-3. Material & Texture: Closely inspect the surfaces of objects to describe their micro-details (e.g., "matte porous leather", "high-gloss subsurface scattering").
-4. Drawing Style/Photography style: Define the exact type and process of drawing style or photography. if multiple element detected,describe them all, analysis how the image design/created/drawn.
-5. Negative Space: Deduce what elements are intentionally omitted or kept clean to form the "negative_constraints".
-6. Be HONEST,Do not guess and Perfunctory: if there is no element detected(etc: no subject/people detected in image），just be honest and left null. do not fill reluctantly."
+1. Define image: analyze the main motif of image, define the emphasis and secondary, the processing Dimensional Decoupling.
+2. Dimensional Decoupling: Do not describe the image as a single flat scene. Deconstruct it into distinct spatial layers.
+3. Emotion & Color Resonance: CRITICAL - In every visual description (especially for style, mood, and elements), you MUST include an analysis of the emotional feeling/vibe and how the color palette contributes to that emotion.
+4. Parameterization: Estimate realistic values for lighting intensity, color temperatures (in Kelvin), and camera settings (lens focal length, aperture).
+5. Material & Texture: Closely inspect the surfaces of objects to describe their micro-details (e.g., "matte porous leather", "high-gloss subsurface scattering").
+6. Drawing/Photography Style: Define the exact type and process of drawing style or photography. if multiple element detected, describe them all, analysis how the image design/created/drawn.
+7. Negative Space: Deduce what elements are intentionally omitted or kept clean to form the "negative_constraints".
+8. Be HONEST, Do not guess and Perfunctory: if there is no element detected (etc: no subject/people detected in image), just be honest and left null. do not fill reluctantly.
 
 # Output Constraints
 - You MUST output strictly valid JSON, and absolutely nothing else.
@@ -33,19 +32,22 @@ Analyze the user-provided image and reverse-engineer its visual components into 
 # Expected JSON Schema
 {
   "analysis_metadata": {
-    "estimated_style": "[e.g., Cinematic Photography, 3D Render, Anime Concept Art, with Drawing/Photography process]",
+    "creative_theme": "[The overarching theme, genre, or core concept of the image, including emotional resonance]",
+    "estimated_style": "[e.g., Cinematic Photography, 3D Render, Anime Concept Art, with Drawing/Photography process and how colors affect the style]",
     "color_palette": ["[Hex code 1]", "[Hex code 2]", "... up to 8 most distinct key colors only; avoid near-duplicate shades"],
-    "mood_and_atmosphere": "[1-2 sentences describing the overall vibe]"
+    "mood_and_atmosphere": "[1-2 sentences describing the overall vibe, specific emotions conveyed, and how lighting/colors build this feeling]"
   },
   "separated_elements_breakdown": {
     "foreground_fx": "[Identify elements closest to the camera, e.g., dust particles, out-of-focus leaves, lens flares. If none, write 'null']",
     "main_subject": {
-      "identity": "[Who or what is it?]",
-      "clothing_or_surface": "[Detailed description of the subject's outer layer]",
-      "pose_and_action": "[Specific posture and directional gaze]"
+      "identity": "[Who or what is it? Include emotional expression if applicable]",
+      "character_source": "[If recognized, character's name and franchise/source origin. If not, write 'Original Character' or 'null']",
+      "clothing_or_surface": "[Detailed description of the subject's outer layer, noting color and texture feelings]",
+      "pose_and_action": "[Specific posture and directional gaze, and the emotion it conveys]"
     },
     "midground_objects": "[Props or elements interacting with the subject]",
-    "background_environment": "[The setting, depth, and specific background structures]",
+    "background_environment": "[The setting, depth, and specific background structures, noting the atmospheric mood]",
+    "main_visual_composition": "[Describe the composition rules used, e.g., Rule of Thirds, Symmetry, Golden Ratio, Framing, Leading Lines, and visual flow]",
     "other_elements": "[Any notable elements not captured above: overlays, text, UI, particles, abstract devices. If none, write 'null']"
   },
   "lighting_physics": {
@@ -61,6 +63,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
     "depth_of_field": "[e.g., Shallow (f/1.8) with heavy bokeh, or Deep focus]",
     "camera_angle": "[e.g., Low-angle hero shot, Eye-level, Top-down]"
   },
+  "image_dimensions_and_resolution": "[Estimate the aspect ratio (e.g., 16:9, 1:1) and describe the perceived resolution or detail quality]",
   "material_and_texture_notes": {
     "[key_descriptive_name]": "[material description]",
     "[key_descriptive_name2]": "[material description]"
@@ -287,6 +290,14 @@ ${JSON.stringify(analysis)}`;
     // Validate essential structure
     if (!parsed.analysis_metadata) throw new Error('Missing analysis_metadata in AI response');
     if (!parsed.separated_elements_breakdown) throw new Error('Missing separated_elements_breakdown in AI response');
+
+    // Ensure new fields exist gracefully for older cache compat
+    if (!parsed.analysis_metadata.creative_theme) parsed.analysis_metadata.creative_theme = null;
+    if (parsed.separated_elements_breakdown.main_subject && !parsed.separated_elements_breakdown.main_subject.character_source) {
+      parsed.separated_elements_breakdown.main_subject.character_source = null;
+    }
+    if (!parsed.separated_elements_breakdown.main_visual_composition) parsed.separated_elements_breakdown.main_visual_composition = null;
+    if (!parsed.image_dimensions_and_resolution) parsed.image_dimensions_and_resolution = null;
 
     // Ensure color_palette is an array of strings
     if (!Array.isArray(parsed.analysis_metadata.color_palette)) {

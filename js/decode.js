@@ -17,14 +17,18 @@
 
   // DOM refs for dashboard cards
   const moodText       = document.getElementById('moodText');
+  const elCreativeTheme = document.getElementById('elCreativeTheme');
   const metaStyle      = document.getElementById('metaStyle');
+  const elDimensions   = document.getElementById('elDimensions');
   
   const elForeground   = document.getElementById('elForeground');
   const elSubjectIdentity = document.getElementById('elSubjectIdentity');
+  const elSubjectSource   = document.getElementById('elSubjectSource');
   const elSubjectClothing = document.getElementById('elSubjectClothing');
   const elSubjectPose  = document.getElementById('elSubjectPose');
   const elMidground    = document.getElementById('elMidground');
   const elBackground   = document.getElementById('elBackground');
+  const elComposition  = document.getElementById('elComposition');
   
   const lightDirection = document.getElementById('lightDirection');
   const lightColorTemp = document.getElementById('lightColorTemp');
@@ -306,7 +310,7 @@
   function renderAnalysis(analysis) {
     renderPalette(analysis.analysis_metadata.color_palette);
     renderMood(analysis.analysis_metadata.mood_and_atmosphere);
-    renderMetadata(analysis.analysis_metadata);
+    renderMetadata(analysis.analysis_metadata, analysis.image_dimensions_and_resolution);
     renderElements(analysis.separated_elements_breakdown);
     renderLighting(analysis.lighting_physics, analysis.camera_simulation);
     renderMaterials(analysis.material_and_texture_notes);
@@ -384,10 +388,18 @@
     addVaultButton(moodText.parentElement, '氛圍描述', 'mood_and_atmosphere', () => moodText.value);
   }
 
-  function renderMetadata(meta) {
+  function renderMetadata(meta, dim) {
+    elCreativeTheme.value = meta.creative_theme || 'N/A';
+    autoResize(elCreativeTheme);
+    addVaultButton(elCreativeTheme.parentElement, '創作主題', 'creative_theme', () => elCreativeTheme.value);
+
     metaStyle.value = meta.estimated_style || 'N/A';
     autoResize(metaStyle);
     addVaultButton(metaStyle.parentElement, '風格推估', 'estimated_style', () => metaStyle.value);
+
+    elDimensions.value = dim || 'N/A';
+    autoResize(elDimensions);
+    addVaultButton(elDimensions.parentElement, '圖像尺寸', 'image_dimensions', () => elDimensions.value);
   }
 
   function renderElements(el) {
@@ -398,6 +410,10 @@
     elSubjectIdentity.value = el.main_subject?.identity || 'N/A';
     autoResize(elSubjectIdentity);
     addVaultButton(elSubjectIdentity.closest('.subject-item'), '主體身分', 'identity', () => elSubjectIdentity.value);
+
+    elSubjectSource.value = el.main_subject?.character_source || 'N/A';
+    autoResize(elSubjectSource);
+    addVaultButton(elSubjectSource.closest('.subject-item'), '角色出處', 'character_source', () => elSubjectSource.value);
 
     elSubjectClothing.value = el.main_subject?.clothing_or_surface || 'N/A';
     autoResize(elSubjectClothing);
@@ -414,6 +430,10 @@
     elBackground.value = el.background_environment || 'N/A';
     autoResize(elBackground);
     addVaultButton(elBackground.parentElement, '背景環境', 'background_environment', () => elBackground.value);
+
+    elComposition.value = el.main_visual_composition || 'N/A';
+    autoResize(elComposition);
+    addVaultButton(elComposition.parentElement, '主視覺構圖', 'main_visual_composition', () => elComposition.value);
 
     const otherVal = el.other_elements && el.other_elements !== 'null' ? el.other_elements : null;
     if (elOtherSection) elOtherSection.style.display = otherVal ? '' : 'none';
@@ -501,12 +521,13 @@
     const mats = analysis.material_and_texture_notes || {};
 
     const matStr = Object.values(mats).join(', ');
-    const subject = [el.main_subject.identity, el.main_subject.clothing_or_surface, el.main_subject.pose_and_action]
+    const subject = [el.main_subject.identity, el.main_subject.character_source, el.main_subject.clothing_or_surface, el.main_subject.pose_and_action]
       .filter(s => s && s !== 'null' && s !== 'N/A').join(', ');
-    const env = [el.foreground_fx, el.midground_objects, el.background_environment]
+    const env = [el.foreground_fx, el.midground_objects, el.background_environment, el.main_visual_composition]
       .filter(s => s && s !== 'null' && s !== 'N/A').join(', ');
 
     const parts = [
+      meta.creative_theme && meta.creative_theme !== 'null' && meta.creative_theme !== 'N/A' ? meta.creative_theme : '',
       `${meta.estimated_style}, ${meta.mood_and_atmosphere}`,
       subject,
       env,

@@ -5,16 +5,20 @@
 
   // ── Dynamic category extraction from SYSTEM_PROMPT schema ──
   const SCHEMA_CATEGORY_MAP = {
+    'creative_theme':         { label: '創作主題',                catClass: 'cat-pinned-theme' },
     'identity':               { label: '身分 (Identity)',          catClass: 'cat-identity' },
+    'character_source':       { label: '角色出處 (Source)',        catClass: 'cat-identity' },
     'clothing_or_surface':    { label: '服裝 (Clothing)',          catClass: 'cat-clothing' },
     'pose_and_action':        { label: '姿勢 (Pose)',             catClass: 'cat-pose' },
     'foreground_fx':          { label: '前景 (Foreground)',        catClass: 'cat-foreground' },
     'midground_objects':      { label: '中景 (Midground)',        catClass: 'cat-midground' },
     'background_environment': { label: '背景 (Background)',       catClass: 'cat-background' },
+    'main_visual_composition':{ label: '主視覺構圖 (Composition)', catClass: 'cat-custom' },
     'estimated_style':        { label: '風格 (Style)',            catClass: 'cat-style' },
     'mood_and_atmosphere':    { label: '氛圍 (Mood)',             catClass: 'cat-mood' },
     'lighting':               { label: '光影 (Lighting)',          catClass: 'cat-lighting' },
     'camera':                 { label: '攝影 (Camera)',           catClass: 'cat-camera' },
+    'image_dimensions':       { label: '圖像尺寸 (Dimensions)',    catClass: 'cat-custom' },
     'material':               { label: '材質 (Material)',         catClass: 'cat-material' },
     'negative':               { label: '負面約束 (Negative)',      catClass: 'cat-negative' },
     'color_palette':          { label: '色盤 (Palette)',          catClass: 'cat-color_palette' },
