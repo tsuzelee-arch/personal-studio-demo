@@ -1534,8 +1534,74 @@ body {
 .lighting-detail .editable-field { flex: 1; min-width: 0; }
 .camera-item .editable-field { text-align: center; }
 
-/* ── Workflow node entrance animation ── */
-.wf-node { animation: cardFadeIn 0.4s ease both; }
+/* ── Workflow Canvas & Nodes ── */
+.workflow-canvas {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 120px);
+  background: #fdfbf7;
+  overflow: hidden;
+  background-image: radial-gradient(#d4cfc6 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.workflow-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.workflow-svg path {
+  fill: none;
+  stroke: var(--warm);
+  stroke-width: 2.5px;
+}
+
+.wf-node {
+  position: absolute;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--card-shadow);
+  width: 240px;
+  z-index: 2;
+  font-size: 12px;
+  animation: cardFadeIn 0.4s ease both;
+}
+
+.wf-node-header {
+  background: #f0ece6;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  font-weight: 700;
+  cursor: grab;
+  user-select: none;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+}
+.wf-node-header:active {
+  cursor: grabbing;
+}
+
+.wf-node-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wf-node-body label {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
 #nodePrompt  { animation-delay: 0.05s; }
 #nodeModel   { animation-delay: 0.10s; }
 #nodePreview { animation-delay: 0.15s; }
