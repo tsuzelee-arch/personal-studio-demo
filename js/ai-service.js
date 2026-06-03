@@ -363,46 +363,72 @@ ${JSON.stringify(analysis)}`;
 
   // ── Image Generation APIs ──
   async function generateWithNanoBanana(prompt, apiKey, width=1024, height=1024) {
-    // Hypothetical endpoint for Nano Banana Pro
-    const url = 'https://api.nanobanana.ai/v1/generate'; 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({ prompt, model: 'nano-banana-pro', width, height })
-      });
-      if (!response.ok) throw new Error();
-      const data = await response.json();
-      return data.image_url;
-    } catch(e) {
-      // Fallback mock for demonstration since the API is hypothetical
-      console.warn("Nano Banana API failed/unavailable, returning mock image.", e);
-      return new Promise(resolve => setTimeout(() => resolve(`https://images.unsplash.com/photo-1549490349-8643362247b5?w=${width}&q=80`), 1500));
+    const url = 'https://api.openai.com/v1/images/generations';
+    const body = {
+      model: "gpt-image-2",
+      prompt: prompt,
+      n: 1,
+      size: `${width}x${height}`
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API Error: HTTP ${response.status}`);
     }
+
+    const data = await response.json();
+    if (!data.data || !data.data[0] || !data.data[0].url) {
+      throw new Error("No image data returned");
+    }
+    return data.data[0].url;
   }
 
   async function generateWithNanoBanana2(prompt, apiKey, width=1024, height=1024, image=null, mask=null, cfg=7) {
-    // Hypothetical endpoint for Nano Banana 2 (supports i2i)
-    const url = 'https://api.nanobanana.ai/v2/generate'; 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({ prompt, model: 'nano-banana-2', width, height, image, mask, cfg })
-      });
-      if (!response.ok) throw new Error();
-      const data = await response.json();
-      return data.image_url;
-    } catch(e) {
-      console.warn("Nano Banana 2 API failed/unavailable, returning mock image.", e);
-      return new Promise(resolve => setTimeout(() => resolve(`https://images.unsplash.com/photo-1549490349-8643362247b5?w=${width}&q=80`), 1500));
+    if (!image) return generateWithNanoBanana(prompt, apiKey, width, height);
+
+    const base64ToBlob = (b64) => {
+      const parts = b64.split(';base64,');
+      const mime = parts[0].split(':')[1];
+      const raw = window.atob(parts[1]);
+      const arr = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      return new Blob([arr], { type: mime });
+    };
+
+    const url = 'https://api.openai.com/v1/images/edits';
+    const formData = new FormData();
+    formData.append('model', 'gpt-image-2');
+    formData.append('prompt', prompt);
+    formData.append('n', 1);
+    formData.append('size', `${width}x${height}`);
+    formData.append('image', base64ToBlob(image), 'image.png');
+    if (mask) formData.append('mask', base64ToBlob(mask), 'mask.png');
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API Error: HTTP ${response.status}`);
     }
+
+    const data = await response.json();
+    if (!data.data || !data.data[0] || !data.data[0].url) {
+      throw new Error("No image data returned");
+    }
+    return data.data[0].url;
   }
 
   async function generateWithGPTImage(prompt, apiKey, width=1024, height=1024) {
