@@ -214,7 +214,7 @@
 
   function drawBezier(x1, y1, x2, y2) {
     const dx = Math.abs(x2 - x1) * 0.5;
-    return \`M \${x1} \${y1} C \${x1 + dx} \${y1}, \${x2 - dx} \${y2}, \${x2} \${y2}\`;
+    return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
   }
 
   function drawConnections() {
@@ -224,7 +224,7 @@
     connections.forEach(conn => {
       const p1 = getPortCenter(conn.from);
       const p2 = getPortCenter(conn.to);
-      pathHTML += \`<path d="\${drawBezier(p1.x, p1.y, p2.x, p2.y)}"></path>\`;
+      pathHTML += `<path d="${drawBezier(p1.x, p1.y, p2.x, p2.y)}"></path>`;
     });
     svg.innerHTML = pathHTML;
   }
