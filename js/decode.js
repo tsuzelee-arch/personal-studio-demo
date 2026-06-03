@@ -119,6 +119,13 @@
     const img = new Image();
     img.onload = () => {
       previewImg.src = url;
+      // Add lightbox on click
+      previewImg.onclick = () => {
+        if (window.AssetsService) {
+          window.AssetsService.openLightBox(url, '解碼影像', true);
+        }
+      };
+      previewImg.style.cursor = 'pointer';
       currentImageThumb = makeThumbnail(img);
       dropZone.classList.add('hidden');
       decodeLoading.classList.remove('hidden');
@@ -294,7 +301,11 @@
     renderNegativeConstraints(analysis.inferred_negative_constraints);
 
     const promptText = buildPromptText(analysis);
-    promptOutput.value = promptText;
+    if (window.EditorService) {
+      window.EditorService.setContent('promptOutput', promptText);
+    } else if (promptOutput) {
+      promptOutput.value = promptText;
+    }
 
     window.StudioState.decodeResult = { 
       palette: analysis.analysis_metadata.color_palette, 
@@ -509,7 +520,11 @@
       if (state.isNaturalLanguage) {
         state.isNaturalLanguage = false;
         state.promptText = state.originalPromptText;
-        promptOutput.value = state.originalPromptText;
+        if (window.EditorService) {
+          window.EditorService.setContent('promptOutput', state.originalPromptText);
+        } else if (promptOutput) {
+          promptOutput.value = state.originalPromptText;
+        }
         toNaturalBtn.textContent = '轉換為自然語言';
         showToast('已切換回結構化提示詞');
         return;
@@ -518,7 +533,11 @@
       if (state.naturalPromptText) {
         state.isNaturalLanguage = true;
         state.promptText = state.naturalPromptText;
-        promptOutput.value = state.naturalPromptText;
+        if (window.EditorService) {
+          window.EditorService.setContent('promptOutput', state.naturalPromptText);
+        } else if (promptOutput) {
+          promptOutput.value = state.naturalPromptText;
+        }
         toNaturalBtn.textContent = '切換回結構化提示詞';
         showToast('已切換為自然語言');
         return;
@@ -542,7 +561,11 @@
         state.naturalPromptText = newPrompt;
         state.isNaturalLanguage = true;
         state.promptText = newPrompt;
-        promptOutput.value = newPrompt;
+        if (window.EditorService) {
+          window.EditorService.setContent('promptOutput', newPrompt);
+        } else if (promptOutput) {
+          promptOutput.value = newPrompt;
+        }
         toNaturalBtn.textContent = '切換回結構化提示詞';
         showToast('✅ 轉換成功！');
       } catch (e) {
@@ -570,13 +593,14 @@
   }
 
   copyPromptBtn.addEventListener('click', () => {
-    const text = promptOutput.value;
+    const text = window.EditorService ? window.EditorService.getContent('promptOutput') : promptOutput.value;
     if (!text) return;
     navigator.clipboard.writeText(text).then(() => showToast('提示詞已複製！'));
   });
 
   sendToWorkflowBtn.addEventListener('click', () => {
-    if (window.workflowReceivePrompt) window.workflowReceivePrompt(promptOutput.value);
+    const text = window.EditorService ? window.EditorService.getContent('promptOutput') : promptOutput.value;
+    if (window.workflowReceivePrompt) window.workflowReceivePrompt(text);
     switchPanel('workflow');
     showToast('已送至工作流 Step 3');
   });
@@ -643,4 +667,9 @@
       }
     });
   }
+
+  // Initialize Rich Editor
+  setTimeout(() => {
+    if (window.EditorService) window.EditorService.setupRichPromptEditor('promptOutput');
+  }, 500);
 })();

@@ -19,6 +19,7 @@
       <div class="nav-item active" data-panel="decode">圖像解碼</div>
       <div class="nav-item" data-panel="prompts">提示詞庫</div>
       <div class="nav-item" data-panel="workflow">自定工作流</div>
+      <div class="nav-item" data-panel="assets">資產庫</div>
       <div class="nav-cat" style="margin-top:12px">系統</div>
       <div class="nav-item" data-panel="settings">⚙ 設定</div>
     </div>
@@ -283,57 +284,21 @@
 
       <!-- Panel: 自定工作流 -->
       <section class="panel" id="panel-workflow">
-        <div class="workflow-header" style="padding: 10px 20px; border-bottom: 1px solid #ddd;">
+        <div class="workflow-header" style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
           <div class="workflow-desc" style="font-weight: 500;">自定工作流 (Node-based)</div>
+          <div class="workflow-toolbar" id="wfToolbar" style="display: flex; gap: 8px;">
+            <button class="btn-ghost btn-sm" data-add="model">➕ Model</button>
+            <button class="btn-ghost btn-sm" data-add="prompt">➕ Prompt</button>
+            <button class="btn-ghost btn-sm" data-add="img2img">➕ Img2Img</button>
+            <button class="btn-ghost btn-sm" data-add="upscale">➕ Upscale</button>
+            <button class="btn-ghost btn-sm" data-add="temperature">➕ Temperature</button>
+            <button class="btn-ghost btn-sm" data-add="preview">➕ Preview</button>
+            <button class="btn-primary btn-sm" id="wfGenerateRunBtn" style="margin-left: 15px;">執行工作流 (Run)</button>
+          </div>
         </div>
         <div class="workflow-canvas" id="workflowCanvas">
           <svg class="workflow-svg" id="workflowSvg"></svg>
-          
-          <!-- Prompt Node -->
-          <div class="wf-node" id="nodePrompt" style="left: 50px; top: 50px;">
-            <div class="wf-node-header">提示詞 (Prompt)</div>
-            <div class="wf-node-body">
-              <textarea class="wf-prompt-input" id="wfPromptInput" placeholder="輸入提示詞..."></textarea>
-            </div>
-            <div class="wf-port wf-port-out" id="portPromptOut" data-node="nodePrompt" data-type="out"></div>
-          </div>
-          
-          <!-- Image Model Node -->
-          <div class="wf-node" id="nodeModel" style="left: 380px; top: 50px;">
-            <div class="wf-port wf-port-in" id="portModelIn" data-node="nodeModel" data-type="in"></div>
-            <div class="wf-node-header">生成模型 (Image Model)</div>
-            <div class="wf-node-body">
-              <label>Model</label>
-              <select id="wfModelSelect" class="form-select form-select-sm" style="margin-bottom: 10px;">
-                <option value="nanobanana2">Nano Banana 2 (Gemini Flash)</option>
-                <option value="nanobanana">Nano Banana Pro (Gemini Pro)</option>
-                <option value="gptimage">GPT Image 2.0 (gpt-image-2)</option>
-              </select>
-              <label>Resolution</label>
-              <select id="wfResolution" class="form-select form-select-sm" style="margin-bottom: 10px;">
-                <option value="1024x1024">1024x1024 (1:1)</option>
-                <option value="1024x576">1024x576 (16:9)</option>
-                <option value="576x1024">576x1024 (9:16)</option>
-              </select>
-              <label>Guidance Scale (<span id="wfCfgVal">7</span>)</label>
-              <input type="range" id="wfCfg" min="1" max="20" value="7" style="width: 100%;">
-            </div>
-            <div class="wf-port wf-port-out" id="portModelOut" data-node="nodeModel" data-type="out"></div>
-          </div>
-          
-          <!-- Preview Node -->
-          <div class="wf-node" id="nodePreview" style="left: 710px; top: 50px;">
-            <div class="wf-port wf-port-in" id="portPreviewIn" data-node="nodePreview" data-type="in"></div>
-            <div class="wf-node-header">預覽 (Preview)</div>
-            <div class="wf-node-body">
-              <div class="wf-preview-img-container">
-                <img id="wfPreviewImg" src="" alt="Image Preview" style="display: none; max-width: 100%; border-radius: 4px;">
-                <div class="wf-preview-placeholder" id="wfPreviewPlaceholder" style="width: 256px; height: 256px; display: flex; align-items: center; justify-content: center; background: #eee; border-radius: 4px; color: #888;">No Image</div>
-              </div>
-              <button class="btn-primary" id="wfGenerateBtn" style="width: 100%; margin-top: 10px;">生成圖片 (Generate)</button>
-            </div>
-          </div>
-
+          <!-- Nodes will be injected here dynamically by workflow.js -->
         </div>
       </section>
 
@@ -437,6 +402,18 @@
         </div>
       </section>
 
+      <!-- Panel: 資產庫 -->
+      <section class="panel" id="panel-assets">
+        <div class="prompts-toolbar" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 20px;">
+          <div style="font-size: 16px; font-weight: 600;">本地資產庫 (IndexedDB)</div>
+        </div>
+        <div class="assets-grid" id="assetsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;"></div>
+        <div class="empty-state hidden" id="assetsEmpty">
+          <div class="empty-icon">🖼️</div>
+          <div class="empty-text">尚無儲存的影像資產</div>
+        </div>
+      </section>
+
     </div>
   </main>
 </div>
@@ -471,6 +448,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="js/app.js?v=24"></script>
+<script src="js/assets.js?v=24"></script>
+<script src="js/editor.js?v=24"></script>
 <script src="js/ai-service.js?v=24"></script>
 <script src="js/settings.js?v=24"></script>
 <script src="js/decode.js?v=24"></script>

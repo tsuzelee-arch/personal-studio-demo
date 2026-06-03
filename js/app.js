@@ -9,6 +9,7 @@ const panels = {
   decode: '圖像解碼',
   prompts: '提示詞庫',
   workflow: '簡易工作流',
+  assets: '資產庫',
   settings: '設定'
 };
 
