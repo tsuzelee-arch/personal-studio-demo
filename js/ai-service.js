@@ -363,72 +363,81 @@ ${JSON.stringify(analysis)}`;
 
   // ── Image Generation APIs ──
   async function generateWithNanoBanana(prompt, apiKey, width=1024, height=1024) {
-    const url = 'https://api.openai.com/v1/images/generations';
-    const body = {
-      model: "gpt-image-2",
-      prompt: prompt,
-      n: 1,
-      size: `${width}x${height}`
+    // Nano Banana Pro -> gemini-3-pro-image
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent?key=${apiKey}`;
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {}
     };
-
+    
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(body)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
-
+    
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `API Error: HTTP ${response.status}`);
+      throw new Error(err.error?.message || `Nano Banana Pro API Error: HTTP ${response.status}`);
     }
-
+    
     const data = await response.json();
-    if (!data.data || !data.data[0] || !data.data[0].url) {
-      throw new Error("No image data returned");
-    }
-    return data.data[0].url;
+    const base64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64) throw new Error("No image data returned from Nano Banana Pro");
+    return `data:image/png;base64,${base64}`;
+  }
+
+  function toAspectRatio(w, h) {
+    const r = w / h;
+    if (r > 1.7) return '16:9';
+    if (r < 0.6) return '9:16';
+    if (r > 1.2) return '4:3';
+    if (r < 0.85) return '3:4';
+    return '1:1';
   }
 
   async function generateWithNanoBanana2(prompt, apiKey, width=1024, height=1024, image=null, mask=null, cfg=7) {
-    if (!image) return generateWithNanoBanana(prompt, apiKey, width, height);
+    // Nano Banana 2 -> gemini-3.1-flash-image (supports img2img + mask + cfg)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
 
-    const base64ToBlob = (b64) => {
-      const parts = b64.split(';base64,');
-      const mime = parts[0].split(':')[1];
-      const raw = window.atob(parts[1]);
-      const arr = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-      return new Blob([arr], { type: mime });
+    const stripPrefix = (dataUrl) => dataUrl ? dataUrl.replace(/^data:[^;]+;base64,/, '') : null;
+
+    const sizedPrompt = `[${width}x${height}] ${prompt}`;
+    const parts = [{ text: sizedPrompt }];
+    if (image) {
+      const mimeMatch = image.match(/^data:([^;]+);/);
+      parts.push({ inline_data: { mime_type: mimeMatch ? mimeMatch[1] : 'image/jpeg', data: stripPrefix(image) } });
+    }
+    if (mask) {
+      const mimeMask = mask.match(/^data:([^;]+);/);
+      parts.push({ inline_data: { mime_type: mimeMask ? mimeMask[1] : 'image/png', data: stripPrefix(mask) } });
+    }
+
+    const payload = {
+      contents: [{ parts }],
+      generationConfig: {
+        temperature: Math.min(1.0, Math.max(0.0, (cfg - 1) / 19)),
+        responseModalities: ['IMAGE', 'TEXT'],
+        aspectRatio: toAspectRatio(width, height)
+      }
     };
-
-    const url = 'https://api.openai.com/v1/images/edits';
-    const formData = new FormData();
-    formData.append('model', 'gpt-image-2');
-    formData.append('prompt', prompt);
-    formData.append('n', 1);
-    formData.append('size', `${width}x${height}`);
-    formData.append('image', base64ToBlob(image), 'image.png');
-    if (mask) formData.append('mask', base64ToBlob(mask), 'mask.png');
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      body: formData
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `API Error: HTTP ${response.status}`);
+      throw new Error(err.error?.message || `Nano Banana 2 API Error: HTTP ${response.status}`);
     }
 
     const data = await response.json();
-    if (!data.data || !data.data[0] || !data.data[0].url) {
-      throw new Error("No image data returned");
-    }
-    return data.data[0].url;
+    const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    if (!imagePart) throw new Error('No image data returned from Nano Banana 2');
+    const { mime_type, data: b64 } = imagePart.inlineData;
+    return `data:${mime_type || 'image/png'};base64,${b64}`;
   }
 
   async function generateWithGPTImage(prompt, apiKey, width=1024, height=1024) {
