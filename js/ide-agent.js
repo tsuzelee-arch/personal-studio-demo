@@ -412,7 +412,9 @@ window.IDEAgent = (function() {
     const wantsImage = detectImageGenIntent(text);
     if (wantsImage) {
       try {
-        const imgResult = await generateWithGeminiImagen(apiKey, text);
+        const openaiKeyForImg = window.StudioSettings.getGptimageKey() || window.StudioSettings.getOpenAIKey();
+        if (!openaiKeyForImg) throw new Error('生圖需要配置 GPT Image 2.0 或 OpenAI API Key');
+        const imgResult = await generateWithGPTImage2(openaiKeyForImg, text, images);
         return { text: reply || '圖片生成完成！', image: imgResult };
       } catch (imgErr) {
         return { text: reply + `\n\n⚠️ 圖片生成失敗：${imgErr.message}` };
@@ -420,29 +422,6 @@ window.IDEAgent = (function() {
     }
 
     return { text: reply };
-  }
-
-  // ── Gemini Imagen 3 (AI Studio) ──
-  async function generateWithGeminiImagen(apiKey, prompt) {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        instances: [{ prompt: prompt }],
-        parameters: { sampleCount: 1 }
-      })
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Gemini Imagen API 錯誤 (${res.status})`);
-    }
-
-    const data = await res.json();
-    if (data.predictions?.[0]?.bytesBase64Encoded) {
-      return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
-    }
-    throw new Error('未收到生成的圖片');
   }
 
   // ════════════════════════════════════════════════════════
