@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Studio</title>
-<link rel="stylesheet" href="css/style.css?v=23">
+<link rel="stylesheet" href="css/style.css?v=24">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 <body>
 <div class="shell">
@@ -115,7 +116,7 @@
                     <span class="dash-card-title">氛圍與情緒 (Mood)</span>
                   </div>
                   <div class="dash-card-body">
-                    <p class="mood-text" id="moodText"></p>
+                    <textarea class="editable-field" id="moodText" rows="3"></textarea>
                   </div>
                 </div>
               </div>
@@ -129,7 +130,7 @@
                     <span class="dash-card-title">推估風格與過程 (Style & Process)</span>
                   </div>
                   <div class="dash-card-body">
-                    <div class="meta-value" id="metaStyle" style="font-size:14px; font-weight:500;"></div>
+                    <textarea class="editable-field" id="metaStyle" rows="2" style="font-size:14px; font-weight:500;"></textarea>
                   </div>
                 </div>
 
@@ -143,36 +144,36 @@
                   <div class="dash-card-body dash-collapsible" id="elementsBody">
                     <div class="element-section">
                       <div class="element-layer-badge">前景特效 (Foreground)</div>
-                      <p class="element-text" id="elForeground"></p>
+                      <textarea class="editable-field" id="elForeground" rows="2"></textarea>
                     </div>
                     <div class="element-section">
                       <div class="element-layer-badge subject-badge">主體 (Subject)</div>
                       <div class="subject-grid" id="elSubject">
                         <div class="subject-item">
                           <div class="subject-label">身分</div>
-                          <p class="subject-value" id="elSubjectIdentity"></p>
+                          <textarea class="editable-field" id="elSubjectIdentity" rows="2"></textarea>
                         </div>
                         <div class="subject-item">
                           <div class="subject-label">服裝 / 表面</div>
-                          <p class="subject-value" id="elSubjectClothing"></p>
+                          <textarea class="editable-field" id="elSubjectClothing" rows="2"></textarea>
                         </div>
                         <div class="subject-item">
                           <div class="subject-label">姿勢與動作</div>
-                          <p class="subject-value" id="elSubjectPose"></p>
+                          <textarea class="editable-field" id="elSubjectPose" rows="2"></textarea>
                         </div>
                       </div>
                     </div>
                     <div class="element-section">
                       <div class="element-layer-badge">中景物件 (Midground)</div>
-                      <p class="element-text" id="elMidground"></p>
+                      <textarea class="editable-field" id="elMidground" rows="2"></textarea>
                     </div>
                     <div class="element-section">
                       <div class="element-layer-badge">背景環境 (Background)</div>
-                      <p class="element-text" id="elBackground"></p>
+                      <textarea class="editable-field" id="elBackground" rows="2"></textarea>
                     </div>
                     <div class="element-section" id="elOtherSection">
                       <div class="element-layer-badge other-badge">其他元素 (Other)</div>
-                      <p class="element-text" id="elOther"></p>
+                      <textarea class="editable-field" id="elOther" rows="2"></textarea>
                     </div>
                   </div>
                 </div>
@@ -190,34 +191,34 @@
                         <div class="lighting-section-title">主光源 (Key Light)</div>
                         <div class="lighting-detail">
                           <span class="detail-label">方向</span>
-                          <span class="detail-value" id="lightDirection"></span>
+                          <input type="text" class="editable-field" id="lightDirection">
                         </div>
                         <div class="lighting-detail">
                           <span class="detail-label">色溫</span>
-                          <span class="detail-value" id="lightColorTemp"></span>
+                          <input type="text" class="editable-field" id="lightColorTemp">
                         </div>
                         <div class="lighting-detail">
                           <span class="detail-label">品質</span>
-                          <span class="detail-value" id="lightQuality"></span>
+                          <input type="text" class="editable-field" id="lightQuality">
                         </div>
                       </div>
                       <div class="lighting-section">
                         <div class="lighting-section-title">補光與邊緣光 (Fill/Rim)</div>
-                        <p class="lighting-fill-text" id="lightFill"></p>
+                        <textarea class="editable-field" id="lightFill" rows="2"></textarea>
                       </div>
                     </div>
                     <div class="camera-grid">
                       <div class="camera-item">
                         <div class="camera-label">推估鏡頭焦段</div>
-                        <div class="camera-value" id="cameraLens"></div>
+                        <input type="text" class="editable-field" id="cameraLens">
                       </div>
                       <div class="camera-item">
                         <div class="camera-label">景深 (DoF)</div>
-                        <div class="camera-value" id="cameraDof"></div>
+                        <input type="text" class="editable-field" id="cameraDof">
                       </div>
                       <div class="camera-item">
                         <div class="camera-label">攝影機角度</div>
-                        <div class="camera-value" id="cameraAngle"></div>
+                        <input type="text" class="editable-field" id="cameraAngle">
                       </div>
                     </div>
                   </div>
@@ -468,11 +469,12 @@
 <!-- Toast notification -->
 <div class="toast hidden" id="toast"></div>
 
-<script src="js/app.js?v=23"></script>
-<script src="js/ai-service.js?v=23"></script>
-<script src="js/settings.js?v=23"></script>
-<script src="js/decode.js?v=23"></script>
-<script src="js/prompts.js?v=23"></script>
-<script src="js/workflow.js?v=23"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+<script src="js/app.js?v=24"></script>
+<script src="js/ai-service.js?v=24"></script>
+<script src="js/settings.js?v=24"></script>
+<script src="js/decode.js?v=24"></script>
+<script src="js/prompts.js?v=24"></script>
+<script src="js/workflow.js?v=24"></script>
 </body>
 </html>

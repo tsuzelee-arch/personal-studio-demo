@@ -66,6 +66,7 @@
   let activeCategory = '全部';
   let searchQuery = '';
   let modalThumbnail = null; // thumbnail being edited in the open modal
+  let cropperInstance = null; // active Cropper.js instance
 
   function load() {
     try {
@@ -101,9 +102,10 @@
     }
     empty.classList.add('hidden');
 
-    filtered.forEach(p => {
+    filtered.forEach((p, i) => {
       const card = document.createElement('div');
       card.className = 'prompt-card';
+      card.style.animationDelay = `${i * 0.05}s`;
       const catCls = getCatClass(p.category);
       card.innerHTML = `
         <div class="prompt-card-header">
@@ -276,27 +278,61 @@
     document.getElementById('promptTitleInput').focus();
   }
 
+  function destroyCropper() {
+    if (cropperInstance) {
+      cropperInstance.destroy();
+      cropperInstance = null;
+    }
+  }
+
   function closeModal() {
     document.getElementById('promptModal').classList.add('hidden');
+    destroyCropper();
     editingId = null;
     modalThumbnail = null;
   }
 
-  // Render the thumbnail preview area inside the modal (if present in DOM)
+  // Render the thumbnail preview inside the modal.
+  // Image thumbnails get a Cropper.js 1:1 crop UI; palette objects get static swatches.
   function renderModalThumbnail() {
     const wrap = document.getElementById('promptThumbPreview');
     if (!wrap) return;
+    destroyCropper();
     if (!modalThumbnail) {
       wrap.classList.add('hidden');
       wrap.innerHTML = '';
       return;
     }
     wrap.classList.remove('hidden');
-    wrap.innerHTML = `
-      <label class="form-label">縮略圖預覽</label>
-      ${thumbnailHtml(modalThumbnail)}
-      <button type="button" class="btn-ghost btn-sm" id="promptThumbClear">移除縮略圖</button>
-    `;
+
+    if (typeof modalThumbnail === 'string') {
+      // Image thumbnail — show Cropper.js
+      wrap.innerHTML = `
+        <label class="form-label">裁切縮略圖 (1:1)</label>
+        <div class="cropper-wrap"><img id="cropperImg" src="${escHtml(modalThumbnail)}" alt="crop"></div>
+        <button type="button" class="btn-ghost btn-sm" id="promptThumbClear">移除縮略圖</button>
+      `;
+      const img = document.getElementById('cropperImg');
+      if (img && typeof Cropper !== 'undefined') {
+        cropperInstance = new Cropper(img, {
+          aspectRatio: 1,
+          viewMode: 1,
+          dragMode: 'move',
+          guides: false,
+          center: true,
+          background: false,
+          autoCropArea: 0.8
+        });
+      }
+    } else {
+      // Palette or other object — static preview
+      wrap.innerHTML = `
+        <label class="form-label">縮略圖預覽</label>
+        ${thumbnailHtml(modalThumbnail)}
+        <button type="button" class="btn-ghost btn-sm" id="promptThumbClear">移除縮略圖</button>
+      `;
+    }
+
     const clearBtn = document.getElementById('promptThumbClear');
     if (clearBtn) clearBtn.addEventListener('click', () => {
       modalThumbnail = null;
@@ -309,11 +345,19 @@
     const category = document.getElementById('promptCategoryInput').value;
     const content = document.getElementById('promptContentInput').value.trim();
     if (!title || !content) { showToast('請填寫標題與內容'); return; }
+
+    // Get cropped thumbnail if Cropper.js is active
+    let thumbToSave = modalThumbnail;
+    if (cropperInstance) {
+      const canvas = cropperInstance.getCroppedCanvas({ width: 320, height: 320 });
+      if (canvas) thumbToSave = canvas.toDataURL('image/jpeg', 0.82);
+    }
+
     if (editingId) {
       const p = prompts.find(x => x.id === editingId);
-      if (p) { p.title = title; p.category = category; p.content = content; p.thumbnail = modalThumbnail || null; }
+      if (p) { p.title = title; p.category = category; p.content = content; p.thumbnail = thumbToSave || null; }
     } else {
-      prompts.unshift({ id: nextId(), title, category, content, thumbnail: modalThumbnail || null });
+      prompts.unshift({ id: nextId(), title, category, content, thumbnail: thumbToSave || null });
     }
     save();
     closeModal();

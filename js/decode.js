@@ -202,6 +202,8 @@
       decodeLoading.classList.add('hidden');
       decodeResult.classList.remove('hidden');
       expandAllSections();
+      // Re-run autoResize now that elements are visible (scrollHeight is valid)
+      decodeResult.querySelectorAll('textarea.editable-field').forEach(autoResize);
     }, 300);
   }
 
@@ -219,13 +221,23 @@
     });
   }
 
+  // Auto-resize a textarea to fit its content
+  function autoResize(el) {
+    if (el && el.tagName === 'TEXTAREA') {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+  }
+
   // ── Add-to-vault helper ──
+  // valueOrGetter: string value OR () => string (read at click time for editable fields)
   // thumbnail (optional): overrides the default decoded-image thumbnail.
-  //   - omit  → uses the current decoded image (previewImg.src)
+  //   - omit  → uses the current decoded image (persistable data-URL)
   //   - object { type: 'palette', colors: [...] } → renders colour swatches
   //   - null  → no thumbnail
-  function addVaultButton(container, title, schemaKey, value, thumbnail) {
-    if (!container || !value || value === 'N/A' || value === 'null') return;
+  function addVaultButton(container, title, schemaKey, valueOrGetter, thumbnail) {
+    const peekValue = typeof valueOrGetter === 'function' ? valueOrGetter() : valueOrGetter;
+    if (!container || !peekValue || peekValue === 'N/A' || peekValue === 'null') return;
     // Remove only a direct-child vault button (not those in descendant elements)
     const existing = container.querySelector(':scope > .add-to-vault-btn');
     if (existing) existing.remove();
@@ -238,6 +250,11 @@
       e.stopPropagation();
       if (!window.PromptsService) {
         showToast('提示詞庫模組尚未載入');
+        return;
+      }
+      const value = typeof valueOrGetter === 'function' ? valueOrGetter() : valueOrGetter;
+      if (!value || value === 'N/A' || value === 'null') {
+        showToast('沒有內容可存入');
         return;
       }
       // Default thumbnail = the currently decoded image (persistable data-URL)
@@ -312,61 +329,72 @@
   }
 
   function renderMood(text) {
-    moodText.textContent = text;
-    addVaultButton(moodText.parentElement, '氛圍描述', 'mood_and_atmosphere', text);
+    moodText.value = text;
+    autoResize(moodText);
+    addVaultButton(moodText.parentElement, '氛圍描述', 'mood_and_atmosphere', () => moodText.value);
   }
-  
+
   function renderMetadata(meta) {
-    metaStyle.textContent = meta.estimated_style || 'N/A';
-    addVaultButton(metaStyle.parentElement, '風格推估', 'estimated_style', meta.estimated_style);
+    metaStyle.value = meta.estimated_style || 'N/A';
+    autoResize(metaStyle);
+    addVaultButton(metaStyle.parentElement, '風格推估', 'estimated_style', () => metaStyle.value);
   }
 
   function renderElements(el) {
-    elForeground.textContent = el.foreground_fx || 'N/A';
-    addVaultButton(elForeground.parentElement, '前景特效', 'foreground_fx', el.foreground_fx);
+    elForeground.value = el.foreground_fx || 'N/A';
+    autoResize(elForeground);
+    addVaultButton(elForeground.parentElement, '前景特效', 'foreground_fx', () => elForeground.value);
 
-    elSubjectIdentity.textContent = el.main_subject?.identity || 'N/A';
-    addVaultButton(elSubjectIdentity.closest('.subject-item'), '主體身分', 'identity', el.main_subject?.identity);
+    elSubjectIdentity.value = el.main_subject?.identity || 'N/A';
+    autoResize(elSubjectIdentity);
+    addVaultButton(elSubjectIdentity.closest('.subject-item'), '主體身分', 'identity', () => elSubjectIdentity.value);
 
-    elSubjectClothing.textContent = el.main_subject?.clothing_or_surface || 'N/A';
-    addVaultButton(elSubjectClothing.closest('.subject-item'), '服裝/表面', 'clothing_or_surface', el.main_subject?.clothing_or_surface);
+    elSubjectClothing.value = el.main_subject?.clothing_or_surface || 'N/A';
+    autoResize(elSubjectClothing);
+    addVaultButton(elSubjectClothing.closest('.subject-item'), '服裝/表面', 'clothing_or_surface', () => elSubjectClothing.value);
 
-    elSubjectPose.textContent = el.main_subject?.pose_and_action || 'N/A';
-    addVaultButton(elSubjectPose.closest('.subject-item'), '姿勢與動作', 'pose_and_action', el.main_subject?.pose_and_action);
+    elSubjectPose.value = el.main_subject?.pose_and_action || 'N/A';
+    autoResize(elSubjectPose);
+    addVaultButton(elSubjectPose.closest('.subject-item'), '姿勢與動作', 'pose_and_action', () => elSubjectPose.value);
 
-    elMidground.textContent = el.midground_objects || 'N/A';
-    addVaultButton(elMidground.parentElement, '中景物件', 'midground_objects', el.midground_objects);
+    elMidground.value = el.midground_objects || 'N/A';
+    autoResize(elMidground);
+    addVaultButton(elMidground.parentElement, '中景物件', 'midground_objects', () => elMidground.value);
 
-    elBackground.textContent = el.background_environment || 'N/A';
-    addVaultButton(elBackground.parentElement, '背景環境', 'background_environment', el.background_environment);
+    elBackground.value = el.background_environment || 'N/A';
+    autoResize(elBackground);
+    addVaultButton(elBackground.parentElement, '背景環境', 'background_environment', () => elBackground.value);
 
     const otherVal = el.other_elements && el.other_elements !== 'null' ? el.other_elements : null;
     if (elOtherSection) elOtherSection.style.display = otherVal ? '' : 'none';
     if (elOther) {
-      elOther.textContent = otherVal || '';
-      if (otherVal) addVaultButton(elOther.parentElement, '其他元素', 'other_elements', otherVal);
+      elOther.value = otherVal || '';
+      autoResize(elOther);
+      if (otherVal) addVaultButton(elOther.parentElement, '其他元素', 'other_elements', () => elOther.value);
     }
   }
 
   function renderLighting(light, cam) {
-    lightDirection.textContent = light.key_light?.direction || 'N/A';
-    lightColorTemp.textContent = light.key_light?.color_temp || 'N/A';
-    lightQuality.textContent = light.key_light?.quality || 'N/A';
-    lightFill.textContent = light.fill_and_rim_lights || 'N/A';
+    lightDirection.value = light.key_light?.direction || 'N/A';
+    lightColorTemp.value = light.key_light?.color_temp || 'N/A';
+    lightQuality.value = light.key_light?.quality || 'N/A';
+    lightFill.value = light.fill_and_rim_lights || 'N/A';
+    autoResize(lightFill);
 
-    // Combine all lighting info for vault
-    const lightingText = `Direction: ${light.key_light?.direction || 'N/A'}, Color Temp: ${light.key_light?.color_temp || 'N/A'}, Quality: ${light.key_light?.quality || 'N/A'}, Fill/Rim: ${light.fill_and_rim_lights || 'N/A'}`;
+    // Read current field values at click time so edits are captured
     const lightSection = lightFill.closest('.lighting-section');
-    if (lightSection) addVaultButton(lightSection, '光影參數', 'lighting', lightingText);
+    if (lightSection) addVaultButton(lightSection, '光影參數', 'lighting',
+      () => `Direction: ${lightDirection.value}, Color Temp: ${lightColorTemp.value}, Quality: ${lightQuality.value}, Fill/Rim: ${lightFill.value}`
+    );
 
-    cameraLens.textContent = cam.estimated_lens || 'N/A';
-    cameraDof.textContent = cam.depth_of_field || 'N/A';
-    cameraAngle.textContent = cam.camera_angle || 'N/A';
+    cameraLens.value = cam.estimated_lens || 'N/A';
+    cameraDof.value = cam.depth_of_field || 'N/A';
+    cameraAngle.value = cam.camera_angle || 'N/A';
 
-    // Combine all camera info for vault
-    const cameraText = `Lens: ${cam.estimated_lens || 'N/A'}, DoF: ${cam.depth_of_field || 'N/A'}, Angle: ${cam.camera_angle || 'N/A'}`;
     const camItem = cameraAngle.closest('.camera-item');
-    if (camItem) addVaultButton(camItem, '攝影參數', 'camera', cameraText);
+    if (camItem) addVaultButton(camItem, '攝影參數', 'camera',
+      () => `Lens: ${cameraLens.value}, DoF: ${cameraDof.value}, Angle: ${cameraAngle.value}`
+    );
   }
 
   function renderMaterials(mats) {
@@ -377,12 +405,14 @@
       const name = document.createElement('div');
       name.className = 'material-name';
       name.textContent = key.replace(/_/g, ' ');
-      const desc = document.createElement('div');
-      desc.className = 'material-desc';
-      desc.textContent = value;
+      const desc = document.createElement('textarea');
+      desc.className = 'material-desc editable-field';
+      desc.value = value;
+      autoResize(desc);
       item.appendChild(name);
       item.appendChild(desc);
-      addVaultButton(item, key.replace(/_/g, ' '), 'material', `${key.replace(/_/g, ' ')}: ${value}`);
+      const keyLabel = key.replace(/_/g, ' ');
+      addVaultButton(item, keyLabel, 'material', () => `${keyLabel}: ${desc.value}`);
       materialsList.appendChild(item);
     }
   }
@@ -528,4 +558,47 @@
     URL.revokeObjectURL(url);
     showToast('JSON 報告已下載');
   });
+
+  // ── Language switch: translate existing decode result on-the-fly ──
+  const languageSelect = document.getElementById('languageSelect');
+  if (languageSelect) {
+    languageSelect.addEventListener('change', async () => {
+      if (!currentAnalysis) return;
+      const lang = languageSelect.value;
+      const model = modelSelect ? modelSelect.value : 'gemini';
+      if (!window.StudioSettings.hasApiKey(model)) {
+        showToast('❌ 請先設定 API Key', 3000);
+        return;
+      }
+      updateLoadingText('正在翻譯解析結果...');
+      startLoadingAnimation();
+      decodeResult.classList.add('hidden');
+      decodeLoading.classList.remove('hidden');
+      try {
+        let key = '';
+        if (model.startsWith('openai')) key = window.StudioSettings.getOpenAIKey();
+        else if (model === 'geminilite') key = window.StudioSettings.getGeminiliteKey();
+        else key = window.StudioSettings.getGeminiKey();
+        const translated = await window.AIService.translateAnalysis(currentAnalysis, lang, key, model);
+        currentAnalysis = translated;
+        // Reset natural language state since the language changed
+        if (window.StudioState.decodeResult) {
+          window.StudioState.decodeResult.isNaturalLanguage = false;
+          window.StudioState.decodeResult.naturalPromptText = null;
+        }
+        if (document.getElementById('toNaturalBtn')) {
+          document.getElementById('toNaturalBtn').textContent = '轉換為自然語言';
+        }
+        finishLoadingAnimation();
+        renderAnalysis(translated);
+        showToast('✅ 翻譯完成');
+      } catch (err) {
+        console.error('Translation failed:', err);
+        stopLoadingAnimation();
+        decodeLoading.classList.add('hidden');
+        decodeResult.classList.remove('hidden');
+        showToast('❌ 翻譯失敗：' + err.message, 5000);
+      }
+    });
+  }
 })();

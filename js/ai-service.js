@@ -211,6 +211,64 @@ ${structuredPrompt}`;
     }
   }
 
+  // ── Translate existing analysis JSON into a new language ──
+  async function translateAnalysis(analysis, targetLanguage, apiKey, model) {
+    const prompt = `You are a professional translator. Translate all human-readable text values inside the following JSON into ${targetLanguage}.
+
+CRITICAL RULES:
+- Keep the JSON structure EXACTLY as-is (same keys, same nesting, same array structure).
+- Only translate descriptive string values. DO NOT translate: JSON keys, null values, hex color codes (e.g. #FF5733), purely numeric strings, or the string "null".
+- Return ONLY raw valid JSON — no markdown, no code fences, no commentary.
+
+JSON to translate:
+${JSON.stringify(analysis)}`;
+
+    const openaiModelId = OPENAI_MODELS[model];
+    if (openaiModelId) {
+      const isLegacy = openaiModelId === 'gpt-4o';
+      const url = 'https://api.openai.com/v1/chat/completions';
+      const body = {
+        model: openaiModelId,
+        messages: [{ role: 'user', content: prompt }],
+        max_completion_tokens: 4096,
+        ...(isLegacy && { temperature: 0.1, response_format: { type: 'json_object' } })
+      };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `Translation API error (${res.status})`);
+      }
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) throw new Error('Empty translation response');
+      return parseAIResponse(content);
+    } else {
+      const modelName = model === 'geminilite' ? 'gemini-2.5-flash-lite' : 'gemini-3.5-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, response_mime_type: 'application/json' }
+      };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `Translation API error (${res.status})`);
+      }
+      const data = await res.json();
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!content) throw new Error('Empty translation response');
+      return parseAIResponse(content);
+    }
+  }
+
   // ── Parse AI response ──
   function parseAIResponse(raw) {
     // Strip markdown code fences if present
@@ -422,6 +480,7 @@ ${structuredPrompt}`;
     analyzeWithOpenAI,
     analyzeWithGemini,
     analyzeWithGeminilite,
+    translateAnalysis,
     rewriteToNaturalLanguage,
     generateWithNanoBanana,
     generateWithNanoBanana2,

@@ -759,6 +759,7 @@ body {
   flex-direction: column;
   gap: 8px;
   transition: box-shadow .15s;
+  animation: cardFadeIn 0.4s ease both;
 }
 .prompt-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.1); }
 .prompt-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
@@ -1410,3 +1411,65 @@ body {
 .wf-port-out { right: -8px; }
 
 .wf-port:hover { background: var(--warm); transform: translateY(-50%) scale(1.2); }
+
+/* Editable fields inside flex containers */
+.material-item .editable-field { flex: 1; min-width: 0; }
+.lighting-detail .editable-field { flex: 1; min-width: 0; }
+.camera-item .editable-field { text-align: center; }
+
+/* ── Workflow node entrance animation ── */
+.wf-node { animation: cardFadeIn 0.4s ease both; }
+#nodePrompt  { animation-delay: 0.05s; }
+#nodeModel   { animation-delay: 0.10s; }
+#nodePreview { animation-delay: 0.15s; }
+
+/* ── Editable decode fields ── */
+.editable-field {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: 1px 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  resize: none;
+  box-sizing: border-box;
+  display: block;
+  overflow: hidden;
+  min-height: 2.5em;
+  field-sizing: content;
+  transition: border-color 0.15s, background 0.15s;
+}
+.editable-field:hover {
+  border-color: var(--border);
+  background: rgba(0,0,0,0.02);
+}
+.editable-field:focus {
+  border-color: var(--warm);
+  background: rgba(200,169,110,0.04);
+  outline: none;
+  overflow: auto;
+  resize: vertical;
+}
+/* Input variant for short inline fields (lighting detail, camera value) */
+input.editable-field {
+  resize: none;
+  overflow: visible;
+}
+input.editable-field:focus { resize: none; }
+.lighting-detail input.editable-field { flex: 1; min-width: 0; text-align: right; }
+.camera-item input.editable-field { text-align: center; width: 100%; }
+
+/* ── Cropper modal container ── */
+.cropper-wrap {
+  width: 100%;
+  height: 260px;
+  overflow: hidden;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.cropper-wrap img { display: block; max-width: 100%; }
