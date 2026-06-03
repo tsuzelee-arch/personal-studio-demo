@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -15,13 +15,13 @@
       <div class="logo-sub">Creative AI Workspace</div>
     </div>
     <div class="nav-group">
-      <div class="nav-cat">工�?�?/div>
-      <div class="nav-item active" data-panel="decode">?��?�?��</div>
-      <div class="nav-item" data-panel="prompts">?�示詞庫</div>
-      <div class="nav-item" data-panel="workflow">?��?工�?�?/div>
-      <div class="nav-item" data-panel="assets">資產�?/div>
+      <div class="nav-cat">工作室</div>
+      <div class="nav-item active" data-panel="decode">圖像解碼</div>
+      <div class="nav-item" data-panel="prompts">提示詞庫</div>
+      <div class="nav-item" data-panel="workflow">自定工作流</div>
+      <div class="nav-item" data-panel="assets">資產庫</div>
       <div class="nav-cat" style="margin-top:12px">系統</div>
-      <div class="nav-item" data-panel="settings">??設�?</div>
+      <div class="nav-item" data-panel="settings">⚙ 設定</div>
     </div>
     <div class="sidebar-footer">
       <div class="sidebar-footer-text">Personal Studio v1.0</div>
@@ -30,35 +30,35 @@
 
   <main class="main">
     <header class="topbar">
-      <div class="page-title" id="pageTitle">?��?�?��</div>
+      <div class="page-title" id="pageTitle">圖像解碼</div>
       <div class="topbar-actions" id="topbarActions"></div>
     </header>
     <div class="content">
 
-      <!-- Panel: ?��?�?�� -->
+      <!-- Panel: 圖像解碼 -->
       <section class="panel active" id="panel-decode">
         <div class="decode-layout">
           <!-- Model Selector -->
           <div class="model-selector-bar" style="display: flex; align-items: center;">
             <div class="control-group" style="display: flex; align-items: center;">
-              <label>?��?模�?�?/label>
+              <label>分析模型：</label>
               <select id="modelSelect" class="form-select form-select-sm">
                 <option value="gemini">Gemini 3.5 Flash</option>
                 <option value="geminilite">Gemini 2.5 Lite</option>
-                <option value="openai">GPT-5.5 (?�?��???</option>
-                <option value="openai-54">GPT-5.4 (?�衡專業)</option>
-                <option value="openai-54mini">GPT-5.4 Mini (快�?</option>
-                <option value="openai-4o">GPT-4o (穩�?)</option>
+                <option value="openai">GPT-5.5 (最新旗艦)</option>
+                <option value="openai-54">GPT-5.4 (均衡專業)</option>
+                <option value="openai-54mini">GPT-5.4 Mini (快速)</option>
+                <option value="openai-4o">GPT-4o (穩定)</option>
               </select>
               <span class="model-status" id="modelStatus"></span>
             </div>
             <div class="control-group" style="margin-left:15px; display: flex; align-items: center;">
-              <label>輸出語�?�?/label>
+              <label>輸出語言：</label>
               <select id="languageSelect" class="form-select form-select-sm">
-                <option value="繁�?中�?">繁�?中�?</option>
+                <option value="繁體中文">繁體中文</option>
                 <option value="English">English</option>
-                <option value="简体中??>简体中??/option>
-                <option value="?�本�?>?�本�?/option>
+                <option value="简体中文">简体中文</option>
+                <option value="日本語">日本語</option>
               </select>
             </div>
           </div>
@@ -66,15 +66,15 @@
           <div class="decode-upload-area" id="dropZone">
             <input type="file" id="imageInput" accept="image/*" hidden>
             <div class="drop-icon">&#9707;</div>
-            <div class="drop-text">?�曳?��??�此，�?</div>
-            <button class="btn-primary" id="uploadBtn">?��??��?</button>
-            <div class="drop-hint">?�援 JPG?�PNG?�WEBP</div>
+            <div class="drop-text">拖曳圖像至此，或</div>
+            <button class="btn-primary" id="uploadBtn">選擇圖像</button>
+            <div class="drop-hint">支援 JPG、PNG、WEBP</div>
           </div>
 
           <!-- Analysis Loading State -->
           <div class="decode-loading hidden" id="decodeLoading">
             <div class="loading-spinner"></div>
-            <div class="loading-text">�?��深層視覺�??...</div>
+            <div class="loading-text">正在深層視覺解構...</div>
             <div class="loading-bar"><div class="loading-bar-fill" id="loadingBarFill"></div></div>
           </div>
 
@@ -83,13 +83,13 @@
             <!-- Dashboard Top Bar -->
             <div class="decode-dashboard-bar">
               <div class="dashboard-title">
-                <span class="dashboard-icon">??/span> 視覺�???��??��?
+                <span class="dashboard-icon">◈</span> 視覺解構分析報告
               </div>
               <div class="dashboard-actions">
-                <button class="btn-primary" id="copyPromptBtn">複製?�示�?/button>
-                <button class="btn-ghost" id="sendToWorkflowBtn">?�至工�?�?/button>
-                <button class="btn-ghost" id="exportJsonBtn">?�出 JSON</button>
-                <button class="btn-ghost" id="resetDecodeBtn">?�新上傳</button>
+                <button class="btn-primary" id="copyPromptBtn">複製提示詞</button>
+                <button class="btn-ghost" id="sendToWorkflowBtn">送至工作流</button>
+                <button class="btn-ghost" id="exportJsonBtn">匯出 JSON</button>
+                <button class="btn-ghost" id="resetDecodeBtn">重新上傳</button>
               </div>
             </div>
 
@@ -105,16 +105,16 @@
 
                 <div class="dash-card" id="cardPalette">
                   <div class="dash-card-header">
-                    <span class="dash-card-icon">?��</span>
-                    <span class="dash-card-title">?�彩?�盤 (Color Palette)</span>
+                    <span class="dash-card-icon">🎨</span>
+                    <span class="dash-card-title">色彩色盤 (Color Palette)</span>
                   </div>
                   <div class="palette-row" id="paletteRow"></div>
                 </div>
 
                 <div class="dash-card" id="cardMood">
                   <div class="dash-card-header">
-                    <span class="dash-card-icon">?���?/span>
-                    <span class="dash-card-title">氛�??��?�?(Mood)</span>
+                    <span class="dash-card-icon">🌫️</span>
+                    <span class="dash-card-title">氛圍與情緒 (Mood)</span>
                   </div>
                   <div class="dash-card-body">
                     <textarea class="editable-field" id="moodText" rows="3"></textarea>
@@ -127,8 +127,8 @@
                 <!-- Metadata Card -->
                 <div class="dash-card" id="cardMeta">
                   <div class="dash-card-header">
-                    <span class="dash-card-icon">??</span>
-                    <span class="dash-card-title">?�估風格?��?�?(Style & Process)</span>
+                    <span class="dash-card-icon">📋</span>
+                    <span class="dash-card-title">推估風格與過程 (Style & Process)</span>
                   </div>
                   <div class="dash-card-body">
                     <textarea class="editable-field" id="metaStyle" rows="2" style="font-size:14px; font-weight:500;"></textarea>
@@ -138,42 +138,42 @@
                 <!-- Elements Breakdown Card -->
                 <div class="dash-card" id="cardElements">
                   <div class="dash-card-header">
-                    <span class="dash-card-icon">??</span>
-                    <span class="dash-card-title">?�面?��??�解 (Layers)</span>
-                    <button class="dash-toggle" data-target="elementsBody">展�? ??/button>
+                    <span class="dash-card-icon">🔍</span>
+                    <span class="dash-card-title">畫面元素拆解 (Layers)</span>
+                    <button class="dash-toggle" data-target="elementsBody">展開 ▾</button>
                   </div>
                   <div class="dash-card-body dash-collapsible" id="elementsBody">
                     <div class="element-section">
-                      <div class="element-layer-badge">?�景?��? (Foreground)</div>
+                      <div class="element-layer-badge">前景特效 (Foreground)</div>
                       <textarea class="editable-field" id="elForeground" rows="2"></textarea>
                     </div>
                     <div class="element-section">
-                      <div class="element-layer-badge subject-badge">主�? (Subject)</div>
+                      <div class="element-layer-badge subject-badge">主體 (Subject)</div>
                       <div class="subject-grid" id="elSubject">
                         <div class="subject-item">
-                          <div class="subject-label">身�?</div>
+                          <div class="subject-label">身分</div>
                           <textarea class="editable-field" id="elSubjectIdentity" rows="2"></textarea>
                         </div>
                         <div class="subject-item">
-                          <div class="subject-label">?��? / 表面</div>
+                          <div class="subject-label">服裝 / 表面</div>
                           <textarea class="editable-field" id="elSubjectClothing" rows="2"></textarea>
                         </div>
                         <div class="subject-item">
-                          <div class="subject-label">姿勢?��?�?/div>
+                          <div class="subject-label">姿勢與動作</div>
                           <textarea class="editable-field" id="elSubjectPose" rows="2"></textarea>
                         </div>
                       </div>
                     </div>
                     <div class="element-section">
-                      <div class="element-layer-badge">中景?�件 (Midground)</div>
+                      <div class="element-layer-badge">中景物件 (Midground)</div>
                       <textarea class="editable-field" id="elMidground" rows="2"></textarea>
                     </div>
                     <div class="element-section">
-                      <div class="element-layer-badge">?�景?��? (Background)</div>
+                      <div class="element-layer-badge">背景環境 (Background)</div>
                       <textarea class="editable-field" id="elBackground" rows="2"></textarea>
                     </div>
                     <div class="element-section" id="elOtherSection">
-                      <div class="element-layer-badge other-badge">?��??��? (Other)</div>
+                      <div class="element-layer-badge other-badge">其他元素 (Other)</div>
                       <textarea class="editable-field" id="elOther" rows="2"></textarea>
                     </div>
                   </div>
@@ -182,43 +182,43 @@
                 <!-- Lighting & Camera Card -->
                 <div class="dash-card" id="cardLighting">
                   <div class="dash-card-header">
-                    <span class="dash-card-icon">?��</span>
-                    <span class="dash-card-title">?�影?��?�?(Lighting & Camera)</span>
-                    <button class="dash-toggle" data-target="lightingBody">展�? ??/button>
+                    <span class="dash-card-icon">💡</span>
+                    <span class="dash-card-title">光影與攝影 (Lighting & Camera)</span>
+                    <button class="dash-toggle" data-target="lightingBody">展開 ▾</button>
                   </div>
                   <div class="dash-card-body dash-collapsible" id="lightingBody">
                     <div class="lighting-grid">
                       <div class="lighting-section">
-                        <div class="lighting-section-title">主�?�?(Key Light)</div>
+                        <div class="lighting-section-title">主光源 (Key Light)</div>
                         <div class="lighting-detail">
-                          <span class="detail-label">?��?</span>
+                          <span class="detail-label">方向</span>
                           <input type="text" class="editable-field" id="lightDirection">
                         </div>
                         <div class="lighting-detail">
-                          <span class="detail-label">?�溫</span>
+                          <span class="detail-label">色溫</span>
                           <input type="text" class="editable-field" id="lightColorTemp">
                         </div>
                         <div class="lighting-detail">
-                          <span class="detail-label">?�質</span>
+                          <span class="detail-label">品質</span>
                           <input type="text" class="editable-field" id="lightQuality">
                         </div>
                       </div>
                       <div class="lighting-section">
-                        <div class="lighting-section-title">補�??��?�?? (Fill/Rim)</div>
+                        <div class="lighting-section-title">補光與邊緣光 (Fill/Rim)</div>
                         <textarea class="editable-field" id="lightFill" rows="2"></textarea>
                       </div>
                     </div>
                     <div class="camera-grid">
                       <div class="camera-item">
-                        <div class="camera-label">?�估?�頭?�段</div>
+                        <div class="camera-label">推估鏡頭焦段</div>
                         <input type="text" class="editable-field" id="cameraLens">
                       </div>
                       <div class="camera-item">
-                        <div class="camera-label">?�深 (DoF)</div>
+                        <div class="camera-label">景深 (DoF)</div>
                         <input type="text" class="editable-field" id="cameraDof">
                       </div>
                       <div class="camera-item">
-                        <div class="camera-label">?�影機�?�?/div>
+                        <div class="camera-label">攝影機角度</div>
                         <input type="text" class="editable-field" id="cameraAngle">
                       </div>
                     </div>
@@ -228,9 +228,9 @@
                 <!-- Materials & Textures Card -->
                 <div class="dash-card" id="cardMaterials">
                   <div class="dash-card-header">
-                    <span class="dash-card-icon">?��</span>
-                    <span class="dash-card-title">?�質?�微觀紋�? (Material & Texture)</span>
-                    <button class="dash-toggle" data-target="materialsBody">展�? ??/button>
+                    <span class="dash-card-icon">🧱</span>
+                    <span class="dash-card-title">材質與微觀紋理 (Material & Texture)</span>
+                    <button class="dash-toggle" data-target="materialsBody">展開 ▾</button>
                   </div>
                   <div class="dash-card-body dash-collapsible" id="materialsBody">
                     <div class="materials-list" id="materialsList"></div>
@@ -240,8 +240,8 @@
                 <!-- Negative Constraints Card -->
                 <div class="dash-card dash-card-negative" id="cardNegative">
                   <div class="dash-card-header">
-                    <span class="dash-card-icon">?��</span>
-                    <span class="dash-card-title">?��?負面約�? (Negative Space/Constraints)</span>
+                    <span class="dash-card-icon">🚫</span>
+                    <span class="dash-card-title">推論負面約束 (Negative Space/Constraints)</span>
                   </div>
                   <div class="dash-card-body">
                     <ul class="negative-list" id="negativeList"></ul>
@@ -252,10 +252,10 @@
                 <div class="dash-card dash-card-prompt" id="cardPrompt">
                   <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                      <span class="dash-card-icon">??/span>
-                      <span class="dash-card-title">視覺�???�示�?(Prompt)</span>
+                      <span class="dash-card-icon">✨</span>
+                      <span class="dash-card-title">視覺解構提示詞 (Prompt)</span>
                     </div>
-                    <button class="btn-primary btn-sm" id="toNaturalBtn" style="font-size: 12px; padding: 4px 10px;">轉�??�自?��?言</button>
+                    <button class="btn-primary btn-sm" id="toNaturalBtn" style="font-size: 12px; padding: 4px 10px;">轉換為自然語言</button>
                   </div>
                   <div class="dash-card-body">
                     <textarea class="prompt-output" id="promptOutput" style="width: 100%; min-height: 150px; resize: vertical; border: none; outline: none; background: transparent; color: inherit; font-family: inherit; font-size: inherit;"></textarea>
@@ -268,32 +268,32 @@
         </div>
       </section>
 
-      <!-- Panel: ?�示詞庫 -->
+      <!-- Panel: 提示詞庫 -->
       <section class="panel" id="panel-prompts">
         <div class="prompts-toolbar">
-          <input type="text" class="search-input" id="promptSearch" placeholder="?��??�示�?..">
-          <button class="btn-primary" id="addPromptBtn">+ ?��??�示�?/button>
+          <input type="text" class="search-input" id="promptSearch" placeholder="搜尋提示詞...">
+          <button class="btn-primary" id="addPromptBtn">+ 新增提示詞</button>
         </div>
         <div class="category-chips" id="categoryChips"></div>
         <div class="prompts-grid" id="promptsGrid"></div>
         <div class="empty-state hidden" id="promptsEmpty">
           <div class="empty-icon">&#9998;</div>
-          <div class="empty-text">尚無?�示詞�?點�??��?角新�?/div>
+          <div class="empty-text">尚無提示詞，點擊右上角新增</div>
         </div>
       </section>
 
-      <!-- Panel: ?��?工�?�?-->
+      <!-- Panel: 自定工作流 -->
       <section class="panel" id="panel-workflow">
         <div class="workflow-header" style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-          <div class="workflow-desc" style="font-weight: 500;">?��?工�?�?(Node-based)</div>
+          <div class="workflow-desc" style="font-weight: 500;">自定工作流 (Node-based)</div>
           <div class="workflow-toolbar" id="wfToolbar" style="display: flex; gap: 8px;">
-            <button class="btn-ghost btn-sm" data-add="model">??Model</button>
-            <button class="btn-ghost btn-sm" data-add="prompt">??Prompt</button>
-            <button class="btn-ghost btn-sm" data-add="img2img">??Img2Img</button>
-            <button class="btn-ghost btn-sm" data-add="upscale">??Upscale</button>
-            <button class="btn-ghost btn-sm" data-add="temperature">??Temperature</button>
-            <button class="btn-ghost btn-sm" data-add="preview">??Preview</button>
-            <button class="btn-primary btn-sm" id="wfGenerateRunBtn" style="margin-left: 15px;">?��?工�?�?(Run)</button>
+            <button class="btn-ghost btn-sm" data-add="model">➕ Model</button>
+            <button class="btn-ghost btn-sm" data-add="prompt">➕ Prompt</button>
+            <button class="btn-ghost btn-sm" data-add="img2img">➕ Img2Img</button>
+            <button class="btn-ghost btn-sm" data-add="upscale">➕ Upscale</button>
+            <button class="btn-ghost btn-sm" data-add="temperature">➕ Temperature</button>
+            <button class="btn-ghost btn-sm" data-add="preview">➕ Preview</button>
+            <button class="btn-primary btn-sm" id="wfGenerateRunBtn" style="margin-left: 15px;">執行工作流 (Run)</button>
           </div>
         </div>
         <div class="workflow-canvas" id="workflowCanvas">
@@ -302,64 +302,64 @@
         </div>
       </section>
 
-      <!-- Panel: 設�? -->
+      <!-- Panel: 設定 -->
       <section class="panel" id="panel-settings">
         <div class="settings-layout">
           <div class="settings-intro">
-            <p>?�此設�??��? AI 模�? API ?�鑰?��??��??��??�您?�瀏覽?�本?�端 (localStorage)，�??�傳?�至任�?第�??�伺?�器??/p>
+            <p>在此設定您的 AI 模型 API 金鑰。金鑰僅儲存在您的瀏覽器本地端 (localStorage)，不會傳送至任何第三方伺服器。</p>
           </div>
 
           <!-- OpenAI Settings -->
           <div class="settings-card">
             <div class="settings-card-header">
-              <span class="settings-card-icon">??</span>
+              <span class="settings-card-icon">🤖</span>
               <span class="settings-card-title">OpenAI (ChatGPT)</span>
             </div>
             <div class="settings-card-body">
               <label class="form-label">API KEY</label>
               <div class="key-input-row">
                 <input type="password" class="form-input key-input" id="openaiKeyInput" placeholder="sk-...">
-                <button class="btn-primary" id="saveOpenaiBtn">?��?</button>
-                <button class="btn-ghost" id="testOpenaiBtn">測試???</button>
+                <button class="btn-primary" id="saveOpenaiBtn">儲存</button>
+                <button class="btn-ghost" id="testOpenaiBtn">測試連線</button>
               </div>
               <div class="conn-status" id="openaiStatus"></div>
-              <div class="settings-hint">模�?：chatgpt-5.5 · ?�要�? Vision 存�?權�?</div>
+              <div class="settings-hint">模型：chatgpt-5.5 · 需要有 Vision 存取權限</div>
             </div>
           </div>
 
           <!-- Gemini Settings -->
           <div class="settings-card">
             <div class="settings-card-header">
-              <span class="settings-card-icon">??/span>
+              <span class="settings-card-icon">✦</span>
               <span class="settings-card-title">Google Gemini</span>
             </div>
             <div class="settings-card-body">
               <label class="form-label">API KEY</label>
               <div class="key-input-row">
                 <input type="password" class="form-input key-input" id="geminiKeyInput" placeholder="AIza...">
-                <button class="btn-primary" id="saveGeminiBtn">?��?</button>
-                <button class="btn-ghost" id="testGeminiBtn">測試???</button>
+                <button class="btn-primary" id="saveGeminiBtn">儲存</button>
+                <button class="btn-ghost" id="testGeminiBtn">測試連線</button>
               </div>
               <div class="conn-status" id="geminiStatus"></div>
-              <div class="settings-hint">模�?：gemini-3.5-flash · 使用 Google AI Studio ?�鑰</div>
+              <div class="settings-hint">模型：gemini-3.5-flash · 使用 Google AI Studio 金鑰</div>
             </div>
           </div>
 
           <!-- Gemini 2.5 Lite Settings -->
           <div class="settings-card">
             <div class="settings-card-header">
-              <span class="settings-card-icon">??/span>
+              <span class="settings-card-icon">✧</span>
               <span class="settings-card-title">Google Gemini 2.5 Lite</span>
             </div>
             <div class="settings-card-body">
               <label class="form-label">API KEY</label>
               <div class="key-input-row">
                 <input type="password" class="form-input key-input" id="geminiliteKeyInput" placeholder="AIza...">
-                <button class="btn-primary" id="saveGeminiliteBtn">?��?</button>
-                <button class="btn-ghost" id="testGeminiliteBtn">測試???</button>
+                <button class="btn-primary" id="saveGeminiliteBtn">儲存</button>
+                <button class="btn-ghost" id="testGeminiliteBtn">測試連線</button>
               </div>
               <div class="conn-status" id="geminiliteStatus"></div>
-              <div class="settings-hint">模�?：gemini-2.5-lite · 快速�??��??��?模�?</div>
+              <div class="settings-hint">模型：gemini-2.5-lite · 快速輕量版分析模型</div>
             </div>
           </div>
 
@@ -368,49 +368,49 @@
           <!-- Nano Banana Pro Settings -->
           <div class="settings-card">
             <div class="settings-card-header">
-              <span class="settings-card-icon">??</span>
+              <span class="settings-card-icon">🍌</span>
               <span class="settings-card-title">Nano Banana Pro</span>
             </div>
             <div class="settings-card-body">
               <label class="form-label">API KEY</label>
               <div class="key-input-row">
                 <input type="password" class="form-input key-input" id="nanobananaKeyInput" placeholder="nb-...">
-                <button class="btn-primary" id="saveNanobananaBtn">?��?</button>
+                <button class="btn-primary" id="saveNanobananaBtn">儲存</button>
               </div>
               <div class="conn-status" id="nanobananaStatus"></div>
-              <div class="settings-hint">模�?：gemini-3-pro-image (Nano Banana Pro) · ?�於工�?流�?高�??��??��?</div>
+              <div class="settings-hint">模型：gemini-3-pro-image (Nano Banana Pro) · 用於工作流的高階圖像生成</div>
             </div>
           </div>
 
           <!-- GPT Image 2.0 Settings -->
           <div class="settings-card">
             <div class="settings-card-header">
-              <span class="settings-card-icon">?���?/span>
+              <span class="settings-card-icon">🖼️</span>
               <span class="settings-card-title">GPT Image 2.0</span>
             </div>
             <div class="settings-card-body">
               <label class="form-label">API KEY</label>
               <div class="key-input-row">
                 <input type="password" class="form-input key-input" id="gptimageKeyInput" placeholder="sk-...">
-                <button class="btn-primary" id="saveGptimageBtn">?��?</button>
+                <button class="btn-primary" id="saveGptimageBtn">儲存</button>
               </div>
               <div class="conn-status" id="gptimageStatus"></div>
-              <div class="settings-hint">模�?：gpt-image-2 (GPT Image 2) · ?�援 4K �??度�?精�??��?渲�?</div>
+              <div class="settings-hint">模型：gpt-image-2 (GPT Image 2) · 支援 4K 解析度與精準文字渲染</div>
             </div>
           </div>
 
         </div>
       </section>
 
-      <!-- Panel: 資產�?-->
+      <!-- Panel: 資產庫 -->
       <section class="panel" id="panel-assets">
         <div class="prompts-toolbar" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 20px;">
-          <div style="font-size: 16px; font-weight: 600;">?�地資產�?(IndexedDB)</div>
+          <div style="font-size: 16px; font-weight: 600;">本地資產庫 (IndexedDB)</div>
         </div>
         <div class="assets-grid" id="assetsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;"></div>
         <div class="empty-state hidden" id="assetsEmpty">
-          <div class="empty-icon">?���?/div>
-          <div class="empty-text">尚無?��??�影?��???/div>
+          <div class="empty-icon">🖼️</div>
+          <div class="empty-text">尚無儲存的影像資產</div>
         </div>
       </section>
 
@@ -418,27 +418,27 @@
   </main>
 </div>
 
-<!-- Modal: ?��?/編輯?�示�?-->
+<!-- Modal: 新增/編輯提示詞 -->
 <div class="modal-backdrop hidden" id="promptModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title" id="modalTitle">?��??�示�?/div>
+      <div class="modal-title" id="modalTitle">新增提示詞</div>
       <button class="modal-close" id="modalClose">&#x2715;</button>
     </div>
     <div class="modal-body">
-      <label class="form-label">標�?</label>
-      <input type="text" class="form-input" id="promptTitleInput" placeholder="?�示詞�?�?>
-      <label class="form-label">?��?</label>
+      <label class="form-label">標題</label>
+      <input type="text" class="form-input" id="promptTitleInput" placeholder="提示詞名稱">
+      <label class="form-label">分類</label>
       <select class="form-input" id="promptCategoryInput">
         <!-- Categories are dynamically populated by prompts.js -->
       </select>
-      <label class="form-label">?�示詞內�?/label>
-      <textarea class="form-textarea" id="promptContentInput" placeholder="輸入?�示�?.."></textarea>
+      <label class="form-label">提示詞內容</label>
+      <textarea class="form-textarea" id="promptContentInput" placeholder="輸入提示詞..."></textarea>
       <div id="promptThumbPreview" class="prompt-thumb-preview hidden"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-ghost" id="modalCancel">?��?</button>
-      <button class="btn-primary" id="modalSave">?��?</button>
+      <button class="btn-ghost" id="modalCancel">取消</button>
+      <button class="btn-primary" id="modalSave">儲存</button>
     </div>
   </div>
 </div>
