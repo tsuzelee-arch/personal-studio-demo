@@ -18,7 +18,7 @@
       <div class="nav-cat">工作室</div>
       <div class="nav-item active" data-panel="decode">提示詞解構</div>
       <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
-      <div class="nav-item" data-panel="workflow">自定工作流</div>
+      <div class="nav-item" data-panel="workflow">自定工作流與IDE Agent(開發中)</div>
       <div class="nav-item" data-panel="assets">資產庫</div>
       <div class="nav-cat" style="margin-top:12px">系統</div>
       <div class="nav-item" data-panel="settings">⚙ 設定</div>
@@ -334,8 +334,9 @@
         </div>
       </section>
 
-      <!-- Panel: 自定工作流 -->
+      <!-- Panel: 自定工作流與IDE Agent -->
       <section class="panel" id="panel-workflow">
+        <!-- Top Toolbar (for Node Workflow) -->
         <div class="workflow-header" style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
           <div class="workflow-desc" style="font-weight: 500;">自定工作流 (Node-based)</div>
           <div class="workflow-toolbar" id="wfToolbar" style="display: flex; gap: 8px;">
@@ -348,9 +349,52 @@
             <button class="btn-primary btn-sm" id="wfGenerateRunBtn" style="margin-left: 15px;">執行工作流 (Run)</button>
           </div>
         </div>
-        <div class="workflow-canvas" id="workflowCanvas">
-          <svg class="workflow-svg" id="workflowSvg"></svg>
-          <!-- Nodes will be injected here dynamically by workflow.js -->
+
+        <!-- 3-Column IDE Layout -->
+        <div class="workflow-ide-layout">
+          <!-- Left Pane: Asset File Explorer -->
+          <div class="ide-left-assets">
+            <div class="ide-assets-header">
+              <span class="ide-pane-title">📂 資產瀏覽器</span>
+            </div>
+            <div class="ide-folder-list" id="ideFolderList"></div>
+            <div class="ide-assets-grid" id="ideAssetsGrid"></div>
+          </div>
+
+          <!-- Center Pane: Node Workflow Canvas -->
+          <div class="ide-center-workflow">
+            <div class="workflow-canvas" id="workflowCanvas">
+              <svg class="workflow-svg" id="workflowSvg"></svg>
+              <!-- Nodes will be injected here dynamically by workflow.js -->
+            </div>
+          </div>
+
+          <!-- Right Pane: IDE Agent Chat -->
+          <div class="ide-right-agent">
+            <div class="agent-header">
+              <span class="agent-header-title">✨ IDE Agent</span>
+              <select class="agent-model-select" id="agentModelSelect">
+                <option value="openai">ChatGPT (GPT Image 2.0)</option>
+                <option value="gemini">Gemini 3.5 Flash</option>
+                <option value="gemini-pro">Gemini 3.5 Pro</option>
+              </select>
+            </div>
+            <div class="agent-messages" id="agentMessages">
+              <div class="agent-welcome">
+                <div class="agent-welcome-icon">✨</div>
+                <div class="agent-welcome-title">歡迎使用 IDE Agent</div>
+                <div class="agent-welcome-sub">您可以輸入描述來生成圖像，或將左側資產庫的圖片拖曳至此進行分析。</div>
+              </div>
+            </div>
+            <div class="agent-input-area">
+              <div class="agent-attachments" id="agentAttachments"></div>
+              <div class="agent-input-container">
+                <button class="agent-attach-btn" id="agentAttachBtn" title="附加圖片">📎</button>
+                <textarea class="agent-textarea" id="agentTextarea" placeholder="輸入描述來生成圖像，或附加圖片進行分析..." rows="1"></textarea>
+                <button class="agent-send-btn" id="agentSendBtn" title="發送">⬆️</button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -508,13 +552,14 @@
 <div class="toast hidden" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-<script src="js/app.js?v=32"></script>
-<script src="js/assets.js?v=32"></script>
-<script src="js/editor.js?v=32"></script>
-<script src="js/ai-service.js?v=32"></script>
-<script src="js/settings.js?v=32"></script>
-<script src="js/decode.js?v=32"></script>
-<script src="js/prompts.js?v=32"></script>
-<script src="js/workflow.js?v=28"></script>
+<script src="js/app.js?v=33"></script>
+<script src="js/assets.js?v=33"></script>
+<script src="js/editor.js?v=33"></script>
+<script src="js/ai-service.js?v=33"></script>
+<script src="js/settings.js?v=33"></script>
+<script src="js/decode.js?v=33"></script>
+<script src="js/prompts.js?v=33"></script>
+<script src="js/workflow.js?v=33"></script>
+<script src="js/ide-agent.js?v=33"></script>
 </body>
 </html>
