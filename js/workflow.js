@@ -94,6 +94,17 @@
         <input type="range" class="wf-temp-cfg" min="1" max="20" value="7" style="width: 100%;">
         <div style="text-align: right; font-size: 11px;" class="wf-temp-val">7</div>
       `;
+    } else if (type === 'mask') {
+      headerText = '遮罩 (Mask)';
+      portsHTML = `
+        <div class="wf-port wf-port-in" data-node="${id}" data-type="in"></div>
+        <div class="wf-port wf-port-out" data-node="${id}" data-type="out"></div>
+      `;
+      bodyHTML = `
+        <label>Mask Image (B/W)</label>
+        <input type="file" class="wf-mask-file" accept="image/*" style="display:none;">
+        <div class="wf-mask-preview">點擊上傳遮罩圖</div>
+      `;
     } else if (type === 'preview') {
       headerText = '預覽 (Preview)';
       portsHTML = `<div class="wf-port wf-port-in" data-node="${id}" data-type="in"></div>`;
@@ -169,6 +180,23 @@
       range.addEventListener('input', () => val.textContent = range.value);
     }
     
+    // Mask file upload
+    if (type === 'mask') {
+      const fileInput = nodeEl.querySelector('.wf-mask-file');
+      const preview = nodeEl.querySelector('.wf-mask-preview');
+      preview.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          nodeEl.dataset.maskData = ev.target.result;
+          preview.innerHTML = `<img src="${ev.target.result}">`;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
     // Lightbox for preview
     if (type === 'preview') {
       const img = nodeEl.querySelector('.wf-preview-img');
@@ -295,6 +323,7 @@
           cfg: 7,
           i2i_base: null,
           i2i_denoise: 0.7,
+          mask: null,
           upscale: 1
         };
         
@@ -310,6 +339,8 @@
           } else if (n.dataset.type === 'img2img') {
             params.i2i_base = n.querySelector('.wf-i2i-base').value;
             params.i2i_denoise = parseFloat(n.querySelector('.wf-i2i-denoise').value);
+          } else if (n.dataset.type === 'mask') {
+            params.mask = n.dataset.maskData || null;
           } else if (n.dataset.type === 'upscale') {
             params.upscale = parseInt(n.querySelector('.wf-up-scale').value);
           }
@@ -345,15 +376,26 @@
           if (params.model === 'gptimage') {
             imageUrl = await window.AIService.generateWithGPTImage(params.prompt, apiKey, finalW, finalH);
           } else if (params.model === 'nanobanana2') {
-            imageUrl = await window.AIService.generateWithNanoBanana2(params.prompt, apiKey, finalW, finalH);
+            imageUrl = await window.AIService.generateWithNanoBanana2(params.prompt, apiKey, finalW, finalH, params.i2i_base, params.mask, params.cfg);
           } else {
             imageUrl = await window.AIService.generateWithNanoBanana(params.prompt, apiKey, finalW, finalH);
           }
-          
+
           placeholder.style.display = 'none';
           imgEl.src = imageUrl;
           imgEl.style.display = 'block';
           if(window.showToast) window.showToast('✅ 產圖成功！');
+
+          // Auto-save to 已完成 folder
+          if (window.AssetsService) {
+            if (window.AssetsService.getFolders && !window.AssetsService.getFolders().includes('已完成')) {
+              window.AssetsService.addFolder('已完成');
+            }
+            const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+            window.AssetsService.saveAsset('Workflow_Output_' + ts, imageUrl, '已完成').then(() => {
+              if (window.refreshAssetsGrid) window.refreshAssetsGrid();
+            }).catch(() => {});
+          }
           
         } catch (e) {
           console.error(e);

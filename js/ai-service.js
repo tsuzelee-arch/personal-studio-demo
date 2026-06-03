@@ -403,28 +403,46 @@ ${JSON.stringify(analysis)}`;
     return `data:image/png;base64,${base64}`;
   }
 
-  async function generateWithNanoBanana2(prompt, apiKey, width=1024, height=1024) {
-    // Nano Banana 2 -> gemini-3.1-flash-image
+  async function generateWithNanoBanana2(prompt, apiKey, width=1024, height=1024, image=null, mask=null, cfg=7) {
+    // Nano Banana 2 -> gemini-3.1-flash-image (supports img2img + mask + cfg)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
+
+    const stripPrefix = (dataUrl) => dataUrl ? dataUrl.replace(/^data:[^;]+;base64,/, '') : null;
+
+    const parts = [{ text: prompt }];
+    if (image) {
+      const mimeMatch = image.match(/^data:([^;]+);/);
+      parts.push({ inline_data: { mime_type: mimeMatch ? mimeMatch[1] : 'image/jpeg', data: stripPrefix(image) } });
+    }
+    if (mask) {
+      const mimeMask = mask.match(/^data:([^;]+);/);
+      parts.push({ inline_data: { mime_type: mimeMask ? mimeMask[1] : 'image/png', data: stripPrefix(mask) } });
+    }
+
     const payload = {
-      contents: [{ parts: [{ text: prompt }] }]
+      contents: [{ parts }],
+      generationConfig: {
+        temperature: Math.min(1.0, Math.max(0.0, (cfg - 1) / 19)),
+        responseModalities: ['IMAGE', 'TEXT']
+      }
     };
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    
+
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.error?.message || `Nano Banana 2 API Error: HTTP ${response.status}`);
     }
-    
+
     const data = await response.json();
-    const base64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64) throw new Error("No image data returned from Nano Banana 2");
-    return `data:image/png;base64,${base64}`;
+    const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    if (!imagePart) throw new Error('No image data returned from Nano Banana 2');
+    const { mime_type, data: b64 } = imagePart.inlineData;
+    return `data:${mime_type || 'image/png'};base64,${b64}`;
   }
 
   async function generateWithGPTImage(prompt, apiKey, width=1024, height=1024) {

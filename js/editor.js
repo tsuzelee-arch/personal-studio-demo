@@ -225,16 +225,19 @@ window.EditorService = (function() {
         const word = text.substring(lastTrigger);
         // Only trigger if no space after the trigger symbol
         if (!/\s/.test(word)) {
-          currentMode = text[lastTrigger];
+          const newMode = text[lastTrigger];
           query = word.substring(1);
           selectionRange = range.cloneRange();
-          
-          // Position menu
-          const rect = range.getBoundingClientRect();
-          suggestMenu.style.left = rect.left + 'px';
-          suggestMenu.style.top = (rect.bottom + 5) + 'px';
-          suggestMenu.classList.remove('hidden');
-          
+
+          // Anchor the menu only when the trigger is first detected
+          if (currentMode !== newMode) {
+            currentMode = newMode;
+            const rect = range.getBoundingClientRect();
+            suggestMenu.style.left = rect.left + 'px';
+            suggestMenu.style.top = (rect.bottom + 5) + 'px';
+            suggestMenu.classList.remove('hidden');
+          }
+
           await updateSuggestions();
           return;
         }

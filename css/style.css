@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --ink: #0e0e0e;
   --paper: #f5f2ed;
   --white: #faf8f5;
@@ -1655,36 +1655,70 @@ input.editable-field:focus { resize: none; }
   border: 1px solid var(--border);
   margin-bottom: 8px;
 }
-.cropper-wrap img { display: block; max-width: 100%; }/ *    % %  L i g h t B o x    % %  * / 
- . l i g h t b o x - c o n t e n t   { 
-     p o s i t i o n :   r e l a t i v e ; 
-     m a x - w i d t h :   9 0 v w ; 
-     m a x - h e i g h t :   9 0 v h ; 
-     b a c k g r o u n d :   t r a n s p a r e n t ; 
-     d i s p l a y :   f l e x ; 
-     f l e x - d i r e c t i o n :   c o l u m n ; 
-     a l i g n - i t e m s :   c e n t e r ; 
- } 
- . l i g h t b o x - i m g   { 
-     m a x - w i d t h :   1 0 0 % ; 
-     m a x - h e i g h t :   8 0 v h ; 
-     b o r d e r - r a d i u s :   8 p x ; 
-     b o x - s h a d o w :   0   1 0 p x   3 0 p x   r g b a ( 0 , 0 , 0 , 0 . 5 ) ; 
-     b a c k g r o u n d :   # f f f ; 
- } 
- . l i g h t b o x - c l o s e   { 
-     p o s i t i o n :   a b s o l u t e ; 
-     t o p :   - 4 0 p x ; 
-     r i g h t :   - 4 0 p x ; 
-     b a c k g r o u n d :   n o n e ; 
-     b o r d e r :   n o n e ; 
-     c o l o r :   # f f f ; 
-     f o n t - s i z e :   4 0 p x ; 
-     c u r s o r :   p o i n t e r ; 
- } 
- . l i g h t b o x - a c t i o n s   { 
-     m a r g i n - t o p :   1 5 p x ; 
-     d i s p l a y :   f l e x ; 
-     g a p :   1 0 p x ; 
- }  
- 
+.cropper-wrap img { display: block; max-width: 100%; }
+
+/* ── Assets Panel Layout ── */
+.assets-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.assets-folder-sidebar {
+  width: 160px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  position: sticky;
+  top: 68px;
+}
+.assets-main { flex: 1; min-width: 0; }
+.folder-item {
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--muted);
+  transition: background 0.12s, color 0.12s;
+}
+.folder-item:hover { background: var(--paper); color: var(--ink); }
+.folder-item.active { background: var(--warm); color: var(--ink); font-weight: 600; }
+.folder-add-btn {
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 6px;
+  transition: border-color 0.12s, color 0.12s;
+}
+.folder-add-btn:hover { border-color: var(--warm); color: var(--warm); }
+
+/* ── Mask Node preview ── */
+.wf-mask-preview {
+  width: 100%;
+  height: 80px;
+  background: #eee;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  color: #888;
+  border: 1px dashed #ccc;
+  overflow: hidden;
+}
+.wf-mask-preview img { width: 100%; height: 100%; object-fit: cover; }
