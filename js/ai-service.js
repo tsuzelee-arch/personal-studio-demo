@@ -368,7 +368,9 @@ ${JSON.stringify(analysis)}`;
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        aspectRatio: toAspectRatio(width, height)
+        imageConfig: {
+          aspectRatio: toAspectRatio(width, height)
+        }
       }
     };
     
@@ -420,7 +422,9 @@ ${JSON.stringify(analysis)}`;
       generationConfig: {
         temperature: Math.min(1.0, Math.max(0.0, (cfg - 1) / 19)),
         responseModalities: ['IMAGE'],
-        aspectRatio: toAspectRatio(width, height)
+        imageConfig: {
+          aspectRatio: toAspectRatio(width, height)
+        }
       }
     };
 
