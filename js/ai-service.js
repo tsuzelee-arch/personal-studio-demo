@@ -446,17 +446,45 @@ ${JSON.stringify(analysis)}`;
     return `data:${mime_type || 'image/png'};base64,${b64}`;
   }
 
-  async function generateWithGPTImage(prompt, apiKey, width=1024, height=1024) {
-    const url = 'https://api.openai.com/v1/images/generations';
-    const body = {
-      model: "gpt-image-2",
-      prompt: prompt,
-      n: 1,
-      size: `${width}x${height}`,
-      quality: "low"
+  async function generateWithGPTImage(prompt, apiKey, width=1024, height=1024, baseImage=null) {
+    const isEdit = !!baseImage;
+    const url = isEdit ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations';
+    
+    let body;
+    let headers = {
+      'Authorization': `Bearer ${apiKey}`
     };
 
-    console.log('[GPT Image 2] Request body:', JSON.stringify(body));
+    if (isEdit) {
+      const formData = new FormData();
+      formData.append('model', 'gpt-image-1');
+      formData.append('prompt', prompt);
+      formData.append('size', `${width}x${height}`);
+      formData.append('quality', 'low');
+      formData.append('n', '1');
+
+      // Convert dataURL to Blob
+      const parts = baseImage.split(',');
+      const mime = parts[0].match(/:(.*?);/)[1];
+      const raw = atob(parts[1]);
+      const arr = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      const blob = new Blob([arr], { type: mime });
+
+      formData.append('image[]', blob, 'ref_0.png');
+      body = formData;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify({
+        model: "gpt-image-2",
+        prompt: prompt,
+        n: 1,
+        size: `${width}x${height}`,
+        quality: "low"
+      });
+    }
+
+    console.log('[GPT Image 2] Request to:', url);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 90000);
@@ -465,11 +493,8 @@ ${JSON.stringify(analysis)}`;
     try {
       response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(body),
+        headers: headers,
+        body: body,
         signal: controller.signal
       });
     } catch (fetchErr) {
@@ -490,8 +515,14 @@ ${JSON.stringify(analysis)}`;
     const data = await response.json();
     console.log('[GPT Image 2] Response keys:', Object.keys(data));
     const b64 = data.data?.[0]?.b64_json;
-    if (!b64) throw new Error("No image data returned from GPT Image 2");
-    return `data:image/png;base64,${b64}`;
+    if (b64) {
+      return `data:image/png;base64,${b64}`;
+    }
+    const urlResult = data.data?.[0]?.url;
+    if (urlResult) {
+      return urlResult;
+    }
+    throw new Error("No image data returned from GPT Image 2");
   }
 
   // ── Public API ──

@@ -814,7 +814,7 @@
               
               let imageUrl = '';
               if (finalModel === 'gptimage') {
-                imageUrl = await window.AIService.generateWithGPTImage(finalPrompt, apiKey, finalW, finalH);
+                imageUrl = await window.AIService.generateWithGPTImage(finalPrompt, apiKey, finalW, finalH, state.i2i_base);
               } else if (finalModel === 'nanobanana2') {
                 imageUrl = await window.AIService.generateWithNanoBanana2(finalPrompt, apiKey, finalW, finalH, state.i2i_base, state.mask, finalCfg);
               } else {
