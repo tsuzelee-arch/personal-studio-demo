@@ -1263,18 +1263,42 @@ body {
   transform: scale(0.95);
 }
 
+/* ── Prompts IDE Layout ── */
+.prompts-ide-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+.prompts-left-forge {
+  width: 300px;
+  flex-shrink: 0;
+  height: 100%;
+  border-right: 2px solid var(--warm);
+  background: linear-gradient(180deg, #fdf6ec 0%, var(--white) 100%);
+  display: flex;
+  flex-direction: column;
+}
+.prompts-right-library {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
 /* ── Prompt Forge ── */
 .prompt-forge {
-  flex-shrink: 0;
-  border-top: 2px solid var(--warm);
-  background: linear-gradient(180deg, #fdf6ec 0%, var(--white) 100%);
-  padding: 12px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 14px 14px;
 }
 .forge-header {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 8px;
+  flex-shrink: 0;
 }
 .forge-icon {
   font-size: 16px;
@@ -1290,6 +1314,10 @@ body {
   padding: 4px;
   transition: all .2s;
   background: var(--white);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .forge-drop-zone.drag-over {
   border-color: var(--warm);
@@ -1298,11 +1326,10 @@ body {
 }
 .forge-textarea {
   width: 100%;
-  min-height: 80px;
-  max-height: 200px;
+  flex: 1;
   border: none;
   outline: none;
-  resize: vertical;
+  resize: none; /* Disable manual resize since it fills flex space */
   font-family: inherit;
   font-size: 12.5px;
   line-height: 1.6;
@@ -1312,14 +1339,28 @@ body {
 }
 .forge-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 8px;
+  flex-direction: column;
   gap: 8px;
+  margin-top: 12px;
+  flex-shrink: 0;
 }
-.forge-actions-right {
+.forge-actions-top {
   display: flex;
   gap: 6px;
+  width: 100%;
+}
+.forge-actions-top .btn-primary {
+  flex: 1;
+  justify-content: center;
+}
+.forge-actions-bottom {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.forge-actions-bottom .btn-ghost {
+  flex: 1;
+  justify-content: center;
 }
 .forge-actions .btn-primary.btn-sm {
   font-size: 11.5px;
