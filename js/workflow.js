@@ -519,8 +519,9 @@
               if (inc.resolution !== '512x512') state.resolution = inc.resolution;
               if (inc.prompt) state.prompt += (state.prompt ? ' ' : '') + inc.prompt;
               if (inc.mask) state.mask = inc.mask;
-              // Pass image from upstream generator
+              // Pass image from upstream: prefer resultImage, fallback to i2i_base (passthrough)
               if (inc.resultImage) state.i2i_base = inc.resultImage;
+              else if (inc.i2i_base) state.i2i_base = inc.i2i_base;
             });
           }
           
