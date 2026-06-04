@@ -98,6 +98,8 @@
       }
 
       el.innerHTML = `
+        <div class="wf-dom-port" style="position:absolute; left:-14px; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
+        <div class="wf-dom-port" style="position:absolute; right:-14px; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
         <div class="wf-node-header" style="background:#333; color:#fff; padding:6px 10px; font-size:12px; font-weight:600; border-top-left-radius:6px; border-top-right-radius:6px; cursor:move;">
           ${headerText}
           <span class="wf-node-del" style="float:right; cursor:pointer; color:#ccc;" title="刪除節點">&times;</span>
@@ -196,13 +198,7 @@
       ]
     };
 
-    // Determine ports based on node type
-    function getPorts(type) {
-      return [
-        { key: 'in', placement: 'left' },
-        { key: 'out', placement: 'right' }
-      ];
-    }
+    // Remove G6 getPorts as we use DOM ports
 
     function getNodeSize(type) {
       switch(type) {
@@ -224,12 +220,7 @@
         style: {
           pointerEvents: 'none',
           innerHTML: (datum) => createNodeDOM(datum),
-          size: (datum) => getNodeSize(datum.data.type),
-          ports: (datum) => getPorts(datum.data.type),
-          portR: 6,
-          portFill: '#fff',
-          portStroke: '#1783FF',
-          portLineWidth: 2
+          size: (datum) => getNodeSize(datum.data.type)
         }
       },
       edge: {
@@ -250,11 +241,20 @@
         'zoom-canvas',
         {
           type: 'drag-element',
-          enable: (e) => e.targetType !== 'port'
+          enable: (e) => {
+            const tgt = (e.originalEvent && e.originalEvent.target) || (e.nativeEvent && e.nativeEvent.target) || e.target;
+            if (tgt && tgt.classList && tgt.classList.contains('wf-node-header')) return true;
+            return false;
+          }
         },
         {
           type: 'create-edge',
           trigger: 'drag',
+          enable: (e) => {
+            const tgt = (e.originalEvent && e.originalEvent.target) || (e.nativeEvent && e.nativeEvent.target) || e.target;
+            if (tgt && tgt.classList && tgt.classList.contains('wf-dom-port')) return true;
+            return false;
+          },
           style: { stroke: '#1783FF', lineWidth: 2, lineDash: [4, 2], endArrow: true },
           onCreate: (edge) => {
             if (edge.source === edge.target) return undefined; // No self loops
