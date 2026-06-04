@@ -70,10 +70,9 @@
         bodyHTML = `
           <label>Base Image (留空為純文字生成)</label>
           <input type="text" class="form-input wf-i2i-base" placeholder="貼上或@資產..." style="margin-bottom:10px; width:100%;">
-          <label>Denoising (0.0 - 1.0)</label>
-          <input type="number" class="form-input wf-i2i-denoise" min="0" max="1" step="0.1" value="0.7" style="margin-bottom:10px; width:100%;">
-          <div class="wf-preview-img-container" style="width:100%; height:180px; position:relative; margin-top:10px;">
+          <div class="wf-preview-img-container" style="width:100%; height:200px; position:relative; margin-top:10px;">
             <img class="wf-preview-img" src="" style="display:none; width:100%; height:100%; object-fit:contain; border-radius:4px; cursor:pointer;">
+            <button class="wf-preview-download" style="display:none; position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.55); color:#fff; border:none; border-radius:4px; padding:4px 8px; font-size:14px; cursor:pointer; z-index:5;" title="下載圖片">📥</button>
             <div class="wf-preview-placeholder" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#eee; border-radius:4px; color:#888;">No Image</div>
           </div>
         `;
@@ -126,19 +125,50 @@
 
       if (type === 'img2img') {
         const input = el.querySelector('.wf-i2i-base');
-        const preview = el.querySelector('.wf-i2i-preview');
+        const previewImg = el.querySelector('.wf-preview-img');
+        const previewPlaceholder = el.querySelector('.wf-preview-placeholder');
+        const downloadBtn = el.querySelector('.wf-preview-download');
+
+        // Click image to enlarge via LightBox
+        previewImg.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          if (previewImg.src && window.AssetsService && window.AssetsService.openLightBox) {
+            window.AssetsService.openLightBox(previewImg.src, 'Generated Image', false);
+          }
+        });
+
+        // Download button
+        downloadBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          if (!previewImg.src) return;
+          const a = document.createElement('a');
+          a.href = previewImg.src;
+          a.download = 'generated_image_' + Date.now() + '.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        });
+
         input.addEventListener('input', () => {
           if (input.value) {
-            preview.innerHTML = `<img src="${input.value}" style="width:100%; height:100%; object-fit:cover;">`;
+            previewImg.src = input.value;
+            previewImg.style.display = 'block';
+            downloadBtn.style.display = 'block';
+            previewPlaceholder.style.display = 'none';
           } else {
-            preview.innerHTML = `<span style="color:#aaa; font-size:12px;">No Image</span>`;
+            previewImg.style.display = 'none';
+            downloadBtn.style.display = 'none';
+            previewPlaceholder.style.display = 'flex';
           }
         });
         
         // Handle injected image (from paste)
         if (datum.data.initialImage) {
           input.value = datum.data.initialImage;
-          preview.innerHTML = `<img src="${datum.data.initialImage}" style="width:100%; height:100%; object-fit:cover;">`;
+          previewImg.src = datum.data.initialImage;
+          previewImg.style.display = 'block';
+          downloadBtn.style.display = 'block';
+          previewPlaceholder.style.display = 'none';
         }
       }
 
@@ -216,9 +246,22 @@
         case 'model': return [224, 90];
         case 'prompt': return [304, 150];
         case 'parameters': return [224, 90];
-        case 'img2img': return [284, 340];
+        case 'img2img': return [284, 300];
         case 'mask': return [224, 160];
         default: return [224, 100];
+      }
+    }
+
+    // Helper: get the canvas-space center of the current viewport
+    function getViewportCenter() {
+      const rect = container.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      try {
+        const [x, y] = graph.getCanvasByClient([cx, cy]);
+        return [x, y];
+      } catch (e) {
+        return [300, 200]; // fallback
       }
     }
 
@@ -318,8 +361,9 @@
           nodeIdCounter++;
           const id = 'node_new_' + Date.now() + '_' + nodeIdCounter;
           
-          const x = 300 + Math.random() * 50;
-          const y = 200 + Math.random() * 50;
+          const [cx, cy] = getViewportCenter();
+          const x = cx + (Math.random() - 0.5) * 60;
+          const y = cy + (Math.random() - 0.5) * 60;
           
           graph.addNodeData([{
             id,
@@ -380,8 +424,13 @@
         e.preventDefault();
         try {
           const asset = JSON.parse(assetData);
-          let x = e.offsetX || 300;
-          let y = e.offsetY || 200;
+          // Convert client coords to canvas coords
+          let x, y;
+          try {
+            [x, y] = graph.getCanvasByClient([e.clientX, e.clientY]);
+          } catch (_) {
+            [x, y] = getViewportCenter();
+          }
           
           nodeIdCounter++;
           const id = 'node_drop_' + Date.now() + '_' + nodeIdCounter;
@@ -415,8 +464,9 @@
             
             nodeIdCounter++;
             const id = 'node_paste_' + Date.now() + '_' + nodeIdCounter;
-            const x = 300 + Math.random() * 50;
-            const y = 200 + Math.random() * 50;
+            const [cx, cy] = getViewportCenter();
+            const x = cx + (Math.random() - 0.5) * 60;
+            const y = cy + (Math.random() - 0.5) * 60;
             
             graph.addNodeData([{
               id,
@@ -549,7 +599,7 @@
             const uiBase = el.querySelector('.wf-i2i-base').value;
             if (uiBase.trim()) state.i2i_base = uiBase;
             if (n.data.initialImage && !state.i2i_base) state.i2i_base = n.data.initialImage;
-            state.i2i_denoise = parseFloat(el.querySelector('.wf-i2i-denoise').value);
+            state.i2i_denoise = 0.7; // hardcoded default, UI removed
 
             if (!state.prompt.trim()) {
               if (window.showToast) window.showToast(`⚠️ 節點 [${id}] 提示詞不能為空`);
@@ -591,6 +641,9 @@
               imgEl.src = imageUrl;
               imgEl.style.display = 'block';
               placeholder.style.display = 'none';
+              // Show download button
+              const dlBtn = el.querySelector('.wf-preview-download');
+              if (dlBtn) dlBtn.style.display = 'block';
               
               state.resultImage = imageUrl; // Ready for downstream nodes
               state.prompt = '';             // Cut prompt leakage — only resultImage flows downstream
