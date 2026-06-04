@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Studio</title>
-<link rel="stylesheet" href="css/style.css?v=61">
+<link rel="stylesheet" href="css/style.css?v=62">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 <body>
@@ -518,7 +518,10 @@
       <section class="panel" id="panel-assets">
         <div class="prompts-toolbar" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 20px; display:flex; align-items:center; justify-content:space-between;">
           <div style="font-size: 16px; font-weight: 600;">本地資產庫 (IndexedDB)</div>
-          <div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-ghost hidden" id="assetDelSelectedBtn" style="color: #dc3545;">刪除選取</button>
+            <button class="btn-ghost hidden" id="assetClearFolderBtn" style="color: #dc3545;">清空資料夾</button>
+            <button class="btn-ghost" id="assetManageBtn">管理</button>
             <input type="file" id="assetUploadInput" accept="image/*" hidden>
             <button class="btn-primary" id="assetUploadBtn">上傳資產</button>
           </div>
@@ -614,14 +617,14 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://unpkg.com/@antv/g6@5/dist/g6.min.js"></script>
-<script src="js/app.js?v=61"></script>
-<script src="js/assets.js?v=61"></script>
-<script src="js/editor.js?v=61"></script>
-<script src="js/ai-service.js?v=61"></script>
-<script src="js/settings.js?v=61"></script>
-<script src="js/decode.js?v=61"></script>
-<script src="js/prompts.js?v=61"></script>
-<script src="js/workflow.js?v=61"></script>
-<script src="js/ide-agent.js?v=61"></script>
+<script src="js/app.js?v=62"></script>
+<script src="js/assets.js?v=62"></script>
+<script src="js/editor.js?v=62"></script>
+<script src="js/ai-service.js?v=62"></script>
+<script src="js/settings.js?v=62"></script>
+<script src="js/decode.js?v=62"></script>
+<script src="js/prompts.js?v=62"></script>
+<script src="js/workflow.js?v=62"></script>
+<script src="js/ide-agent.js?v=62"></script>
 </body>
 </html>

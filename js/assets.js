@@ -8,6 +8,8 @@ window.AssetsService = (function() {
   const FOLDERS_KEY = 'ps_asset_folders';
   let db = null;
   let activeFolder = '已完成';
+  let isManageMode = false;
+  let selectedAssets = new Set();
 
   // ── Folder Management (localStorage) ──
   function getFolders() {
@@ -217,11 +219,15 @@ window.AssetsService = (function() {
       grid.innerHTML = '';
 
       assets.forEach(asset => {
+        const isSelected = selectedAssets.has(asset.id);
         const card = document.createElement('div');
-        card.className = 'asset-card prompt-card';
+        card.className = 'asset-card prompt-card' + (isSelected ? ' selected' : '');
         card.innerHTML = `
-          <div class="asset-img-container" style="height:150px;overflow:hidden;border-radius:6px;cursor:pointer;background:#eee;">
-            <img src="${asset.data}" alt="${asset.name}" style="width:100%;height:100%;object-fit:cover;">
+          <div class="asset-img-container" style="height:150px;overflow:hidden;border-radius:6px;cursor:pointer;background:#eee;position:relative;">
+            <img src="${asset.data}" alt="${asset.name}" style="width:100%;height:100%;object-fit:cover; opacity:${isSelected ? '0.7' : '1'}; transition: opacity 0.2s;">
+            <div class="asset-checkbox ${isManageMode ? '' : 'hidden'}" style="position:absolute; top:8px; left:8px; background:rgba(255,255,255,0.9); border-radius:4px; padding:2px; display:flex;">
+              <input type="checkbox" ${isSelected ? 'checked' : ''} style="pointer-events:none; margin:0;">
+            </div>
           </div>
           <div style="margin-top:10px;font-weight:500;font-size:13px;color:var(--text);">${asset.name}</div>
           <div style="margin-top:5px;font-size:10px;color:var(--muted);">${asset.folder}</div>
@@ -231,7 +237,19 @@ window.AssetsService = (function() {
           </div>
         `;
 
-        card.querySelector('.asset-img-container').addEventListener('click', () => openLightBox(asset.data, asset.name, false));
+        card.querySelector('.asset-img-container').addEventListener('click', (e) => {
+          if (isManageMode) {
+            e.stopPropagation();
+            if (selectedAssets.has(asset.id)) {
+              selectedAssets.delete(asset.id);
+            } else {
+              selectedAssets.add(asset.id);
+            }
+            window.refreshAssetsGrid();
+          } else {
+            openLightBox(asset.data, asset.name, false);
+          }
+        });
         card.querySelector('.asset-del-btn').addEventListener('click', async (e) => {
           e.stopPropagation();
           if (confirm('確定要刪除這張資產嗎？')) {
@@ -278,12 +296,68 @@ window.AssetsService = (function() {
     });
   }
 
+  // ── Manage Mode ──
+  function initManageButtons() {
+    const manageBtn = document.getElementById('assetManageBtn');
+    const delSelBtn = document.getElementById('assetDelSelectedBtn');
+    const clearBtn = document.getElementById('assetClearFolderBtn');
+
+    if (manageBtn) {
+      manageBtn.addEventListener('click', () => {
+        isManageMode = !isManageMode;
+        selectedAssets.clear();
+        manageBtn.textContent = isManageMode ? '完成' : '管理';
+        if (isManageMode) {
+          manageBtn.classList.add('btn-primary');
+          manageBtn.classList.remove('btn-ghost');
+          if(delSelBtn) delSelBtn.classList.remove('hidden');
+          if(clearBtn) clearBtn.classList.remove('hidden');
+        } else {
+          manageBtn.classList.add('btn-ghost');
+          manageBtn.classList.remove('btn-primary');
+          if(delSelBtn) delSelBtn.classList.add('hidden');
+          if(clearBtn) clearBtn.classList.add('hidden');
+        }
+        window.refreshAssetsGrid();
+      });
+    }
+
+    if (delSelBtn) {
+      delSelBtn.addEventListener('click', async () => {
+        if (selectedAssets.size === 0) return window.showToast ? window.showToast('請先選取要刪除的資產') : alert('請先選取');
+        if (!confirm(`確定要刪除選取的 ${selectedAssets.size} 項資產嗎？`)) return;
+        
+        for (let id of selectedAssets) {
+          await deleteAsset(id);
+        }
+        selectedAssets.clear();
+        if (window.showToast) window.showToast('✅ 刪除完成');
+        window.refreshAssetsGrid();
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', async () => {
+        if (!confirm(`確定要清空「${activeFolder}」資料夾中的所有資產嗎？\n此動作無法復原！`)) return;
+        const all = await getAllAssets();
+        const assets = all.filter(a => a.folder === activeFolder);
+        for (let a of assets) {
+          await deleteAsset(a.id);
+        }
+        selectedAssets.clear();
+        if (window.showToast) window.showToast('✅ 資料夾已清空');
+        window.refreshAssetsGrid();
+      });
+    }
+  }
+
   // Init
   initDB().then(() => {
     if (document.getElementById('panel-assets')) {
       renderFolderSidebar();
       window.refreshAssetsGrid();
       initUploadButton();
+      initManageButtons();
     }
   });
 
