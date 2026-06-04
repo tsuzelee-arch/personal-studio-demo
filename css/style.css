@@ -1744,7 +1744,7 @@ body {
 /* G6 Node internal container reset (since we use inline styles in JS, we just ensure no conflicts) */
 .wf-node {
   box-sizing: border-box;
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 .wf-node * {
   box-sizing: border-box;

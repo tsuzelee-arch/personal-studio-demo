@@ -222,6 +222,7 @@
       node: {
         type: 'html',
         style: {
+          pointerEvents: 'none',
           innerHTML: (datum) => createNodeDOM(datum),
           size: (datum) => getNodeSize(datum.data.type),
           ports: (datum) => getPorts(datum.data.type),
@@ -247,11 +248,13 @@
       behaviors: [
         'drag-canvas',
         'zoom-canvas',
-        'drag-element',
+        {
+          type: 'drag-element',
+          enable: (e) => e.targetType !== 'port'
+        },
         {
           type: 'create-edge',
           trigger: 'drag',
-          enable: (e) => e.targetType === 'port' || (e.target && e.target.className && e.target.className.includes('port')),
           style: { stroke: '#1783FF', lineWidth: 2, lineDash: [4, 2], endArrow: true },
           onCreate: (edge) => {
             if (edge.source === edge.target) return undefined; // No self loops
