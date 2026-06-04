@@ -807,6 +807,171 @@
       }, 100);
     };
 
+    // ── Prompt Vault Quick-Bar Logic ──
+    function initPromptQuickBar() {
+      const quickBar = document.getElementById('wfPromptQuickBar');
+      if (!quickBar || !window.PromptsService) return;
+
+      quickBar.innerHTML = '';
+      
+      // Create global popover
+      let popover = document.getElementById('wfQuickbarPopover');
+      if (!popover) {
+        popover = document.createElement('div');
+        popover.id = 'wfQuickbarPopover';
+        popover.className = 'quickbar-popover';
+        
+        // Header
+        const header = document.createElement('div');
+        header.className = 'quickbar-popover-header';
+        
+        const title = document.createElement('span');
+        title.id = 'wfQuickbarPopoverTitle';
+        header.appendChild(title);
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'quickbar-popover-close';
+        closeBtn.innerHTML = '&#x2715;';
+        closeBtn.addEventListener('click', () => hidePopover(true));
+        header.appendChild(closeBtn);
+        
+        popover.appendChild(header);
+        
+        // Body
+        const body = document.createElement('div');
+        body.id = 'wfQuickbarPopoverBody';
+        body.className = 'quickbar-popover-body';
+        popover.appendChild(body);
+        
+        // Insert near quickBar
+        quickBar.parentElement.appendChild(popover);
+        
+        // Hover handling for popover itself
+        popover.addEventListener('mouseenter', () => {
+          if (!isPinned) clearHideTimer();
+        });
+        popover.addEventListener('mouseleave', () => {
+          if (!isPinned) startHideTimer();
+        });
+      }
+
+      let activeCategory = null;
+      let isPinned = false;
+      let hideTimer = null;
+      
+      const categories = window.PromptsService.getAllCategories();
+      
+      categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'quickbar-cat-btn';
+        // Use first char as icon, or custom emoji if mapped
+        const catFirstChar = cat.charAt(0);
+        btn.innerHTML = `<span>${catFirstChar}</span><div class="quickbar-cat-tooltip">${cat}</div>`;
+        
+        btn.addEventListener('mouseenter', () => {
+          if (isPinned) return;
+          clearHideTimer();
+          showPopover(cat, btn);
+        });
+        
+        btn.addEventListener('mouseleave', () => {
+          if (isPinned) return;
+          startHideTimer();
+        });
+        
+        btn.addEventListener('click', () => {
+          if (isPinned && activeCategory === cat) {
+            // Unpin
+            hidePopover(true);
+          } else {
+            // Pin
+            isPinned = true;
+            showPopover(cat, btn);
+          }
+        });
+        
+        quickBar.appendChild(btn);
+      });
+      
+      function showPopover(category, btnEl) {
+        activeCategory = category;
+        const titleEl = document.getElementById('wfQuickbarPopoverTitle');
+        const bodyEl = document.getElementById('wfQuickbarPopoverBody');
+        
+        // Highlight active btn
+        document.querySelectorAll('.quickbar-cat-btn').forEach(b => {
+          b.classList.remove('active', 'pinned');
+        });
+        if (btnEl) {
+          if (isPinned) btnEl.classList.add('pinned');
+          else btnEl.classList.add('active');
+        }
+        
+        titleEl.textContent = category;
+        bodyEl.innerHTML = '';
+        
+        const prompts = window.PromptsService.getPromptsByCategory(category);
+        if (prompts.length === 0) {
+          bodyEl.innerHTML = '<div style="color:var(--text-light);font-size:12px;text-align:center;margin-top:20px;">無儲存的提示詞</div>';
+        } else {
+          prompts.forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'quickbar-prompt-item';
+            item.draggable = true;
+            
+            const pTitle = document.createElement('div');
+            pTitle.className = 'quickbar-prompt-title';
+            pTitle.textContent = p.title || '未命名';
+            
+            const pContent = document.createElement('div');
+            pContent.className = 'quickbar-prompt-content';
+            pContent.textContent = p.content;
+            
+            item.appendChild(pTitle);
+            item.appendChild(pContent);
+            
+            // Drag Drop logic
+            item.addEventListener('dragstart', (e) => {
+              e.dataTransfer.setData('text/plain', p.content);
+              e.dataTransfer.effectAllowed = 'copy';
+            });
+            
+            bodyEl.appendChild(item);
+          });
+        }
+        
+        popover.classList.add('visible');
+      }
+      
+      function hidePopover(force = false) {
+        if (force) {
+          isPinned = false;
+          activeCategory = null;
+          popover.classList.remove('visible');
+          document.querySelectorAll('.quickbar-cat-btn').forEach(b => {
+            b.classList.remove('active', 'pinned');
+          });
+        } else if (!isPinned) {
+          popover.classList.remove('visible');
+          document.querySelectorAll('.quickbar-cat-btn').forEach(b => {
+            b.classList.remove('active', 'pinned');
+          });
+          activeCategory = null;
+        }
+      }
+      
+      function startHideTimer() {
+        clearHideTimer();
+        hideTimer = setTimeout(() => hidePopover(), 400);
+      }
+      function clearHideTimer() {
+        if (hideTimer) clearTimeout(hideTimer);
+      }
+    }
+
+    // Call after slight delay to ensure PromptsService is ready
+    setTimeout(initPromptQuickBar, 300);
+
     window.workflowGraph = graph; // Expose for debugging
   }
 })();

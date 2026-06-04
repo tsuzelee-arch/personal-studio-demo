@@ -15,7 +15,9 @@ window.IDEAgent = (function() {
   const attachBtn     = document.getElementById('agentAttachBtn');
   const attachmentsEl = document.getElementById('agentAttachments');
   const modelSelect   = document.getElementById('agentModelSelect');
-  const agentPane     = document.querySelector('.ide-right-agent');
+  const agentPane     = document.getElementById('globalIdeAgentPanel');
+  const agentBtn      = document.getElementById('globalIdeAgentBtn');
+  const agentCloseBtn = document.getElementById('agentCloseBtn');
   const imageModeBtn  = document.getElementById('agentImageModeToggle');
   const genParamsEl   = document.getElementById('agentGenParams');
   const genSizeEl     = document.getElementById('agentGenSize');
@@ -615,6 +617,18 @@ window.IDEAgent = (function() {
 
   function init() {
     if (!textarea || !sendBtn) return;
+
+    // Toggle global floating panel
+    if (agentBtn && agentPane) {
+      agentBtn.addEventListener('click', () => {
+        agentPane.classList.toggle('hidden');
+      });
+    }
+    if (agentCloseBtn && agentPane) {
+      agentCloseBtn.addEventListener('click', () => {
+        agentPane.classList.add('hidden');
+      });
+    }
 
     // Send on button click
     sendBtn.addEventListener('click', sendMessage);

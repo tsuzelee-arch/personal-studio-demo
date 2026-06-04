@@ -745,6 +745,12 @@ ${text}`;
       if (window.switchPanel) window.switchPanel('prompts');
       setTimeout(() => openModal(null, prefill), 100);
     },
+    getAllCategories: function() {
+      return getAllCategories().filter(c => c !== '全部');
+    },
+    getPromptsByCategory: function(category) {
+      return prompts.filter(p => p.category === category);
+    },
     getCategoryForSchemaKey: function(key) {
       const entry = SCHEMA_CATEGORY_MAP[key];
       return entry ? entry.label : null;

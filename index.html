@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Studio</title>
-<link rel="stylesheet" href="css/style.css?v=51">
+<link rel="stylesheet" href="css/style.css?v=52">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 <body>
@@ -380,7 +380,7 @@
           </div>
         </div>
 
-        <!-- 3-Column IDE Layout -->
+        <!-- 2-Column IDE Layout + Right Prompt Quick-Bar -->
         <div class="workflow-ide-layout">
           <!-- Left Pane: Asset File Explorer -->
           <div class="ide-left-assets">
@@ -395,41 +395,15 @@
           <div class="ide-assets-resizer" id="ideLeftResizer"></div>
 
           <!-- Center Pane: Node Workflow Canvas -->
-          <div class="ide-center-workflow">
+          <div class="ide-center-workflow" style="flex: 1; position: relative;">
             <div class="workflow-canvas" id="workflowCanvas">
               <svg class="workflow-svg" id="workflowSvg"></svg>
               <!-- Nodes will be injected here dynamically by workflow.js -->
             </div>
-          </div>
-
-          <!-- Right Pane: IDE Agent Chat (ARCHIVED) -->
-          <div class="ide-right-agent" style="position:relative;">
-            <!-- Archive Overlay -->
-            <div class="agent-archive-overlay" style="position:absolute; inset:0; z-index:999; background:rgba(0,0,0,0.55); display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:all; backdrop-filter:blur(4px); border-radius:0;">
-              <div style="font-size:48px; margin-bottom:12px;">🚧</div>
-              <div style="font-size:18px; font-weight:700; color:#fff; letter-spacing:1px;">開發中</div>
-              <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:6px;">Under Development</div>
-            </div>
-            <div class="agent-header">
-              <span class="agent-header-title">✨ IDE Agent</span>
-              <select class="agent-model-select" id="agentModelSelect" disabled>
-                <option value="gpt-5.5">ChatGPT 5.5</option>
-                <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash</option>
-                <option value="gemini-3.1-pro">Gemini 3.1 Pro (High)</option>
-              </select>
-            </div>
-            <div class="agent-messages" id="agentMessages">
-              <div class="agent-welcome">
-                <div class="agent-welcome-icon">✨</div>
-                <div class="agent-welcome-title">歡迎使用 IDE Agent</div>
-                <div class="agent-welcome-sub">此功能正在開發中，敬請期待。</div>
-              </div>
-            </div>
-            <div class="agent-input-area">
-              <div class="agent-input-container" id="agentInputContainer">
-                <textarea class="agent-textarea" id="agentTextarea" placeholder="功能開發中..." rows="1" disabled></textarea>
-                <button class="agent-send-btn" id="agentSendBtn" title="發送" disabled>⬆️</button>
-              </div>
+            
+            <!-- Right Edge: Prompt Vault Quick-Bar -->
+            <div class="workflow-prompt-quickbar" id="wfPromptQuickBar">
+              <!-- Dynamically populated by workflow.js -->
             </div>
           </div>
         </div>
@@ -599,16 +573,50 @@
 <!-- Global Color Picker (Hidden) -->
 <input type="color" id="globalColorPicker" style="position:absolute; opacity:0; pointer-events:none; width:0; height:0;" tabindex="-1">
 
+<!-- Global Floating IDE Agent -->
+<button class="global-ide-agent-btn" id="globalIdeAgentBtn" title="開啟 IDE Agent">
+  ✨
+</button>
+<div class="global-ide-agent-panel hidden" id="globalIdeAgentPanel">
+  <div class="agent-archive-overlay" style="position:absolute; inset:0; z-index:999; background:rgba(0,0,0,0.55); display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:all; backdrop-filter:blur(4px); border-radius:12px;">
+    <div style="font-size:48px; margin-bottom:12px;">🚧</div>
+    <div style="font-size:18px; font-weight:700; color:#fff; letter-spacing:1px;">開發中</div>
+    <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:6px;">Under Development</div>
+  </div>
+  <div class="agent-header">
+    <span class="agent-header-title">✨ IDE Agent</span>
+    <select class="agent-model-select" id="agentModelSelect" disabled>
+      <option value="gpt-5.5">ChatGPT 5.5</option>
+      <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash</option>
+      <option value="gemini-3.1-pro">Gemini 3.1 Pro (High)</option>
+    </select>
+    <button class="agent-close-btn" id="agentCloseBtn">&#x2715;</button>
+  </div>
+  <div class="agent-messages" id="agentMessages">
+    <div class="agent-welcome">
+      <div class="agent-welcome-icon">✨</div>
+      <div class="agent-welcome-title">歡迎使用 IDE Agent</div>
+      <div class="agent-welcome-sub">此功能正在開發中，敬請期待。</div>
+    </div>
+  </div>
+  <div class="agent-input-area">
+    <div class="agent-input-container" id="agentInputContainer">
+      <textarea class="agent-textarea" id="agentTextarea" placeholder="功能開發中..." rows="1" disabled></textarea>
+      <button class="agent-send-btn" id="agentSendBtn" title="發送" disabled>⬆️</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://unpkg.com/@antv/g6@5/dist/g6.min.js"></script>
-<script src="js/app.js?v=51"></script>
-<script src="js/assets.js?v=51"></script>
-<script src="js/editor.js?v=51"></script>
-<script src="js/ai-service.js?v=51"></script>
-<script src="js/settings.js?v=51"></script>
-<script src="js/decode.js?v=51"></script>
-<script src="js/prompts.js?v=51"></script>
-<script src="js/workflow.js?v=51"></script>
-<script src="js/ide-agent.js?v=51"></script>
+<script src="js/app.js?v=52"></script>
+<script src="js/assets.js?v=52"></script>
+<script src="js/editor.js?v=52"></script>
+<script src="js/ai-service.js?v=52"></script>
+<script src="js/settings.js?v=52"></script>
+<script src="js/decode.js?v=52"></script>
+<script src="js/prompts.js?v=52"></script>
+<script src="js/workflow.js?v=52"></script>
+<script src="js/ide-agent.js?v=52"></script>
 </body>
 </html>
