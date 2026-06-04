@@ -330,11 +330,11 @@
         { id: 'node_6', data: { type: 'img2img' }, style: { x: 1700, y: 200 } }
       ],
       edges: [
-        { source: 'node_1', target: 'node_2' },
-        { source: 'node_2', target: 'node_3' },
-        { source: 'node_3', target: 'node_4' },
-        { source: 'node_4', target: 'node_5' },
-        { source: 'node_5', target: 'node_6' }
+        { source: 'node_1', target: 'node_2', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_2', target: 'node_3', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_3', target: 'node_4', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_4', target: 'node_5', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_5', target: 'node_6', sourcePort: 'out', targetPort: 'in' }
       ]
     };
 
@@ -389,7 +389,6 @@
         style: {
           stroke: '#999',
           lineWidth: 2,
-          lineAppendWidth: 15,
           endArrow: true,
           cursor: 'pointer'
         },
@@ -412,7 +411,18 @@
           style: { stroke: '#1783FF', lineWidth: 2, lineDash: [4, 2], endArrow: true },
           onCreate: (edge) => {
             if (edge.source === edge.target) return undefined; // No self loops
-            return edge;
+            return {
+              ...edge,
+              type: 'cubic-horizontal',
+              sourcePort: 'out',
+              targetPort: 'in',
+              style: {
+                stroke: '#999',
+                lineWidth: 2,
+                lineDash: [],
+                endArrow: true
+              }
+            };
           }
         },
         'click-select',
