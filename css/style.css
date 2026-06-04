@@ -1922,7 +1922,7 @@ input.editable-field:focus { resize: none; }
    ══════════════════════════════════════════════════════════════ */
 .workflow-ide-layout {
   display: grid;
-  grid-template-columns: 240px 1fr 360px;
+  grid-template-columns: auto 1fr 360px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -1935,6 +1935,10 @@ input.editable-field:focus { resize: none; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  resize: horizontal;
+  width: 240px;
+  min-width: 180px;
+  max-width: 480px;
 }
 .ide-assets-header {
   padding: 12px 14px;

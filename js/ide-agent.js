@@ -74,7 +74,9 @@ window.IDEAgent = (function() {
         
         // Drag to chat
         thumb.addEventListener('dragstart', (e) => {
+          const tag = `[@${asset.name}:${asset.id}]`;
           e.dataTransfer.setData('text/ide-asset', JSON.stringify({ id: asset.id, data: asset.data, name: asset.name }));
+          e.dataTransfer.setData('text/plain', tag);
           e.dataTransfer.effectAllowed = 'copy';
         });
 
@@ -699,6 +701,12 @@ window.IDEAgent = (function() {
     // Initialize left pane
     renderIdeFolders();
     renderIdeAssets();
+
+    // Sync with asset library updates
+    window.addEventListener('assets-updated', () => {
+      renderIdeFolders();
+      renderIdeAssets();
+    });
   }
 
   // Wait for AssetsService to be ready

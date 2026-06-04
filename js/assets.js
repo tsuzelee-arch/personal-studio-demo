@@ -23,6 +23,7 @@ window.AssetsService = (function() {
     if (!folders.includes(name)) {
       folders.push(name);
       localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+      window.dispatchEvent(new CustomEvent('assets-updated'));
     }
     return folders;
   }
@@ -70,7 +71,10 @@ window.AssetsService = (function() {
         date: new Date().toISOString()
       };
       const request = store.add(asset);
-      request.onsuccess = () => resolve(asset);
+      request.onsuccess = () => {
+        window.dispatchEvent(new CustomEvent('assets-updated'));
+        resolve(asset);
+      };
       request.onerror = (e) => reject(e);
     });
   }
@@ -107,7 +111,10 @@ window.AssetsService = (function() {
       const transaction = db.transaction([STORE_NAME], 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
       const request = store.delete(id);
-      request.onsuccess = () => resolve();
+      request.onsuccess = () => {
+        window.dispatchEvent(new CustomEvent('assets-updated'));
+        resolve();
+      };
       request.onerror = (e) => reject(e);
     });
   }

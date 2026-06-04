@@ -23,6 +23,92 @@
     let nodeIdCounter = 0;
     const nodeDOMCache = {}; // Cache to preserve DOM state on re-render
 
+    // Helper to resolve a single asset tag to its base64 data
+    async function resolveAssetTag(str) {
+      if (!str) return str;
+      const regex = /\[@([^:]+):([^\]]+)\]/;
+      const match = str.match(regex);
+      if (match) {
+        const assetId = match[2];
+        if (window.AssetsService) {
+          try {
+            const asset = await window.AssetsService.getAsset(assetId);
+            if (asset && asset.data) {
+              return asset.data;
+            }
+          } catch (e) {
+            console.error('Failed to get asset', assetId, e);
+          }
+        }
+      }
+      return str;
+    }
+
+    // Helper to parse prompt, extract first asset tag as base image, and clean the text
+    async function resolvePromptAndExtractImage(promptText, state) {
+      if (!promptText) return '';
+      const regex = /\[@([^:]+):([^\]]+)\]/g;
+      const matches = [...promptText.matchAll(regex)];
+      let cleanedPrompt = promptText;
+      
+      for (const match of matches) {
+        const assetName = match[1];
+        const assetId = match[2];
+        
+        if (window.AssetsService) {
+          try {
+            const asset = await window.AssetsService.getAsset(assetId);
+            if (asset && asset.data) {
+              state.i2i_base = asset.data;
+            }
+          } catch (e) {
+            console.error('Failed to resolve asset in prompt:', e);
+          }
+        }
+        cleanedPrompt = cleanedPrompt.replace(match[0], assetName);
+      }
+      return cleanedPrompt;
+    }
+
+    // Helper to update img2img node base image preview
+    async function updateI2IPreview(val, previewImg, downloadBtn, previewPlaceholder) {
+      if (!val) {
+        previewImg.style.display = 'none';
+        downloadBtn.style.display = 'none';
+        previewPlaceholder.style.display = 'flex';
+        previewPlaceholder.textContent = 'No Image';
+        return;
+      }
+      
+      let imgSrc = val;
+      if (val.includes('[@') && val.includes(']')) {
+        const regex = /\[@([^:]+):([^\]]+)\]/;
+        const match = val.match(regex);
+        if (match && window.AssetsService) {
+          try {
+            const asset = await window.AssetsService.getAsset(match[2]);
+            if (asset && asset.data) {
+              imgSrc = asset.data;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+      
+      if (imgSrc && (imgSrc.startsWith('data:') || imgSrc.startsWith('http') || imgSrc.startsWith('blob:'))) {
+        previewImg.src = imgSrc;
+        previewImg.style.display = 'block';
+        downloadBtn.style.display = 'block';
+        previewPlaceholder.style.display = 'none';
+      } else {
+        previewImg.style.display = 'none';
+        downloadBtn.style.display = 'none';
+        previewPlaceholder.style.display = 'flex';
+        previewPlaceholder.textContent = 'Invalid Image';
+      }
+    }
+
     function createNodeDOM(datum) {
       const type = datum.data.type;
       const id = datum.id;
@@ -149,26 +235,19 @@
           document.body.removeChild(a);
         });
 
-        input.addEventListener('input', () => {
-          if (input.value) {
-            previewImg.src = input.value;
-            previewImg.style.display = 'block';
-            downloadBtn.style.display = 'block';
-            previewPlaceholder.style.display = 'none';
-          } else {
-            previewImg.style.display = 'none';
-            downloadBtn.style.display = 'none';
-            previewPlaceholder.style.display = 'flex';
-          }
-        });
+        const triggerPreviewUpdate = () => {
+          updateI2IPreview(input.value, previewImg, downloadBtn, previewPlaceholder);
+        };
+
+        input.addEventListener('input', triggerPreviewUpdate);
+        input.addEventListener('change', triggerPreviewUpdate);
         
         // Handle injected image (from paste)
         if (datum.data.initialImage) {
           input.value = datum.data.initialImage;
-          previewImg.src = datum.data.initialImage;
-          previewImg.style.display = 'block';
-          downloadBtn.style.display = 'block';
-          previewPlaceholder.style.display = 'none';
+          triggerPreviewUpdate();
+        } else if (input.value) {
+          triggerPreviewUpdate();
         }
       }
 
@@ -208,6 +287,10 @@
           }
         });
       }
+
+      // Block drag/drop propagation so dragging within node doesn't trigger canvas drop
+      el.addEventListener('dragover', e => e.stopPropagation());
+      el.addEventListener('drop', e => e.stopPropagation());
 
       nodeDOMCache[id] = el;
       return el;
@@ -320,6 +403,18 @@
     });
 
     graph.render();
+
+    // Handle dynamic canvas resizing
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        if (graph && !graph.destroyed) {
+          graph.setSize(width, height);
+        }
+      }
+    });
+    resizeObserver.observe(container);
 
     window.addEventListener('pointerup', () => {
       setTimeout(() => { window.__wfDragState = null; }, 100);
@@ -539,17 +634,7 @@
         // 3. Initialize states
         const nodeStates = {};
         nodeData.forEach(n => {
-          nodeStates[n.id] = {
-            model: 'nanobanana2',
-            resolution: '512x512',
-            prompt: '',
-            cfg: 7,
-            i2i_base: null,
-            i2i_denoise: 0.7,
-            mask: null,
-            upscale: 1,
-            resultImage: null
-          };
+          nodeStates[n.id] = {};
         });
 
         // 4. Execute Nodes in topological order
@@ -565,13 +650,16 @@
           let state = nodeStates[id];
           if (incomingStates.length > 0) {
             incomingStates.forEach(inc => {
-              if (inc.model !== 'nanobanana2') state.model = inc.model;
-              if (inc.resolution !== '512x512') state.resolution = inc.resolution;
-              if (inc.prompt) state.prompt += (state.prompt ? ' ' : '') + inc.prompt;
-              if (inc.mask) state.mask = inc.mask;
-              // Pass image from upstream: prefer resultImage, fallback to i2i_base (passthrough)
-              if (inc.resultImage) state.i2i_base = inc.resultImage;
-              else if (inc.i2i_base) state.i2i_base = inc.i2i_base;
+              if (inc.model !== undefined) state.model = inc.model;
+              if (inc.resolution !== undefined) state.resolution = inc.resolution;
+              if (inc.prompt !== undefined && inc.prompt !== '') {
+                state.prompt = (state.prompt ? state.prompt + ' ' : '') + inc.prompt;
+              }
+              if (inc.mask !== undefined) state.mask = inc.mask;
+              if (inc.resultImage !== undefined) state.resultImage = inc.resultImage;
+              if (inc.i2i_base !== undefined) state.i2i_base = inc.i2i_base;
+              if (inc.cfg !== undefined) state.cfg = inc.cfg;
+              if (inc.upscale !== undefined) state.upscale = inc.upscale;
             });
           }
           
@@ -591,20 +679,40 @@
             state.upscale = 1;
           } else if (type === 'prompt') {
             const ta = el.querySelector('.wf-prompt-input');
-            state.prompt = (window.EditorService ? window.EditorService.getContent(ta.id) : ta.value);
+            const rawPrompt = (window.EditorService ? window.EditorService.getContent(ta.id) : ta.value);
+            // Resolve `@` file references in prompt: extract image base64, replace tag with asset name
+            state.prompt = await resolvePromptAndExtractImage(rawPrompt, state);
           } else if (type === 'mask') {
             state.mask = el.dataset.maskData || null;
           } else if (type === 'img2img') {
+            // Check upstream resultImage and copy to i2i_base if present
+            if (state.resultImage && !state.i2i_base) {
+              state.i2i_base = state.resultImage;
+            }
+
             // Generator Node (Terminal or Intermediate)
             const uiBase = el.querySelector('.wf-i2i-base').value;
-            if (uiBase.trim()) state.i2i_base = uiBase;
-            if (n.data.initialImage && !state.i2i_base) state.i2i_base = n.data.initialImage;
+            if (uiBase.trim()) {
+              if (uiBase.includes('[@') && uiBase.includes(']')) {
+                state.i2i_base = await resolveAssetTag(uiBase);
+              } else {
+                state.i2i_base = uiBase;
+              }
+            }
+            if (n.data.initialImage && !state.i2i_base) {
+              state.i2i_base = n.data.initialImage;
+            }
             state.i2i_denoise = 0.7; // hardcoded default, UI removed
 
-            if (!state.prompt.trim()) {
+            const finalPrompt = state.prompt || '';
+            if (!finalPrompt.trim()) {
               if (window.showToast) window.showToast(`⚠️ 節點 [${id}] 提示詞不能為空`);
               continue;
             }
+
+            const finalModel = state.model || 'nanobanana2';
+            const finalRes = state.resolution || '512x512';
+            const finalCfg = state.cfg !== undefined ? state.cfg : 7;
 
             const placeholder = el.querySelector('.wf-preview-placeholder');
             const imgEl = el.querySelector('.wf-preview-img');
@@ -614,28 +722,28 @@
             imgEl.style.display = 'none';
 
             try {
-              const [width, height] = state.resolution.split('x').map(Number);
+              const [width, height] = finalRes.split('x').map(Number);
               const finalW = width;
               const finalH = height;
               
               let apiKey = '';
-              if (state.model === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
+              if (finalModel === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
               else apiKey = window.StudioSettings.getNanobananaKey();
 
               if (!apiKey) {
-                 if (window.showToast) window.showToast('⚠️ API Key 尚未設定 (' + state.model + ')');
+                 if (window.showToast) window.showToast('⚠️ API Key 尚未設定 (' + finalModel + ')');
                  throw new Error('API Key missing');
               }
               
               if (window.showToast) window.showToast(`🚀 節點 [${id}] 開始生成...`);
               
               let imageUrl = '';
-              if (state.model === 'gptimage') {
-                imageUrl = await window.AIService.generateWithGPTImage(state.prompt, apiKey, finalW, finalH);
-              } else if (state.model === 'nanobanana2') {
-                imageUrl = await window.AIService.generateWithNanoBanana2(state.prompt, apiKey, finalW, finalH, state.i2i_base, state.mask, state.cfg);
+              if (finalModel === 'gptimage') {
+                imageUrl = await window.AIService.generateWithGPTImage(finalPrompt, apiKey, finalW, finalH);
+              } else if (finalModel === 'nanobanana2') {
+                imageUrl = await window.AIService.generateWithNanoBanana2(finalPrompt, apiKey, finalW, finalH, state.i2i_base, state.mask, finalCfg);
               } else {
-                imageUrl = await window.AIService.generateWithNanoBanana(state.prompt, apiKey, finalW, finalH);
+                imageUrl = await window.AIService.generateWithNanoBanana(finalPrompt, apiKey, finalW, finalH);
               }
               
               imgEl.src = imageUrl;
