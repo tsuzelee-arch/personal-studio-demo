@@ -350,7 +350,6 @@
 
     const graph = new Graph({
       container: container,
-      autoFit: 'center',
       data: initialData,
       node: {
         type: 'html',
