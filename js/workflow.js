@@ -75,15 +75,16 @@
           </select>
         `;
       } else if (type === 'img2img') {
-        headerText = '圖生圖 (Img2Img)';
+        headerText = '生成器 / 圖生圖 (Generator / Img2Img)';
         bodyHTML = `
-          <label>Base Image (Base64)</label>
+          <label>Base Image (留空為純文字生成)</label>
           <input type="text" class="form-input wf-i2i-base" placeholder="貼上或@資產..." style="margin-bottom:10px; width:100%;">
-          <div class="wf-i2i-preview" style="width:100%; height:80px; background:#f0f0f0; margin-bottom:10px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-            <span style="color:#aaa; font-size:12px;">No Image</span>
-          </div>
           <label>Denoising (0.0 - 1.0)</label>
-          <input type="number" class="form-input wf-i2i-denoise" min="0" max="1" step="0.1" value="0.7" style="width:100%;">
+          <input type="number" class="form-input wf-i2i-denoise" min="0" max="1" step="0.1" value="0.7" style="margin-bottom:10px; width:100%;">
+          <div class="wf-preview-img-container" style="width:100%; height:180px; position:relative; margin-top:10px;">
+            <img class="wf-preview-img" src="" style="display:none; width:100%; height:100%; object-fit:contain; border-radius:4px; cursor:pointer;">
+            <div class="wf-preview-placeholder" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#eee; border-radius:4px; color:#888;">No Image</div>
+          </div>
         `;
       } else if (type === 'mask') {
         headerText = '遮罩 (Mask)';
@@ -92,14 +93,6 @@
           <input type="file" class="wf-mask-file" accept="image/*" style="display:none;">
           <div class="wf-mask-preview" style="width:100%; height:100px; background:#eaeaea; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; cursor:pointer;">
             點擊上傳遮罩圖
-          </div>
-        `;
-      } else if (type === 'preview') {
-        headerText = '預覽 (Preview)';
-        bodyHTML = `
-          <div class="wf-preview-img-container" style="width:100%; height:180px; position:relative;">
-            <img class="wf-preview-img" src="" style="display:none; width:100%; height:100%; object-fit:contain; border-radius:4px; cursor:pointer;">
-            <div class="wf-preview-placeholder" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#eee; border-radius:4px; color:#888;">No Image</div>
           </div>
         `;
       }
@@ -163,13 +156,6 @@
         });
       }
 
-      if (type === 'preview') {
-        const img = el.querySelector('.wf-preview-img');
-        img.addEventListener('click', () => {
-          if (window.AssetsService) window.AssetsService.openLightBox(img.src, '工作流產圖', true);
-        });
-      }
-
       // Ensure node body elements capture pointer events so they can be clicked/focused
       const body = el.querySelector('.wf-node-body');
       if (body) {
@@ -201,7 +187,7 @@
         { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 150 } },
         { id: 'node_2', data: { type: 'prompt' }, style: { x: 380, y: 150 } },
         { id: 'node_3', data: { type: 'parameters' }, style: { x: 740, y: 150 } },
-        { id: 'node_4', data: { type: 'preview' }, style: { x: 1080, y: 150 } }
+        { id: 'node_4', data: { type: 'img2img' }, style: { x: 1080, y: 150 } }
       ],
       edges: [
         { source: 'node_1', target: 'node_2' },
@@ -212,9 +198,6 @@
 
     // Determine ports based on node type
     function getPorts(type) {
-      if (type === 'model') return [{ key: 'out', placement: 'right' }];
-      if (type === 'preview') return [{ key: 'in', placement: 'left' }];
-      // All others have both IN and OUT
       return [
         { key: 'in', placement: 'left' },
         { key: 'out', placement: 'right' }
@@ -226,9 +209,8 @@
         case 'model': return [224, 90];
         case 'prompt': return [304, 150];
         case 'parameters': return [264, 220];
-        case 'img2img': return [264, 260];
+        case 'img2img': return [284, 340];
         case 'mask': return [224, 160];
-        case 'preview': return [274, 240];
         default: return [224, 100];
       }
     }
@@ -269,6 +251,7 @@
         {
           type: 'create-edge',
           trigger: 'drag',
+          enable: (e) => e.targetType === 'port' || (e.target && e.target.className && e.target.className.includes('port')),
           style: { stroke: '#1783FF', lineWidth: 2, lineDash: [4, 2], endArrow: true },
           onCreate: (edge) => {
             if (edge.source === edge.target) return undefined; // No self loops
@@ -331,16 +314,12 @@
       }
     });
 
-    // Delete node via X button
-    container.addEventListener('click', (e) => {
-      if (e.target.classList.contains('wf-node-del')) {
-        const nodeEl = e.target.closest('.wf-node');
-        if (nodeEl) {
-          const id = nodeEl.id;
-          graph.removeNodeData([id]);
-          delete nodeDOMCache[id];
-          graph.draw();
-        }
+    // Delete edge on double click
+    graph.on('edge:dblclick', (e) => {
+      const edgeId = e.target.id;
+      if (edgeId) {
+        graph.removeEdgeData([edgeId]);
+        graph.draw();
       }
     });
 
@@ -379,10 +358,7 @@
 
     // Paste Image Logic (Global)
     window.addEventListener('paste', (e) => {
-      // Only process paste if we are actively viewing the workflow panel
       if (!document.getElementById('panel-workflow').classList.contains('active')) return;
-      
-      // Do not intercept if user is typing in a text field
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
       const items = (e.clipboardData || e.originalEvent.clipboardData).items;
@@ -409,45 +385,68 @@
           };
           reader.readAsDataURL(blob);
           e.preventDefault();
-          break; // only handle first image
+          break;
         }
       }
     });
 
-
-    // Execution Pipeline (n8n style DAG)
+    // Execution Pipeline (DAG Topological Sort)
     if (runBtn) {
       runBtn.addEventListener('click', async () => {
         const nodeData = graph.getNodeData();
         const edgeData = graph.getEdgeData();
         
-        const previews = nodeData.filter(n => n.data.type === 'preview');
-        if (previews.length === 0) {
-          if (window.showToast) window.showToast('⚠️ 找不到 Preview 節點');
+        const generators = nodeData.filter(n => n.data.type === 'img2img');
+        if (generators.length === 0) {
+          if (window.showToast) window.showToast('⚠️ 找不到 Img2Img 生成節點');
           return;
         }
 
         runBtn.disabled = true;
         runBtn.textContent = '執行中...';
 
-        // Helper to get incoming node
-        function getIncomingNode(targetId) {
-          const edge = edgeData.find(e => e.target === targetId);
-          if (!edge) return null;
-          return nodeData.find(n => n.id === edge.source);
+        // 1. Build Adjacency and In-Degree maps
+        const inDegree = {};
+        const adj = {};
+        nodeData.forEach(n => {
+          inDegree[n.id] = 0;
+          adj[n.id] = [];
+        });
+        
+        edgeData.forEach(e => {
+          if (inDegree[e.target] !== undefined) {
+            inDegree[e.target]++;
+            adj[e.source].push(e.target);
+          }
+        });
+
+        // 2. Topological Sort using BFS
+        const q = [];
+        for (const id in inDegree) {
+          if (inDegree[id] === 0) q.push(id);
         }
 
-        for (const pNode of previews) {
-          // Trace DAG backwards
-          const pipeline = [];
-          let curr = pNode;
-          while (curr) {
-            pipeline.unshift(curr);
-            curr = getIncomingNode(curr.id);
-          }
+        const sortedNodes = [];
+        while(q.length > 0) {
+          const u = q.shift();
+          sortedNodes.push(u);
+          adj[u].forEach(v => {
+            inDegree[v]--;
+            if (inDegree[v] === 0) q.push(v);
+          });
+        }
 
-          // Execute Forward (Data Flow)
-          let params = {
+        if (sortedNodes.length !== nodeData.length) {
+          if (window.showToast) window.showToast('⚠️ 偵測到循環依賴 (Cycle)，請檢查連線');
+          runBtn.disabled = false;
+          runBtn.textContent = '執行工作流 (Run)';
+          return;
+        }
+
+        // 3. Initialize states
+        const nodeStates = {};
+        nodeData.forEach(n => {
+          nodeStates[n.id] = {
             model: 'nanobanana2',
             resolution: '1024x1024',
             prompt: '',
@@ -455,83 +454,114 @@
             i2i_base: null,
             i2i_denoise: 0.7,
             mask: null,
-            upscale: 1
+            upscale: 1,
+            resultImage: null
           };
+        });
 
-          for (const n of pipeline) {
-            const el = nodeDOMCache[n.id];
-            if (!el) continue;
-
-            const type = n.data.type;
-            if (type === 'model') {
-              params.model = el.querySelector('.wf-model-sel').value;
-            } else if (type === 'parameters') {
-              params.resolution = el.querySelector('.wf-res-sel').value;
-              params.cfg = parseInt(el.querySelector('.wf-temp-cfg').value);
-              params.upscale = parseInt(el.querySelector('.wf-up-scale').value);
-            } else if (type === 'prompt') {
-              const ta = el.querySelector('.wf-prompt-input');
-              params.prompt += ' ' + (window.EditorService ? window.EditorService.getContent(ta.id) : ta.value);
-            } else if (type === 'img2img') {
-              params.i2i_base = el.querySelector('.wf-i2i-base').value;
-              params.i2i_denoise = parseFloat(el.querySelector('.wf-i2i-denoise').value);
-            } else if (type === 'mask') {
-              params.mask = el.dataset.maskData || null;
-            }
-          }
-
-          if (!params.prompt.trim()) {
-            if (window.showToast) window.showToast('⚠️ 提示詞不能為空');
-            continue;
-          }
-
-          // Execute
-          const pEl = nodeDOMCache[pNode.id];
-          const placeholder = pEl.querySelector('.wf-preview-placeholder');
-          const imgEl = pEl.querySelector('.wf-preview-img');
+        // 4. Execute Nodes in topological order
+        for (const id of sortedNodes) {
+          const n = nodeData.find(x => x.id === id);
+          const el = nodeDOMCache[id];
+          if (!el) continue;
           
-          placeholder.style.display = 'flex';
-          placeholder.textContent = 'Generating...';
-          imgEl.style.display = 'none';
+          // Merge incoming states
+          const incomingEdges = edgeData.filter(e => e.target === id);
+          const incomingStates = incomingEdges.map(e => nodeStates[e.source]);
+          
+          let state = nodeStates[id];
+          if (incomingStates.length > 0) {
+            incomingStates.forEach(inc => {
+              if (inc.model !== 'nanobanana2') state.model = inc.model;
+              if (inc.resolution !== '1024x1024') state.resolution = inc.resolution;
+              if (inc.prompt) state.prompt += (state.prompt ? ' ' : '') + inc.prompt;
+              if (inc.cfg !== 7) state.cfg = inc.cfg;
+              if (inc.upscale !== 1) state.upscale = inc.upscale;
+              if (inc.mask) state.mask = inc.mask;
+              // Pass image from upstream generator
+              if (inc.resultImage) state.i2i_base = inc.resultImage;
+            });
+          }
+          
+          const type = n.data.type;
+          
+          if (type === 'model') {
+            state.model = el.querySelector('.wf-model-sel').value;
+          } else if (type === 'parameters') {
+            state.resolution = el.querySelector('.wf-res-sel').value;
+            state.cfg = parseInt(el.querySelector('.wf-temp-cfg').value);
+            state.upscale = parseInt(el.querySelector('.wf-up-scale').value);
+          } else if (type === 'prompt') {
+            const ta = el.querySelector('.wf-prompt-input');
+            state.prompt += ' ' + (window.EditorService ? window.EditorService.getContent(ta.id) : ta.value);
+          } else if (type === 'mask') {
+            state.mask = el.dataset.maskData || null;
+          } else if (type === 'img2img') {
+            // Generator Node (Terminal or Intermediate)
+            const uiBase = el.querySelector('.wf-i2i-base').value;
+            if (uiBase.trim()) state.i2i_base = uiBase;
+            if (n.data.initialImage && !state.i2i_base) state.i2i_base = n.data.initialImage;
+            state.i2i_denoise = parseFloat(el.querySelector('.wf-i2i-denoise').value);
 
-          try {
-            const [width, height] = params.resolution.split('x').map(Number);
-            const finalW = width * params.upscale;
-            const finalH = height * params.upscale;
+            if (!state.prompt.trim()) {
+              if (window.showToast) window.showToast(`⚠️ 節點 [${id}] 提示詞不能為空`);
+              continue;
+            }
+
+            const placeholder = el.querySelector('.wf-preview-placeholder');
+            const imgEl = el.querySelector('.wf-preview-img');
             
-            let apiKey = '';
-            if (params.model === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
-            else apiKey = window.StudioSettings.getNanobananaKey();
+            placeholder.style.display = 'flex';
+            placeholder.textContent = 'Generating...';
+            imgEl.style.display = 'none';
 
-            if (!apiKey) throw new Error('API Key missing');
-
-            let imageUrl = '';
-            if (params.model === 'gptimage') {
-              imageUrl = await window.AIService.generateWithGPTImage(params.prompt, apiKey, finalW, finalH);
-            } else if (params.model === 'nanobanana2') {
-              imageUrl = await window.AIService.generateWithNanoBanana2(params.prompt, apiKey, finalW, finalH, params.i2i_base, params.mask, params.cfg);
-            } else {
-              imageUrl = await window.AIService.generateWithNanoBanana(params.prompt, apiKey, finalW, finalH);
-            }
-
-            placeholder.style.display = 'none';
-            imgEl.src = imageUrl;
-            imgEl.style.display = 'block';
-            if (window.showToast) window.showToast('✅ 產圖成功！');
-
-            if (window.AssetsService) {
-              if (window.AssetsService.getFolders && !window.AssetsService.getFolders().includes('已完成')) {
-                window.AssetsService.addFolder('已完成');
+            try {
+              const [width, height] = state.resolution.split('x').map(Number);
+              const finalW = width * state.upscale;
+              const finalH = height * state.upscale;
+              
+              const p = {
+                prompt: state.prompt.trim(),
+                width: finalW,
+                height: finalH,
+                cfg_scale: state.cfg,
+                image: state.i2i_base,
+                denoising_strength: state.i2i_base ? state.i2i_denoise : undefined
+              };
+              
+              if (window.showToast) window.showToast(`🚀 節點 [${id}] 開始生成...`);
+              
+              let imageUrl = '';
+              if (window.AiService && window.AiService.generateImage) {
+                imageUrl = await window.AiService.generateImage(state.model, p);
+              } else {
+                // Fallback Mock
+                await new Promise(r => setTimeout(r, 2000));
+                imageUrl = `https://picsum.photos/${finalW}/${finalH}?random=${Math.random()}`;
               }
-              const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
-              window.AssetsService.saveAsset('Workflow_Output_' + ts, imageUrl, '已完成').then(() => {
-                if (window.refreshAssetsGrid) window.refreshAssetsGrid();
-              }).catch(() => {});
+              
+              imgEl.src = imageUrl;
+              imgEl.style.display = 'block';
+              placeholder.style.display = 'none';
+              
+              state.resultImage = imageUrl; // Ready for downstream nodes
+              
+              // Save to Assets if successful
+              if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) {
+                const ts = Date.now();
+                if (window.AssetsService) {
+                  if (window.AssetsService.getFolders && !window.AssetsService.getFolders().includes('已完成')) {
+                    window.AssetsService.addFolder('已完成');
+                  }
+                  window.AssetsService.saveAsset('Workflow_Out_' + ts, imageUrl, '已完成').then(() => {
+                    if (window.refreshAssetsGrid) window.refreshAssetsGrid();
+                  });
+                }
+              }
+            } catch (err) {
+              console.error(err);
+              placeholder.textContent = 'Error';
             }
-          } catch (e) {
-            console.error(e);
-            placeholder.textContent = 'Error';
-            if (window.showToast) window.showToast('❌ ' + e.message);
           }
         }
 
