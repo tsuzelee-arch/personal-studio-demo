@@ -407,6 +407,13 @@
     }
     renderModalThumbnail();
     modal.classList.remove('hidden');
+    
+    // Initialize rich editor if available
+    if (window.EditorService) {
+      window.EditorService.setupRichPromptEditor('promptContentInput');
+      window.EditorService.setContent('promptContentInput', document.getElementById('promptContentInput').value);
+    }
+    
     document.getElementById('promptTitleInput').focus();
   }
 
@@ -522,14 +529,18 @@
         if (p) {
           const current = textarea.value.trim();
           const droppedText = `${p.category}: "${p.content}"`;
-          textarea.value = current ? current + '\n\n' + droppedText : droppedText;
+          const newVal = current ? current + '\n\n' + droppedText : droppedText;
+          textarea.value = newVal;
+          if (window.EditorService) window.EditorService.setContent('forgeTextarea', newVal);
           showToast(`已加入「${p.title}」到熔爐`);
         }
       } else {
         const text = e.dataTransfer.getData('text/plain');
         if (text) {
           const current = textarea.value.trim();
-          textarea.value = current ? current + '\n\n' + text : text;
+          const newVal = current ? current + '\n\n' + text : text;
+          textarea.value = newVal;
+          if (window.EditorService) window.EditorService.setContent('forgeTextarea', newVal);
         }
       }
     });
@@ -537,6 +548,7 @@
     // Clear
     if (clearBtn) clearBtn.addEventListener('click', () => {
       textarea.value = '';
+      if (window.EditorService) window.EditorService.setContent('forgeTextarea', '');
       showToast('熔爐已清空');
     });
 
@@ -545,6 +557,15 @@
       if (!textarea.value.trim()) { showToast('熔爐為空'); return; }
       navigator.clipboard.writeText(textarea.value).then(() => showToast('已複製熔爐內容！'));
     });
+
+    // Initialize rich editor for forge
+    if (window.EditorService) {
+      window.EditorService.setupRichPromptEditor('forgeTextarea');
+      
+      // Update forgeTextarea assignment to use setContent
+      const originalDrop = dropZone.addEventListener;
+      // We will handle setContent inside the drop handler directly since we need to update rich text
+    }
 
     // Convert to Natural Language
     if (toNaturalBtn) toNaturalBtn.addEventListener('click', async () => {

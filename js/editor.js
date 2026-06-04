@@ -193,6 +193,8 @@ window.EditorService = (function() {
             const assetId = node.dataset.assetId;
             const assetName = node.querySelector('.tag-name').textContent;
             rawText += `[@${assetName}:${assetId}]`;
+          } else if (node.classList.contains('editor-color-tag')) {
+            rawText += node.innerText;
           } else {
             rawText += node.innerText;
           }
@@ -281,7 +283,15 @@ window.EditorService = (function() {
       textarea.value = content;
       const editor = textarea.nextElementSibling;
       if (editor && editor.classList.contains('rich-editor')) {
-        editor.innerHTML = content.replace(/\n/g, '<br>');
+        let html = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+        
+        // Render hex color tags
+        html = html.replace(/(#[0-9A-Fa-f]{6})\b/gi, '<span class="editor-color-tag" style="color: $1; font-weight: bold; background: rgba(0,0,0,0.05); padding: 0 2px; border-radius: 3px;">$1</span>');
+        
+        // Render asset tags (if any were embedded previously)
+        html = html.replace(/\[@([^:]+):([^\]]+)\]/g, '<span class="editor-img-tag" contenteditable="false" data-asset-id="$2"><img src="assets/$2.jpg" alt="$1"><span class="tag-name">$1</span></span>');
+        
+        editor.innerHTML = html;
         editor.style.height = 'auto';
         editor.style.height = editor.scrollHeight + 'px';
       }

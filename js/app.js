@@ -74,7 +74,7 @@ window.switchPanel = function(panelId) {
     }
   });
 
-  globalColorPicker.addEventListener('input', (e) => {
+  globalColorPicker.addEventListener('change', (e) => {
     if (activeTextarea && activeCursorPos !== null) {
       const color = e.target.value.toUpperCase();
       const val = activeTextarea.value;
@@ -87,19 +87,17 @@ window.switchPanel = function(panelId) {
       const newPos = activeCursorPos - 1 + color.length;
       activeTextarea.setSelectionRange(newPos, newPos);
       activeTextarea.focus();
-      
-      // Update active cursor pos in case user keeps picking colors without closing picker
-      activeCursorPos = newPos;
+
+      if (window.EditorService && window.EditorService.setContent) {
+        window.EditorService.setContent(activeTextarea.id, activeTextarea.value);
+      }
 
       if (window.PromptsService && window.PromptsService.setModalPaletteColor) {
          window.PromptsService.setModalPaletteColor(color);
       }
+      
+      activeTextarea = null;
+      activeCursorPos = null;
     }
-  });
-  
-  globalColorPicker.addEventListener('change', () => {
-    // Reset state after picker closes
-    activeTextarea = null;
-    activeCursorPos = null;
   });
 })();
