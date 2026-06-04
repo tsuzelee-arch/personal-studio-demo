@@ -1078,6 +1078,7 @@
             
             // Drag Drop logic
             item.addEventListener('dragstart', (e) => {
+              e.dataTransfer.setData('text/prompt-id', String(p.id || Date.now()));
               e.dataTransfer.setData('text/plain', p.content);
               e.dataTransfer.effectAllowed = 'copy';
             });
