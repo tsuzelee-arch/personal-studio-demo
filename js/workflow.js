@@ -138,7 +138,7 @@
       } else if (type === 'prompt') {
         headerText = '提示詞 (Prompt)';
         bodyHTML = `
-          <textarea id="${id}_prompt" class="wf-prompt-input" placeholder="輸入提示詞 (支援 / 與 @)..." style="width:100%; height:80px; resize:none;"></textarea>
+          <textarea id="${id}_prompt" class="wf-prompt-input" placeholder="輸入提示詞 (支援 / 與 @)..." style="width:100%; height:100%; min-height:80px; resize:none; box-sizing:border-box; outline:none; font-family:inherit; padding:4px; border:1px solid #eee; border-radius:4px;"></textarea>
         `;
       } else if (type === 'parameters') {
         headerText = '參數 (測試)';
@@ -153,12 +153,12 @@
       } else if (type === 'img2img') {
         headerText = '生成器 / 圖生圖 (Generator / Img2Img)';
         bodyHTML = `
-          <label>Base Image (留空為純文字生成)</label>
-          <input type="text" class="form-input wf-i2i-base" placeholder="貼上或@資產..." style="margin-bottom:10px; width:100%;">
-          <div class="wf-preview-img-container" style="width:100%; height:200px; position:relative; margin-top:10px;">
+          <label style="font-size:11px; font-weight:600; color:#666; margin-bottom:4px; display:block;">Base Image (留空為純文字生成)</label>
+          <input type="text" class="form-input wf-i2i-base" placeholder="貼上或@資產..." style="margin-bottom:10px; width:100%; flex-shrink:0;">
+          <div class="wf-preview-img-container" style="width:100%; flex:1; min-height:150px; position:relative; display:flex;">
             <img class="wf-preview-img" src="" style="display:none; width:100%; height:100%; object-fit:contain; border-radius:4px; cursor:pointer;">
             <button class="wf-preview-download" style="display:none; position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.55); color:#fff; border:none; border-radius:4px; padding:4px 8px; font-size:14px; cursor:pointer; z-index:5;" title="下載圖片">📥</button>
-            <div class="wf-preview-placeholder" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#eee; border-radius:4px; color:#888;">No Image</div>
+            <div class="wf-preview-placeholder" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#f9f9f9; border-radius:4px; border:1px dashed #ccc; color:#aaa; font-size:12px;">No Image</div>
           </div>
         `;
       } else if (type === 'mask') {
@@ -179,10 +179,32 @@
           ${headerText}
           <span class="wf-node-del" style="float:right; cursor:pointer; color:#ccc;" title="刪除節點">&times;</span>
         </div>
-        <div class="wf-node-body" style="padding:10px; background:#fff; border:1px solid #ccc; border-top:none; border-bottom-left-radius:6px; border-bottom-right-radius:6px; height:calc(100% - 28px); overflow-y:auto; box-sizing:border-box;">
+        <div class="wf-node-body" style="padding:10px; background:#fff; border:1px solid #ccc; border-top:none; border-bottom-left-radius:6px; border-bottom-right-radius:6px; height:calc(100% - 28px); display:flex; flex-direction:column; overflow:hidden; box-sizing:border-box;">
           ${bodyHTML}
         </div>
+        <div class="wf-node-resizer" style="position:absolute; right:2px; bottom:2px; width:16px; height:16px; cursor:nwse-resize; z-index:20; display:flex; align-items:flex-end; justify-content:flex-end; padding:2px;">
+          <svg viewBox="0 0 10 10" style="width:10px; height:10px;">
+            <path d="M 10 0 L 10 10 L 0 10 Z" fill="#ccc"/>
+          </svg>
+        </div>
       `;
+
+      // Setup Node Resizer Drag Logic
+      const resizer = el.querySelector('.wf-node-resizer');
+      if (resizer) {
+        resizer.addEventListener('pointerdown', (e) => {
+          window.__wfDragState = 'resize';
+          window.__wfResizeNodeId = id;
+          window.__wfResizeStart = {
+            x: e.clientX,
+            y: e.clientY,
+            w: el.offsetWidth,
+            h: el.offsetHeight
+          };
+          e.stopPropagation();
+        });
+      }
+
 
       // Event listeners setup
       if (type === 'prompt' && window.EditorService) {
@@ -414,8 +436,30 @@
     });
     resizeObserver.observe(container);
 
+    window.addEventListener('pointermove', (e) => {
+      if (window.__wfDragState === 'resize' && window.__wfResizeNodeId && window.__wfResizeStart) {
+        const dx = e.clientX - window.__wfResizeStart.x;
+        const dy = e.clientY - window.__wfResizeStart.y;
+        
+        const nodeType = graph.getNodeData(window.__wfResizeNodeId)?.data?.type || 'prompt';
+        const minW = 200;
+        const minH = nodeType === 'img2img' ? 250 : 150;
+
+        let newW = Math.max(minW, window.__wfResizeStart.w + dx);
+        let newH = Math.max(minH, window.__wfResizeStart.h + dy);
+        
+        if (graph && !graph.destroyed) {
+          graph.updateNodeData([{ id: window.__wfResizeNodeId, style: { size: [newW, newH] } }]);
+          graph.draw();
+        }
+      }
+    });
+
     window.addEventListener('pointerup', () => {
-      setTimeout(() => { window.__wfDragState = null; }, 100);
+      setTimeout(() => { 
+        window.__wfDragState = null; 
+        window.__wfResizeNodeId = null; 
+      }, 100);
     });
     window.addEventListener('mouseup', () => {
       setTimeout(() => { window.__wfDragState = null; }, 100);
@@ -843,8 +887,8 @@
         body.className = 'quickbar-popover-body';
         popover.appendChild(body);
         
-        // Insert near quickBar
-        quickBar.parentElement.appendChild(popover);
+        // Insert inside quickBar so it positions relative to the floating buttons
+        quickBar.appendChild(popover);
         
         // Hover handling for popover itself
         popover.addEventListener('mouseenter', () => {
@@ -864,9 +908,8 @@
       categories.forEach(cat => {
         const btn = document.createElement('button');
         btn.className = 'quickbar-cat-btn';
-        // Use first char as icon, or custom emoji if mapped
-        const catFirstChar = cat.charAt(0);
-        btn.innerHTML = `<span>${catFirstChar}</span><div class="quickbar-cat-tooltip">${cat}</div>`;
+        // Display full category name in floating capsule layout
+        btn.innerHTML = `<span class="quickbar-cat-text">${cat}</span><div class="quickbar-timer-bar"></div>`;
         
         btn.addEventListener('mouseenter', () => {
           if (isPinned) return;
@@ -898,9 +941,9 @@
         const titleEl = document.getElementById('wfQuickbarPopoverTitle');
         const bodyEl = document.getElementById('wfQuickbarPopoverBody');
         
-        // Highlight active btn
+        // Highlight active btn and stop animation
         document.querySelectorAll('.quickbar-cat-btn').forEach(b => {
-          b.classList.remove('active', 'pinned');
+          b.classList.remove('active', 'pinned', 'timer-active');
         });
         if (btnEl) {
           if (isPinned) btnEl.classList.add('pinned');
@@ -923,12 +966,7 @@
             pTitle.className = 'quickbar-prompt-title';
             pTitle.textContent = p.title || '未命名';
             
-            const pContent = document.createElement('div');
-            pContent.className = 'quickbar-prompt-content';
-            pContent.textContent = p.content;
-            
             item.appendChild(pTitle);
-            item.appendChild(pContent);
             
             // Drag Drop logic
             item.addEventListener('dragstart', (e) => {
@@ -949,12 +987,12 @@
           activeCategory = null;
           popover.classList.remove('visible');
           document.querySelectorAll('.quickbar-cat-btn').forEach(b => {
-            b.classList.remove('active', 'pinned');
+            b.classList.remove('active', 'pinned', 'timer-active');
           });
         } else if (!isPinned) {
           popover.classList.remove('visible');
           document.querySelectorAll('.quickbar-cat-btn').forEach(b => {
-            b.classList.remove('active', 'pinned');
+            b.classList.remove('active', 'pinned', 'timer-active');
           });
           activeCategory = null;
         }
@@ -962,10 +1000,19 @@
       
       function startHideTimer() {
         clearHideTimer();
+        // Add animation class to active button
+        const activeBtn = Array.from(document.querySelectorAll('.quickbar-cat-btn')).find(b => b.textContent === activeCategory);
+        if (activeBtn) {
+          activeBtn.classList.add('timer-active');
+        }
         hideTimer = setTimeout(() => hidePopover(), 400);
       }
       function clearHideTimer() {
-        if (hideTimer) clearTimeout(hideTimer);
+        if (hideTimer) {
+          clearTimeout(hideTimer);
+          hideTimer = null;
+        }
+        document.querySelectorAll('.quickbar-cat-btn').forEach(b => b.classList.remove('timer-active'));
       }
     }
 
