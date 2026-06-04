@@ -133,6 +133,24 @@
     } catch {
       prompts = [];
     }
+
+    // Auto-migrate: Fix any palette thumbnails that might be out of sync
+    let migrated = false;
+    prompts.forEach(p => {
+      if (p.category === '色盤 (Palette)' || p.category === '色盤') {
+        // Use a more robust regex that ignores \b boundaries
+        const hexColors = (p.content.match(/#[a-fA-F0-9]{6}|#[a-fA-F0-9]{3}/gi) || []);
+        if (hexColors.length > 0) {
+          if (!p.thumbnail || p.thumbnail.type !== 'palette' || p.thumbnail.colors.join(',') !== hexColors.join(',')) {
+            p.thumbnail = { type: 'palette', colors: hexColors };
+            migrated = true;
+          }
+        }
+      }
+    });
+    if (migrated) {
+      save();
+    }
   }
 
   function save() {
@@ -510,7 +528,7 @@
     
     // Auto sync palette thumbnails
     if (category === '色盤 (Palette)' || category === '色盤') {
-      const hexColors = (content.match(/#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})\b/gi) || []);
+      const hexColors = (content.match(/#[a-fA-F0-9]{6}|#[a-fA-F0-9]{3}/gi) || []);
       if (hexColors.length > 0) {
         thumbToSave = { type: 'palette', colors: hexColors };
       } else {
