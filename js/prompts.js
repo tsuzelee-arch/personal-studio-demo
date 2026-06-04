@@ -399,7 +399,9 @@
       modalThumbnail = p.thumbnail || null;
     } else if (prefill) {
       document.getElementById('promptTitleInput').value = prefill.title || '';
-      document.getElementById('promptCategoryInput').value = prefill.category || getCategoryOptions()[0];
+      document.getElementById('promptCategoryInput').value =
+        prefill.category ||
+        (activeCategory && activeCategory !== '全部' ? activeCategory : getCategoryOptions()[0]);
       document.getElementById('promptContentInput').value = prefill.content || '';
       if (langEl) langEl.value = prefill.language || '';
       modalThumbnail = prefill.thumbnail || null;
@@ -408,7 +410,7 @@
       const defaultCat = (activeCategory && activeCategory !== '全部') ? activeCategory : getCategoryOptions()[0];
       document.getElementById('promptCategoryInput').value = defaultCat;
       document.getElementById('promptContentInput').value = '';
-      if (langEl) langEl.value = '';
+      if (langEl) langEl.value = '繁體中文';
       modalThumbnail = null;
     }
     renderModalThumbnail();
@@ -585,6 +587,10 @@
     // Initialize rich editor for forge
     if (window.EditorService) {
       window.EditorService.setupRichPromptEditor('forgeTextarea');
+      const forgeEditor = textarea.nextElementSibling;
+      if (forgeEditor && forgeEditor.classList.contains('rich-editor')) {
+        forgeEditor.setAttribute('data-placeholder', '可將提示詞模塊拖拽于此處合成。');
+      }
     }
 
     // Convert to Natural Language
@@ -642,6 +648,7 @@
         result = await convertToSdTags(text, apiKey, modelName);
       }
       textarea.value = result;
+      if (window.EditorService) window.EditorService.setContent('forgeTextarea', result);
       showToast(mode === 'natural' ? '✅ 已轉換為自然語言' : '✅ 已轉換為 SD Tags');
     } catch (err) {
       console.error('Forge convert error:', err);

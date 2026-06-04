@@ -351,6 +351,12 @@ body {
   word-wrap: break-word;
   min-height: 80px;
 }
+.rich-editor[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  display: block;
+}
 .editor-img-tag {
   display: inline-flex;
   align-items: center;
