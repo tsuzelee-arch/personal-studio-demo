@@ -122,7 +122,7 @@
         prompts.push({
           id: 2,
           title: '黑白',
-          category: '色盤',
+          category: '色盤 (Palette)',
           language: '不指定',
           content: '#ffffff,#000000',
           thumbnail: { type: 'palette', colors: ['#ffffff', '#000000'] },
@@ -509,7 +509,7 @@
     }
     
     // Auto sync palette thumbnails
-    if (category === '色盤') {
+    if (category === '色盤 (Palette)' || category === '色盤') {
       const hexColors = (content.match(/#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})\b/gi) || []);
       if (hexColors.length > 0) {
         thumbToSave = { type: 'palette', colors: hexColors };
