@@ -545,14 +545,17 @@
       });
     }
 
-    // Deletion Logic
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        const activeTag = document.activeElement.tagName;
-        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) && !document.activeElement.classList.contains('wf-node-header')) {
-          return;
-        }
+    let wfClipboard = null;
 
+    // Keyboard Shortcuts (Delete, Copy, Cut, Paste)
+    window.addEventListener('keydown', (e) => {
+      if (!document.getElementById('panel-workflow').classList.contains('active')) return;
+
+      const activeTag = document.activeElement.tagName;
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) && !document.activeElement.classList.contains('wf-node-header');
+      
+      // Delete / Backspace
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
         const selectedNodes = graph.getElementDataByState('node', 'selected');
         const selectedEdges = graph.getElementDataByState('edge', 'selected');
 
@@ -567,6 +570,57 @@
         if (selectedNodes.length > 0 || selectedEdges.length > 0) {
           graph.draw();
         }
+        return;
+      }
+
+      // Copy (Ctrl+C / Cmd+C)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !isInput) {
+        const selectedNodes = graph.getElementDataByState('node', 'selected');
+        if (selectedNodes.length > 0) {
+           wfClipboard = selectedNodes.map(n => JSON.parse(JSON.stringify(n)));
+           if (window.showToast) window.showToast(`✅ 已複製 ${selectedNodes.length} 個節點`);
+        }
+        return;
+      }
+
+      // Cut (Ctrl+X / Cmd+X)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x' && !isInput) {
+        const selectedNodes = graph.getElementDataByState('node', 'selected');
+        if (selectedNodes.length > 0) {
+           wfClipboard = selectedNodes.map(n => JSON.parse(JSON.stringify(n)));
+           const nodeIds = selectedNodes.map(n => n.id);
+           graph.removeNodeData(nodeIds);
+           nodeIds.forEach(id => delete nodeDOMCache[id]); // cleanup cache
+           
+           const selectedEdges = graph.getElementDataByState('edge', 'selected');
+           if (selectedEdges.length > 0) {
+             graph.removeEdgeData(selectedEdges.map(ed => ed.id));
+           }
+           graph.draw();
+           if (window.showToast) window.showToast(`✅ 已剪下 ${selectedNodes.length} 個節點`);
+        }
+        return;
+      }
+
+      // Paste (Ctrl+V / Cmd+V)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && !isInput) {
+        if (wfClipboard && wfClipboard.length > 0) {
+           const newNodes = [];
+           wfClipboard.forEach(node => {
+               nodeIdCounter++;
+               const newId = 'node_copy_' + Date.now() + '_' + nodeIdCounter;
+               const newNode = JSON.parse(JSON.stringify(node));
+               newNode.id = newId;
+               newNode.style.x += 30; // offset
+               newNode.style.y += 30; // offset
+               newNodes.push(newNode);
+           });
+           graph.addNodeData(newNodes);
+           graph.draw();
+           wfClipboard = newNodes; // Update clipboard for multiple pastes
+           if (window.showToast) window.showToast(`✅ 已貼上 ${newNodes.length} 個節點`);
+        }
+        return;
       }
     });
 
@@ -580,9 +634,9 @@
       }
     });
 
-    // Drag and Drop from Asset Panel
+    // Drag and Drop from Asset Panel / Prompt Library
     container.addEventListener('dragover', (e) => {
-      if (e.dataTransfer.types.includes('text/ide-asset')) {
+      if (e.dataTransfer.types.includes('text/ide-asset') || e.dataTransfer.types.includes('text/prompt-id')) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
       }
@@ -615,6 +669,30 @@
         } catch (err) {
           console.error('Drop error', err);
         }
+        return;
+      }
+
+      const promptId = e.dataTransfer.getData('text/prompt-id');
+      const promptText = e.dataTransfer.getData('text/plain');
+      if (promptId && promptText) {
+        e.preventDefault();
+        let x, y;
+        try {
+          [x, y] = graph.getCanvasByClient([e.clientX, e.clientY]);
+        } catch (_) {
+          [x, y] = getViewportCenter();
+        }
+        
+        nodeIdCounter++;
+        const id = 'node_prompt_drop_' + Date.now() + '_' + nodeIdCounter;
+        
+        graph.addNodeData([{
+          id,
+          data: { type: 'prompt', prefill: promptText },
+          style: { x, y }
+        }]);
+        graph.draw();
+        if (window.showToast) window.showToast('✅ 已從提示庫匯入提示詞為節點');
       }
     });
 
