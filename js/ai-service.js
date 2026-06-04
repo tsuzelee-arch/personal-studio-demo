@@ -367,7 +367,9 @@ ${JSON.stringify(analysis)}`;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {}
+      generationConfig: {
+        aspectRatio: toAspectRatio(width, height)
+      }
     };
     
     const response = await fetch(url, {
@@ -417,7 +419,8 @@ ${JSON.stringify(analysis)}`;
       contents: [{ parts }],
       generationConfig: {
         temperature: Math.min(1.0, Math.max(0.0, (cfg - 1) / 19)),
-        responseModalities: ['IMAGE']
+        responseModalities: ['IMAGE'],
+        aspectRatio: toAspectRatio(width, height)
       }
     };
 
