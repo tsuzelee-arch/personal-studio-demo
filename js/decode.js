@@ -77,11 +77,6 @@
   }
 
   // ── Upload / Drag-drop handlers ──
-  cardPreview.addEventListener('click', (e) => {
-    // If clicking on the image, don't trigger upload if we want lightbox
-    if (e.target === previewImg && previewImg.src) return;
-    imageInput.click();
-  });
   imageInput.addEventListener('change', e => { if (e.target.files[0]) loadImage(e.target.files[0]); });
 
   cardPreview.addEventListener('dragover', e => { e.preventDefault(); cardPreview.style.border = '2px dashed #007aff'; });
@@ -208,7 +203,9 @@
       console.error('AI analysis failed:', err);
       stopLoadingAnimation();
       decodeLoading.classList.add('hidden');
-      dropZone.classList.remove('hidden');
+      previewImg.style.display = 'none';
+      previewImg.src = '';
+      previewPlaceholder.style.display = 'flex';
       showToast('❌ 分析失敗：' + err.message, 5000);
     }
   }
