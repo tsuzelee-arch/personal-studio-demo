@@ -145,8 +145,7 @@
         bodyHTML = `
           <label>Resolution</label>
           <select class="form-select form-select-sm wf-res-sel" style="width:100%;">
-            <option value="512x512" selected>512x512 (1:1)</option>
-            <option value="1024x1024">1024x1024 (1:1)</option>
+            <option value="1024x1024" selected>1024x1024 (1:1)</option>
             <option value="1024x576">1024x576 (16:9)</option>
             <option value="576x1024">576x1024 (9:16)</option>
           </select>
@@ -710,7 +709,7 @@
             }
 
             const finalModel = state.model || 'nanobanana2';
-            const finalRes = state.resolution || '512x512';
+            const finalRes = state.resolution || '1024x1024';
             const finalCfg = state.cfg !== undefined ? state.cfg : 7;
 
             const placeholder = el.querySelector('.wf-preview-placeholder');
