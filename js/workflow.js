@@ -116,6 +116,7 @@
       if (nodeDOMCache[id]) return nodeDOMCache[id];
       
       const el = document.createElement('div');
+      el.id = 'wf-node-dom-' + id;
       el.className = 'wf-node';
       el.style.width = '100%';
       el.style.height = '100%';
@@ -448,9 +449,20 @@
         let newW = Math.max(minW, window.__wfResizeStart.w + dx);
         let newH = Math.max(minH, window.__wfResizeStart.h + dy);
         
+        const el = document.getElementById('wf-node-dom-' + window.__wfResizeNodeId);
+        if (el) {
+          el.style.width = newW + 'px';
+          el.style.height = newH + 'px';
+        }
+        
         if (graph && !graph.destroyed) {
           graph.updateNodeData([{ id: window.__wfResizeNodeId, style: { size: [newW, newH] } }]);
-          graph.draw();
+          // Manual DOM resizing ensures it reflects immediately, G6 catches up visually
+          if (window.requestAnimationFrame) {
+             window.requestAnimationFrame(() => graph.draw());
+          } else {
+             graph.draw();
+          }
         }
       }
     });
@@ -475,7 +487,9 @@
         if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
         
         const edges = graph.getEdgeData();
+        const nodes = graph.getNodeData();
         let deleted = false;
+        
         edges.forEach(edge => {
           const state = graph.getElementState(edge.id);
           if (state && state.includes('selected')) {
@@ -483,6 +497,15 @@
             deleted = true;
           }
         });
+        
+        nodes.forEach(node => {
+          const state = graph.getElementState(node.id);
+          if (state && state.includes('selected')) {
+            graph.removeNodeData([node.id]);
+            deleted = true;
+          }
+        });
+        
         if (deleted) {
           graph.draw();
           e.preventDefault();
@@ -890,18 +913,12 @@
         // Insert inside quickBar so it positions relative to the floating buttons
         quickBar.appendChild(popover);
         
-        // Hover handling for popover itself
-        popover.addEventListener('mouseenter', () => {
-          if (!isPinned) clearHideTimer();
-        });
-        popover.addEventListener('mouseleave', () => {
-          if (!isPinned) startHideTimer();
-        });
+        // Hover handling for popover itself - no longer needed for hide timer
       }
 
       let activeCategory = null;
       let isPinned = false;
-      let hideTimer = null;
+      let pinTimer = null;
       
       const categories = window.PromptsService.getAllCategories();
       
@@ -912,14 +929,12 @@
         btn.innerHTML = `<span class="quickbar-cat-text">${cat}</span><div class="quickbar-timer-bar"></div>`;
         
         btn.addEventListener('mouseenter', () => {
-          if (isPinned) return;
-          clearHideTimer();
-          showPopover(cat, btn);
+          if (isPinned && activeCategory === cat) return;
+          startPinTimer(cat, btn);
         });
         
         btn.addEventListener('mouseleave', () => {
-          if (isPinned) return;
-          startHideTimer();
+          cancelPinTimer();
         });
         
         btn.addEventListener('click', () => {
@@ -927,13 +942,21 @@
             // Unpin
             hidePopover(true);
           } else {
-            // Pin
+            // Pin immediately
+            cancelPinTimer();
             isPinned = true;
             showPopover(cat, btn);
           }
         });
         
         quickBar.appendChild(btn);
+      });
+      
+      // Click outside to unpin
+      document.addEventListener('click', (e) => {
+        if (isPinned && !quickBar.contains(e.target) && !popover.contains(e.target)) {
+          hidePopover(true);
+        }
       });
       
       function showPopover(category, btnEl) {
@@ -945,10 +968,7 @@
         document.querySelectorAll('.quickbar-cat-btn').forEach(b => {
           b.classList.remove('active', 'pinned', 'timer-active');
         });
-        if (btnEl) {
-          if (isPinned) btnEl.classList.add('pinned');
-          else btnEl.classList.add('active');
-        }
+        if (btnEl) btnEl.classList.add('pinned');
         
         titleEl.textContent = category;
         bodyEl.innerHTML = '';
@@ -982,35 +1002,30 @@
       }
       
       function hidePopover(force = false) {
-        if (force) {
+        if (force || !isPinned) {
           isPinned = false;
           activeCategory = null;
           popover.classList.remove('visible');
           document.querySelectorAll('.quickbar-cat-btn').forEach(b => {
             b.classList.remove('active', 'pinned', 'timer-active');
           });
-        } else if (!isPinned) {
-          popover.classList.remove('visible');
-          document.querySelectorAll('.quickbar-cat-btn').forEach(b => {
-            b.classList.remove('active', 'pinned', 'timer-active');
-          });
-          activeCategory = null;
         }
       }
       
-      function startHideTimer() {
-        clearHideTimer();
-        // Add animation class to active button
-        const activeBtn = Array.from(document.querySelectorAll('.quickbar-cat-btn')).find(b => b.textContent === activeCategory);
-        if (activeBtn) {
-          activeBtn.classList.add('timer-active');
-        }
-        hideTimer = setTimeout(() => hidePopover(), 400);
+      function startPinTimer(cat, btn) {
+        cancelPinTimer();
+        btn.classList.add('timer-active');
+        pinTimer = setTimeout(() => {
+          btn.classList.remove('timer-active');
+          isPinned = true;
+          showPopover(cat, btn);
+        }, 400);
       }
-      function clearHideTimer() {
-        if (hideTimer) {
-          clearTimeout(hideTimer);
-          hideTimer = null;
+      
+      function cancelPinTimer() {
+        if (pinTimer) {
+          clearTimeout(pinTimer);
+          pinTimer = null;
         }
         document.querySelectorAll('.quickbar-cat-btn').forEach(b => b.classList.remove('timer-active'));
       }
