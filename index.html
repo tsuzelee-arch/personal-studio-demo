@@ -293,31 +293,8 @@
 
       <section class="panel" id="panel-prompts">
         <div class="prompts-ide-layout">
-          <!-- Left Pane: Prompt Forge -->
-          <div class="prompts-left-forge">
-            <div class="prompt-forge" id="promptForge">
-              <div class="forge-header">
-                <span class="forge-icon">🔥</span>
-                <span class="forge-title">提示詞熔爐 — 拖曳合成</span>
-              </div>
-              <div class="forge-drop-zone" id="forgeDropZone">
-                <textarea class="forge-textarea" id="forgeTextarea" placeholder="將提示詞卡片拖放到這裡..."></textarea>
-              </div>
-              <div class="forge-actions">
-                <div class="forge-actions-top">
-                  <button class="btn-primary btn-sm" id="forgeToNaturalBtn">✨ 轉自然語言</button>
-                  <button class="btn-primary btn-sm" id="forgeToSdTagsBtn">🏷️ 轉 SD Tags</button>
-                </div>
-                <div class="forge-actions-bottom">
-                  <button class="btn-ghost btn-sm" id="forgeClearBtn">🗑️ 清空</button>
-                  <button class="btn-ghost btn-sm" id="forgeCopyBtn">📋 複製</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right Pane: Library -->
-          <div class="prompts-right-library">
+          <!-- Left Pane: Library -->
+          <div class="prompts-left-library">
             <!-- Top toolbar -->
             <div class="prompts-toolbar">
               <input type="text" class="search-input" id="promptSearch" placeholder="搜尋提示詞...">
@@ -335,6 +312,29 @@
                 <div class="empty-state hidden" id="promptsEmpty">
                   <div class="empty-icon">&#9998;</div>
                   <div class="empty-text">尚無提示詞，點擊右上角新增</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Pane: Prompt Forge -->
+          <div class="prompts-right-forge">
+            <div class="prompt-forge" id="promptForge">
+              <div class="forge-header">
+                <span class="forge-icon">🔥</span>
+                <span class="forge-title">提示詞熔爐 — 拖曳合成</span>
+              </div>
+              <div class="forge-drop-zone" id="forgeDropZone">
+                <textarea class="forge-textarea" id="forgeTextarea" placeholder="將提示詞卡片拖放到這裡..."></textarea>
+              </div>
+              <div class="forge-actions">
+                <div class="forge-actions-top">
+                  <button class="btn-primary btn-sm" id="forgeToNaturalBtn">✨ 轉自然語言</button>
+                  <button class="btn-primary btn-sm" id="forgeToSdTagsBtn">🏷️ 轉 SD Tags</button>
+                </div>
+                <div class="forge-actions-bottom">
+                  <button class="btn-ghost btn-sm" id="forgeClearBtn">🗑️ 清空</button>
+                  <button class="btn-ghost btn-sm" id="forgeCopyBtn">📋 複製</button>
                 </div>
               </div>
             </div>

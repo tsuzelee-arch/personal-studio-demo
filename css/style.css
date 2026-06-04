@@ -1269,16 +1269,16 @@ body {
   height: 100%;
   overflow: hidden;
 }
-.prompts-left-forge {
+.prompts-right-forge {
   width: 300px;
   flex-shrink: 0;
   height: 100%;
-  border-right: 2px solid var(--warm);
+  border-left: 2px solid var(--warm);
   background: linear-gradient(180deg, #fdf6ec 0%, var(--white) 100%);
   display: flex;
   flex-direction: column;
 }
-.prompts-right-library {
+.prompts-left-library {
   flex: 1;
   display: flex;
   flex-direction: column;
