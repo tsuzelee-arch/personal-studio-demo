@@ -1934,6 +1934,8 @@ input.editable-field:focus { resize: none; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  container-type: inline-size;
+  container-name: assets-container;
 }
 
 .ide-assets-resizer {
@@ -1997,6 +1999,16 @@ input.editable-field:focus { resize: none; }
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   align-content: start;
+}
+
+@container assets-container (max-width: 220px) {
+  .ide-assets-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ide-left-assets.single-column .ide-assets-grid {
+  grid-template-columns: 1fr;
 }
 .ide-asset-thumb {
   border-radius: 6px;

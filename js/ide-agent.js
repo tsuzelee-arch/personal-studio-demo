@@ -711,7 +711,12 @@ window.IDEAgent = (function() {
     // Handle Left Pane Resizing via Draggable Splitter
     const resizer = document.getElementById('ideLeftResizer');
     const layout = document.querySelector('.workflow-ide-layout');
-    if (resizer && layout) {
+    const pane = document.querySelector('.ide-left-assets');
+    if (resizer && layout && pane) {
+      // Set initial column state
+      const initialWidth = parseInt(layout.style.getPropertyValue('--ide-left-width') || '240');
+      pane.classList.toggle('single-column', initialWidth < 220);
+
       resizer.addEventListener('mousedown', (e) => {
         e.preventDefault();
         resizer.classList.add('dragging');
@@ -722,6 +727,7 @@ window.IDEAgent = (function() {
           if (newWidth < 180) newWidth = 180;
           if (newWidth > 480) newWidth = 480;
           layout.style.setProperty('--ide-left-width', newWidth + 'px');
+          pane.classList.toggle('single-column', newWidth < 220);
         };
         
         const onMouseUp = () => {
