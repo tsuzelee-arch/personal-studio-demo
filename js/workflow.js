@@ -556,24 +556,24 @@
               const finalW = width * state.upscale;
               const finalH = height * state.upscale;
               
-              const p = {
-                prompt: state.prompt.trim(),
-                width: finalW,
-                height: finalH,
-                cfg_scale: state.cfg,
-                image: state.i2i_base,
-                denoising_strength: state.i2i_base ? state.i2i_denoise : undefined
-              };
+              let apiKey = '';
+              if (state.model === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
+              else apiKey = window.StudioSettings.getNanobananaKey();
+
+              if (!apiKey) {
+                 if (window.showToast) window.showToast('⚠️ API Key 尚未設定 (' + state.model + ')');
+                 throw new Error('API Key missing');
+              }
               
               if (window.showToast) window.showToast(`🚀 節點 [${id}] 開始生成...`);
               
               let imageUrl = '';
-              if (window.AiService && window.AiService.generateImage) {
-                imageUrl = await window.AiService.generateImage(state.model, p);
+              if (state.model === 'gptimage') {
+                imageUrl = await window.AIService.generateWithGPTImage(state.prompt, apiKey, finalW, finalH);
+              } else if (state.model === 'nanobanana2') {
+                imageUrl = await window.AIService.generateWithNanoBanana2(state.prompt, apiKey, finalW, finalH, state.i2i_base, state.mask, state.cfg);
               } else {
-                // Fallback Mock
-                await new Promise(r => setTimeout(r, 2000));
-                imageUrl = `https://picsum.photos/${finalW}/${finalH}?random=${Math.random()}`;
+                imageUrl = await window.AIService.generateWithNanoBanana(state.prompt, apiKey, finalW, finalH);
               }
               
               imgEl.src = imageUrl;
