@@ -1956,7 +1956,7 @@ input.editable-field:focus { resize: none; }
    ══════════════════════════════════════════════════════════════ */
 .workflow-ide-layout {
   display: grid;
-  grid-template-columns: var(--ide-left-width, 240px) 4px 1fr 360px;
+  grid-template-columns: var(--ide-left-width, 240px) 4px 1fr;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -2646,11 +2646,6 @@ input.editable-field:focus { resize: none; }
 /* =========================================================================
    24. Workflow Prompt Quick-Bar & Layout
    ========================================================================= */
-.workflow-ide-layout {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
 .workflow-prompt-quickbar {
   position: absolute;
   top: 0;
