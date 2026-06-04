@@ -75,8 +75,47 @@ window.switchPanel = function(panelId) {
   });
 
   globalColorPicker.addEventListener('change', (e) => {
+    const color = e.target.value.toUpperCase();
+
+    // Rich Editor Path
+    if (window.currentEditorColorRange) {
+       const range = window.currentEditorColorRange;
+       const textareaId = e.target.dataset.targetEditorId;
+       
+       // Replace the '#' in the rich editor
+       const textNode = range.startContainer;
+       range.setStart(textNode, range.endOffset - 1); // Select the '#'
+       range.deleteContents();
+       
+       const insertText = document.createTextNode(color);
+       range.insertNode(insertText);
+       range.setStartAfter(insertText);
+       range.collapse(true);
+       
+       const sel = window.getSelection();
+       sel.removeAllRanges();
+       sel.addRange(range);
+       
+       if (textareaId) {
+         const richEditor = document.getElementById(textareaId)?.nextElementSibling;
+         if (richEditor && richEditor.classList.contains('rich-editor')) {
+           richEditor.dispatchEvent(new Event('input', { bubbles: true }));
+           const rawContent = window.EditorService.getContent(textareaId);
+           window.EditorService.setContent(textareaId, rawContent);
+         }
+       }
+       
+       if (window.PromptsService && window.PromptsService.setModalPaletteColor) {
+         window.PromptsService.setModalPaletteColor(color);
+       }
+       
+       window.currentEditorColorRange = null;
+       e.target.dataset.targetEditorId = '';
+       return;
+    }
+
+    // Standard Textarea Path
     if (activeTextarea && activeCursorPos !== null) {
-      const color = e.target.value.toUpperCase();
       const val = activeTextarea.value;
       
       const before = val.substring(0, activeCursorPos - 1);

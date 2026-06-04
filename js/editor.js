@@ -244,15 +244,32 @@ window.EditorService = (function() {
           return;
         }
       }
+      
+      // Color picker logic for #
+      if (text.endsWith('#') && e.data === '#') {
+         const colorPicker = document.getElementById('globalColorPicker');
+         if (colorPicker) {
+           const rect = range.getBoundingClientRect();
+           colorPicker.style.left = rect.left + 'px';
+           colorPicker.style.top = rect.bottom + 'px';
+           
+           // Keep track of where to insert the color
+           colorPicker.dataset.targetEditorId = textarea.id;
+           // We will store the range so we can replace the #
+           window.currentEditorColorRange = range.cloneRange();
+           
+           colorPicker.click();
+         }
+      }
     }
     
     closeSuggestMenu();
   }
   
   // Setup editor
-  function setupRichPromptEditor(textareaId) {
-    const textarea = document.getElementById(textareaId);
-    if (!textarea) return;
+  function setupRichPromptEditor(textareaOrId) {
+    const textarea = typeof textareaOrId === 'string' ? document.getElementById(textareaOrId) : textareaOrId;
+    if (!textarea || textarea.tagName !== 'TEXTAREA') return;
     if (textarea.nextElementSibling && textarea.nextElementSibling.classList.contains('rich-editor')) return;
     
     const editor = document.createElement('div');
@@ -277,8 +294,8 @@ window.EditorService = (function() {
   }
   
   // Set content programmatically
-  function setContent(textareaId, content) {
-    const textarea = document.getElementById(textareaId);
+  function setContent(textareaOrId, content) {
+    const textarea = typeof textareaOrId === 'string' ? document.getElementById(textareaOrId) : textareaOrId;
     if (textarea) {
       textarea.value = content;
       const editor = textarea.nextElementSibling;
@@ -299,10 +316,37 @@ window.EditorService = (function() {
   }
 
   // Get raw content
-  function getContent(textareaId) {
-    const textarea = document.getElementById(textareaId);
+  function getContent(textareaOrId) {
+    const textarea = typeof textareaOrId === 'string' ? document.getElementById(textareaOrId) : textareaOrId;
     if (textarea) return textarea.value;
     return '';
+  }
+  
+  // Auto-upgrade all textareas
+  function initAutoUpgrade() {
+    // Upgrade existing
+    document.querySelectorAll('textarea').forEach(setupRichPromptEditor);
+    
+    // Watch for new textareas
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.tagName === 'TEXTAREA') {
+            setupRichPromptEditor(node);
+          } else if (node.querySelectorAll) {
+            node.querySelectorAll('textarea').forEach(setupRichPromptEditor);
+          }
+        });
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  // Start auto-upgrade
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAutoUpgrade);
+  } else {
+    initAutoUpgrade();
   }
   
   // Expose API
