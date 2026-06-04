@@ -707,6 +707,33 @@ window.IDEAgent = (function() {
       renderIdeFolders();
       renderIdeAssets();
     });
+
+    // Handle Left Pane Resizing via Draggable Splitter
+    const resizer = document.getElementById('ideLeftResizer');
+    const layout = document.querySelector('.workflow-ide-layout');
+    if (resizer && layout) {
+      resizer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        resizer.classList.add('dragging');
+        
+        const onMouseMove = (moveEvent) => {
+          const rect = layout.getBoundingClientRect();
+          let newWidth = moveEvent.clientX - rect.left;
+          if (newWidth < 180) newWidth = 180;
+          if (newWidth > 480) newWidth = 480;
+          layout.style.setProperty('--ide-left-width', newWidth + 'px');
+        };
+        
+        const onMouseUp = () => {
+          resizer.classList.remove('dragging');
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+        };
+        
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+    }
   }
 
   // Wait for AssetsService to be ready

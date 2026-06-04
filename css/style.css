@@ -1922,7 +1922,7 @@ input.editable-field:focus { resize: none; }
    ══════════════════════════════════════════════════════════════ */
 .workflow-ide-layout {
   display: grid;
-  grid-template-columns: auto 1fr 360px;
+  grid-template-columns: var(--ide-left-width, 240px) 4px 1fr 360px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -1931,14 +1931,26 @@ input.editable-field:focus { resize: none; }
 /* ── Left Pane: Asset File Explorer ── */
 .ide-left-assets {
   background: var(--white);
-  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  resize: horizontal;
-  width: 240px;
-  min-width: 180px;
-  max-width: 480px;
+}
+
+.ide-assets-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background: var(--border);
+  transition: background 0.15s;
+  z-index: 1000;
+  margin: 0 -2px;
+  position: relative;
+  flex-shrink: 0;
+}
+.ide-assets-resizer:hover,
+.ide-assets-resizer.dragging {
+  background: #1783FF !important;
+  width: 6px;
+  margin: 0 -3px;
 }
 .ide-assets-header {
   padding: 12px 14px;
