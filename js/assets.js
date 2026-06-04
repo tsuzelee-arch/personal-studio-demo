@@ -7,7 +7,7 @@ window.AssetsService = (function() {
   const DB_VERSION = 2;
   const FOLDERS_KEY = 'ps_asset_folders';
   let db = null;
-  let activeFolder = '根目錄';
+  let activeFolder = '已完成';
 
   // ── Folder Management (localStorage) ──
   function getFolders() {

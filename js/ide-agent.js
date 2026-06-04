@@ -26,7 +26,7 @@ window.IDEAgent = (function() {
   const AGENT_ARCHIVED = true; // IDE Agent is under development — all API calls blocked
   let chatHistory = [];        // { role: 'user'|'assistant', content: string, images?: string[] }
   let pendingAttachments = []; // base64 data URLs
-  let activeFolder = '根目錄';
+  let activeFolder = '已完成';
   let isLoading = false;
   let isImageMode = false;     // Track A: direct image generation mode
 
