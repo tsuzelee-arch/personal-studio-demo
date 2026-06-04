@@ -51,3 +51,55 @@ window.switchPanel = function(panelId) {
   const item = document.querySelector(`[data-panel="${panelId}"]`);
   if (item) item.click();
 };
+
+// ── Global Textarea Color Picker Interceptor ──
+(function() {
+  const globalColorPicker = document.getElementById('globalColorPicker');
+  if (!globalColorPicker) return;
+
+  let activeTextarea = null;
+  let activeCursorPos = null;
+
+  document.addEventListener('input', (e) => {
+    if (e.target.tagName.toLowerCase() === 'textarea') {
+      const val = e.target.value;
+      const pos = e.target.selectionStart;
+      if (pos > 0 && val[pos - 1] === '#') {
+        if (e.data === '#') {
+          activeTextarea = e.target;
+          activeCursorPos = pos;
+          globalColorPicker.click();
+        }
+      }
+    }
+  });
+
+  globalColorPicker.addEventListener('input', (e) => {
+    if (activeTextarea && activeCursorPos !== null) {
+      const color = e.target.value.toUpperCase();
+      const val = activeTextarea.value;
+      
+      const before = val.substring(0, activeCursorPos - 1);
+      const after = val.substring(activeCursorPos);
+      
+      activeTextarea.value = before + color + after;
+      
+      const newPos = activeCursorPos - 1 + color.length;
+      activeTextarea.setSelectionRange(newPos, newPos);
+      activeTextarea.focus();
+      
+      // Update active cursor pos in case user keeps picking colors without closing picker
+      activeCursorPos = newPos;
+
+      if (window.PromptsService && window.PromptsService.setModalPaletteColor) {
+         window.PromptsService.setModalPaletteColor(color);
+      }
+    }
+  });
+  
+  globalColorPicker.addEventListener('change', () => {
+    // Reset state after picker closes
+    activeTextarea = null;
+    activeCursorPos = null;
+  });
+})();

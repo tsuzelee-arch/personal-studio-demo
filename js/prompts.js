@@ -307,7 +307,7 @@
         // Drag to Forge
         card.addEventListener('dragstart', (e) => {
           e.dataTransfer.setData('text/prompt-id', String(p.id));
-          e.dataTransfer.setData('text/plain', p.content);
+          e.dataTransfer.setData('text/plain', `${p.category}: "${p.content}"`);
           e.dataTransfer.effectAllowed = 'copy';
           card.classList.add('dragging');
         });
@@ -318,7 +318,7 @@
         // Button handlers
         card.querySelector('.copy-btn').addEventListener('click', (e) => {
           e.stopPropagation();
-          navigator.clipboard.writeText(p.content).then(() => showToast('已複製提示詞！'));
+          navigator.clipboard.writeText(`${p.category}: "${p.content}"`).then(() => showToast('已複製提示詞！'));
         });
         card.querySelector('.edit-btn').addEventListener('click', (e) => {
           e.stopPropagation();
@@ -521,7 +521,8 @@
         const p = prompts.find(x => x.id === +promptId);
         if (p) {
           const current = textarea.value.trim();
-          textarea.value = current ? current + '\n\n' + p.content : p.content;
+          const droppedText = `${p.category}: "${p.content}"`;
+          textarea.value = current ? current + '\n\n' + droppedText : droppedText;
           showToast(`已加入「${p.title}」到熔爐`);
         }
       } else {
@@ -674,6 +675,19 @@ ${text}`;
     getCategoryForSchemaKey: function(key) {
       const entry = SCHEMA_CATEGORY_MAP[key];
       return entry ? entry.label : null;
+    },
+    setModalPaletteColor: function(hexColor) {
+      const modal = document.getElementById('promptModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+
+      if (!modalThumbnail || typeof modalThumbnail !== 'object' || modalThumbnail.type !== 'palette') {
+        modalThumbnail = { type: 'palette', colors: [] };
+      }
+      
+      if (!modalThumbnail.colors.includes(hexColor)) {
+        modalThumbnail.colors.push(hexColor);
+      }
+      renderModalThumbnail();
     }
   };
 
