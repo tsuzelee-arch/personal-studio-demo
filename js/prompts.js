@@ -109,6 +109,20 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       prompts = raw ? JSON.parse(raw) : [];
+      
+      // Default Template initialization
+      if (prompts.length === 0) {
+        prompts.push({
+          id: 1,
+          title: '綫稿提取',
+          category: '編輯模式',
+          language: '繁體中文',
+          content: '編輯模式：尺寸不變，保持當前圖像形體和結構不變。未指定區域的所有圖像必須完全保持原樣，所有修改必須按照用戶的要求進行。不得重繪、修飾、增強、裁切、縮放、變色、銳化、模糊或改動任何像素。\n\n編輯：分析視覺主體，將圖像轉化為銳利，簡潔線稿，輪廓線介於1px~2px, 次要線0.2~0.5px。去除噪點\n\n采色：#ffffff,#000000',
+          thumbnail: null,
+          createdAt: Date.now()
+        });
+        save();
+      }
     } catch {
       prompts = [];
     }
