@@ -55,22 +55,14 @@
           <textarea id="${id}_prompt" class="wf-prompt-input" placeholder="輸入提示詞 (支援 / 與 @)..." style="width:100%; height:80px; resize:none;"></textarea>
         `;
       } else if (type === 'parameters') {
-        headerText = '參數 (Parameters)';
+        headerText = '參數 (測試)';
         bodyHTML = `
           <label>Resolution</label>
-          <select class="form-select form-select-sm wf-res-sel" style="margin-bottom:8px; width:100%;">
+          <select class="form-select form-select-sm wf-res-sel" style="width:100%;">
+            <option value="512x512" selected>512x512 (1:1)</option>
             <option value="1024x1024">1024x1024 (1:1)</option>
             <option value="1024x576">1024x576 (16:9)</option>
             <option value="576x1024">576x1024 (9:16)</option>
-          </select>
-          <label>CFG Scale</label>
-          <input type="range" class="wf-temp-cfg" min="1" max="20" value="7" style="width:100%;">
-          <div style="text-align:right;font-size:11px;" class="wf-temp-val">7</div>
-          <label>Upscale</label>
-          <select class="form-select form-select-sm wf-up-scale" style="width:100%;">
-            <option value="1">None (1x)</option>
-            <option value="2">2x</option>
-            <option value="4">4x</option>
           </select>
         `;
       } else if (type === 'img2img') {
@@ -117,11 +109,20 @@
         }, 50);
       }
 
-      if (type === 'parameters') {
-        const range = el.querySelector('.wf-temp-cfg');
-        const val = el.querySelector('.wf-temp-val');
-        range.addEventListener('input', () => val.textContent = range.value);
+      // Prefill prompt text if specified in node data
+      if (type === 'prompt' && datum.data.prefill) {
+        const ta = el.querySelector('.wf-prompt-input');
+        if (ta) {
+          ta.value = datum.data.prefill;
+          setTimeout(() => {
+            if (window.EditorService) {
+              window.EditorService.setContent(ta.id, datum.data.prefill);
+            }
+          }, 100);
+        }
       }
+
+      // Parameters node no longer has interactive elements beyond the select
 
       if (type === 'img2img') {
         const input = el.querySelector('.wf-i2i-base');
@@ -182,18 +183,23 @@
       return el;
     }
 
-    // Default graph data
+    // Default graph data — 6-node chain
+    const defaultPrompt2 = `編輯模式：尺寸不變，保持當前圖像形體和結構不變。未指定區域的所有圖像必須完全保持原樣，所有修改必須按照用戶的要求進行。不得重繪、修飾、增強、裁切、縮放、變色、銳化、模糊或改動任何像素。\n\n編輯：分析視覺主體，將圖像轉化為銳利，簡潔線稿，輪廓線介於1px~2px, 次要線0.2~0.5px。去除噪點\n\n采色：#ffffff,#000000`;
     const initialData = {
       nodes: [
-        { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 150 } },
-        { id: 'node_2', data: { type: 'prompt' }, style: { x: 380, y: 150 } },
-        { id: 'node_3', data: { type: 'parameters' }, style: { x: 740, y: 150 } },
-        { id: 'node_4', data: { type: 'img2img' }, style: { x: 1080, y: 150 } }
+        { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 200 } },
+        { id: 'node_2', data: { type: 'prompt' }, style: { x: 380, y: 200 } },
+        { id: 'node_3', data: { type: 'parameters' }, style: { x: 700, y: 200 } },
+        { id: 'node_4', data: { type: 'img2img' }, style: { x: 1000, y: 200 } },
+        { id: 'node_5', data: { type: 'prompt', prefill: defaultPrompt2 }, style: { x: 1350, y: 200 } },
+        { id: 'node_6', data: { type: 'img2img' }, style: { x: 1700, y: 200 } }
       ],
       edges: [
         { source: 'node_1', target: 'node_2' },
         { source: 'node_2', target: 'node_3' },
-        { source: 'node_3', target: 'node_4' }
+        { source: 'node_3', target: 'node_4' },
+        { source: 'node_4', target: 'node_5' },
+        { source: 'node_5', target: 'node_6' }
       ]
     };
 
@@ -209,7 +215,7 @@
       switch(type) {
         case 'model': return [224, 90];
         case 'prompt': return [304, 150];
-        case 'parameters': return [264, 220];
+        case 'parameters': return [224, 90];
         case 'img2img': return [284, 340];
         case 'mask': return [224, 160];
         default: return [224, 100];
@@ -485,7 +491,7 @@
         nodeData.forEach(n => {
           nodeStates[n.id] = {
             model: 'nanobanana2',
-            resolution: '1024x1024',
+            resolution: '512x512',
             prompt: '',
             cfg: 7,
             i2i_base: null,
@@ -510,15 +516,18 @@
           if (incomingStates.length > 0) {
             incomingStates.forEach(inc => {
               if (inc.model !== 'nanobanana2') state.model = inc.model;
-              if (inc.resolution !== '1024x1024') state.resolution = inc.resolution;
+              if (inc.resolution !== '512x512') state.resolution = inc.resolution;
               if (inc.prompt) state.prompt += (state.prompt ? ' ' : '') + inc.prompt;
-              if (inc.cfg !== 7) state.cfg = inc.cfg;
-              if (inc.upscale !== 1) state.upscale = inc.upscale;
               if (inc.mask) state.mask = inc.mask;
               // Pass image from upstream generator
               if (inc.resultImage) state.i2i_base = inc.resultImage;
             });
           }
+          
+          // Highlight current executing node
+          const nodeWrapper = el.closest ? el.closest('[data-node-id]') || el.parentElement : el.parentElement;
+          if (nodeWrapper) nodeWrapper.style.outline = '3px solid #4ade80';
+          if (nodeWrapper) nodeWrapper.style.outlineOffset = '2px';
           
           const type = n.data.type;
           
@@ -526,11 +535,12 @@
             state.model = el.querySelector('.wf-model-sel').value;
           } else if (type === 'parameters') {
             state.resolution = el.querySelector('.wf-res-sel').value;
-            state.cfg = parseInt(el.querySelector('.wf-temp-cfg').value);
-            state.upscale = parseInt(el.querySelector('.wf-up-scale').value);
+            // CFG and upscale are hardcoded
+            state.cfg = 7;
+            state.upscale = 1;
           } else if (type === 'prompt') {
             const ta = el.querySelector('.wf-prompt-input');
-            state.prompt += ' ' + (window.EditorService ? window.EditorService.getContent(ta.id) : ta.value);
+            state.prompt = (window.EditorService ? window.EditorService.getContent(ta.id) : ta.value);
           } else if (type === 'mask') {
             state.mask = el.dataset.maskData || null;
           } else if (type === 'img2img') {
@@ -554,8 +564,8 @@
 
             try {
               const [width, height] = state.resolution.split('x').map(Number);
-              const finalW = width * state.upscale;
-              const finalH = height * state.upscale;
+              const finalW = width;
+              const finalH = height;
               
               let apiKey = '';
               if (state.model === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
@@ -582,6 +592,7 @@
               placeholder.style.display = 'none';
               
               state.resultImage = imageUrl; // Ready for downstream nodes
+              state.prompt = '';             // Cut prompt leakage — only resultImage flows downstream
               
               // Save to Assets if successful
               if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) {
@@ -602,6 +613,11 @@
           }
         }
 
+        // Clear all execution highlights
+        document.querySelectorAll('.wf-node').forEach(n => {
+          const w = n.closest ? n.closest('[data-node-id]') || n.parentElement : n.parentElement;
+          if (w) { w.style.outline = ''; w.style.outlineOffset = ''; }
+        });
         runBtn.disabled = false;
         runBtn.textContent = '執行工作流 (Run)';
       });

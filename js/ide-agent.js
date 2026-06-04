@@ -23,6 +23,7 @@ window.IDEAgent = (function() {
   const inputContainer = document.getElementById('agentInputContainer');
 
   // ── State ──
+  const AGENT_ARCHIVED = true; // IDE Agent is under development — all API calls blocked
   let chatHistory = [];        // { role: 'user'|'assistant', content: string, images?: string[] }
   let pendingAttachments = []; // base64 data URLs
   let activeFolder = '根目錄';
@@ -212,6 +213,7 @@ window.IDEAgent = (function() {
   // ════════════════════════════════════════════════════════
 
   async function sendMessage() {
+    if (AGENT_ARCHIVED) return; // IDE Agent is archived — no API calls
     const text = textarea.value.trim();
     if (!text && pendingAttachments.length === 0) return;
     if (isLoading) return;

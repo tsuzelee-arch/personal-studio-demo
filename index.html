@@ -376,11 +376,17 @@
             </div>
           </div>
 
-          <!-- Right Pane: IDE Agent Chat -->
-          <div class="ide-right-agent">
+          <!-- Right Pane: IDE Agent Chat (ARCHIVED) -->
+          <div class="ide-right-agent" style="position:relative;">
+            <!-- Archive Overlay -->
+            <div class="agent-archive-overlay" style="position:absolute; inset:0; z-index:999; background:rgba(0,0,0,0.55); display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:all; backdrop-filter:blur(4px); border-radius:0;">
+              <div style="font-size:48px; margin-bottom:12px;">🚧</div>
+              <div style="font-size:18px; font-weight:700; color:#fff; letter-spacing:1px;">開發中</div>
+              <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:6px;">Under Development</div>
+            </div>
             <div class="agent-header">
               <span class="agent-header-title">✨ IDE Agent</span>
-              <select class="agent-model-select" id="agentModelSelect">
+              <select class="agent-model-select" id="agentModelSelect" disabled>
                 <option value="gpt-5.5">ChatGPT 5.5</option>
                 <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash</option>
                 <option value="gemini-3.1-pro">Gemini 3.1 Pro (High)</option>
@@ -390,34 +396,13 @@
               <div class="agent-welcome">
                 <div class="agent-welcome-icon">✨</div>
                 <div class="agent-welcome-title">歡迎使用 IDE Agent</div>
-                <div class="agent-welcome-sub">選擇模型進行對話，或開啟「🎨 生圖模式」直接生成圖片。可將左側資產庫的圖片拖曳至此作為參考。</div>
+                <div class="agent-welcome-sub">此功能正在開發中，敬請期待。</div>
               </div>
             </div>
             <div class="agent-input-area">
-              <!-- Image Generation Parameters Panel (hidden by default) -->
-              <div class="agent-gen-params hidden" id="agentGenParams">
-                <div class="gen-param-row">
-                  <label class="gen-param-label">尺寸</label>
-                  <select class="gen-param-select" id="agentGenSize">
-                    <option value="1024x1024">1024×1024 (1:1)</option>
-                    <option value="1792x1024">1792×1024 (16:9)</option>
-                    <option value="1024x1792">1024×1792 (9:16)</option>
-                  </select>
-                </div>
-                <div class="gen-param-row">
-                  <label class="gen-param-label">畫質</label>
-                  <select class="gen-param-select" id="agentGenQuality">
-                    <option value="high">High (高解析度)</option>
-                    <option value="standard">Standard (標準)</option>
-                  </select>
-                </div>
-              </div>
-              <div class="agent-attachments" id="agentAttachments"></div>
               <div class="agent-input-container" id="agentInputContainer">
-                <button class="agent-attach-btn" id="agentAttachBtn" title="附加圖片">📎</button>
-                <textarea class="agent-textarea" id="agentTextarea" placeholder="輸入描述來生成圖像，或附加圖片進行分析..." rows="1"></textarea>
-                <button class="agent-imgmode-btn" id="agentImageModeToggle" title="切換生圖模式">🎨</button>
-                <button class="agent-send-btn" id="agentSendBtn" title="發送">⬆️</button>
+                <textarea class="agent-textarea" id="agentTextarea" placeholder="功能開發中..." rows="1" disabled></textarea>
+                <button class="agent-send-btn" id="agentSendBtn" title="發送" disabled>⬆️</button>
               </div>
             </div>
           </div>
