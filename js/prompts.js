@@ -388,21 +388,27 @@
     document.getElementById('modalTitle').textContent = id ? '編輯提示詞' : '新增提示詞';
     populateCategorySelect();
 
+    const langEl = document.getElementById('promptLanguageInput');
+
     if (id) {
       const p = prompts.find(x => x.id === id);
       document.getElementById('promptTitleInput').value = p.title;
       document.getElementById('promptCategoryInput').value = p.category;
       document.getElementById('promptContentInput').value = p.content;
+      if (langEl) langEl.value = p.language || '';
       modalThumbnail = p.thumbnail || null;
     } else if (prefill) {
       document.getElementById('promptTitleInput').value = prefill.title || '';
       document.getElementById('promptCategoryInput').value = prefill.category || getCategoryOptions()[0];
       document.getElementById('promptContentInput').value = prefill.content || '';
+      if (langEl) langEl.value = prefill.language || '';
       modalThumbnail = prefill.thumbnail || null;
     } else {
       document.getElementById('promptTitleInput').value = '';
-      document.getElementById('promptCategoryInput').value = getCategoryOptions()[0];
+      const defaultCat = (activeCategory && activeCategory !== '全部') ? activeCategory : getCategoryOptions()[0];
+      document.getElementById('promptCategoryInput').value = defaultCat;
       document.getElementById('promptContentInput').value = '';
+      if (langEl) langEl.value = '';
       modalThumbnail = null;
     }
     renderModalThumbnail();
@@ -469,6 +475,8 @@
     const title = document.getElementById('promptTitleInput').value.trim();
     const category = document.getElementById('promptCategoryInput').value;
     const content = document.getElementById('promptContentInput').value.trim();
+    const langEl = document.getElementById('promptLanguageInput');
+    const language = langEl ? langEl.value : '';
     if (!title || !content) { showToast('請填寫標題與內容'); return; }
 
     let thumbToSave = modalThumbnail;
@@ -479,9 +487,9 @@
 
     if (editingId) {
       const p = prompts.find(x => x.id === editingId);
-      if (p) { p.title = title; p.category = category; p.content = content; p.thumbnail = thumbToSave || null; }
+      if (p) { p.title = title; p.category = category; p.content = content; p.language = language; p.thumbnail = thumbToSave || null; }
     } else {
-      prompts.unshift({ id: nextId(), title, category, content, thumbnail: thumbToSave || null });
+      prompts.unshift({ id: nextId(), title, category, content, language, thumbnail: thumbToSave || null });
     }
     save();
     closeModal();
@@ -499,10 +507,32 @@
     showToast('已刪除');
   }
 
+  // Insert text into forge textarea preserving undo history
+  function forgeInsertText(textarea, newText) {
+    const current = textarea.value.trim();
+    const insertValue = current ? current + '\n\n' + newText : newText;
+    textarea.focus();
+    // Use execCommand so the browser records this change in its undo stack
+    document.execCommand('selectAll');
+    document.execCommand('insertText', false, insertValue);
+    // Fallback for browsers where execCommand is unsupported
+    if (textarea.value !== insertValue) {
+      textarea.value = insertValue;
+    }
+    if (window.EditorService) window.EditorService.setContent('forgeTextarea', insertValue);
+  }
+
   // ── Forge Logic ──
   function initForge() {
     const dropZone = document.getElementById('forgeDropZone');
     const textarea = document.getElementById('forgeTextarea');
+
+    // Sync language selector to user's saved output language preference
+    const langSel = document.getElementById('forgeLangSel');
+    if (langSel && window.StudioSettings) {
+      const savedLang = window.StudioSettings.getOutputLanguage();
+      if (savedLang) langSel.value = savedLang;
+    }
     const clearBtn = document.getElementById('forgeClearBtn');
     const copyBtn = document.getElementById('forgeCopyBtn');
     const toNaturalBtn = document.getElementById('forgeToNaturalBtn');
@@ -527,20 +557,14 @@
       if (promptId) {
         const p = prompts.find(x => x.id === +promptId);
         if (p) {
-          const current = textarea.value.trim();
           const droppedText = `${p.category}: "${p.content}"`;
-          const newVal = current ? current + '\n\n' + droppedText : droppedText;
-          textarea.value = newVal;
-          if (window.EditorService) window.EditorService.setContent('forgeTextarea', newVal);
+          forgeInsertText(textarea, droppedText);
           showToast(`已加入「${p.title}」到熔爐`);
         }
       } else {
         const text = e.dataTransfer.getData('text/plain');
         if (text) {
-          const current = textarea.value.trim();
-          const newVal = current ? current + '\n\n' + text : text;
-          textarea.value = newVal;
-          if (window.EditorService) window.EditorService.setContent('forgeTextarea', newVal);
+          forgeInsertText(textarea, text);
         }
       }
     });
@@ -561,10 +585,6 @@
     // Initialize rich editor for forge
     if (window.EditorService) {
       window.EditorService.setupRichPromptEditor('forgeTextarea');
-      
-      // Update forgeTextarea assignment to use setContent
-      const originalDrop = dropZone.addEventListener;
-      // We will handle setContent inside the drop handler directly since we need to update rich text
     }
 
     // Convert to Natural Language
@@ -585,15 +605,23 @@
   async function forgeConvert(text, mode, btn) {
     const textarea = document.getElementById('forgeTextarea');
 
-    // Determine which AI to use
+    // Read model and language from the forge selectors
+    const modelSel = document.getElementById('forgeModelSel');
+    const langSel = document.getElementById('forgeLangSel');
+    const selectedModel = modelSel ? modelSel.value : 'gemini';
+    const targetLang = langSel ? langSel.value : '繁體中文';
+
     const geminiKey = localStorage.getItem('ps_gemini_key');
+    const geminiliteKey = localStorage.getItem('ps_geminilite_key');
     const openaiKey = localStorage.getItem('ps_openai_key');
-    const activeModel = localStorage.getItem('ps_active_model') || 'gemini';
 
     let apiKey, modelName;
-    if (activeModel.startsWith('openai') && openaiKey) {
+    if (selectedModel.startsWith('openai') && openaiKey) {
       apiKey = openaiKey;
-      modelName = activeModel;
+      modelName = selectedModel;
+    } else if (selectedModel === 'geminilite' && geminiliteKey) {
+      apiKey = geminiliteKey;
+      modelName = 'geminilite';
     } else if (geminiKey) {
       apiKey = geminiKey;
       modelName = 'gemini';
@@ -609,9 +637,8 @@
     try {
       let result;
       if (mode === 'natural') {
-        result = await window.AIService.rewriteToNaturalLanguage(text, apiKey, modelName);
+        result = await window.AIService.rewriteToNaturalLanguage(text, apiKey, modelName, targetLang);
       } else {
-        // SD Tags conversion
         result = await convertToSdTags(text, apiKey, modelName);
       }
       textarea.value = result;
@@ -690,6 +717,10 @@ ${text}`;
   // ── Public API for external modules (e.g., decode.js) ──
   window.PromptsService = {
     openAddModal: function(prefill) {
+      // Auto-inject current decode output language if not explicitly provided
+      if (prefill && !prefill.language && window.StudioSettings) {
+        prefill.language = window.StudioSettings.getOutputLanguage();
+      }
       if (window.switchPanel) window.switchPanel('prompts');
       setTimeout(() => openModal(null, prefill), 100);
     },

@@ -329,12 +329,28 @@
             <div class="prompt-forge" id="promptForge">
               <div class="forge-header">
                 <span class="forge-icon">🔥</span>
-                <span class="forge-title">提示詞熔爐 — 拖曳合成</span>
+                <span class="forge-title">提示詞熔爐</span>
               </div>
               <div class="forge-drop-zone" id="forgeDropZone">
-                <textarea class="forge-textarea" id="forgeTextarea" placeholder="將提示詞卡片拖放到這裡..."></textarea>
+                <textarea class="forge-textarea" id="forgeTextarea" placeholder="可將提示詞模塊拖拽于此處合成。"></textarea>
               </div>
               <div class="forge-actions">
+                <div class="forge-actions-options">
+                  <select class="form-select form-select-sm" id="forgeModelSel" title="轉換使用的 AI 模型">
+                    <option value="gemini">Gemini 3.5 Flash</option>
+                    <option value="geminilite">Gemini 3.5 Lite</option>
+                    <option value="openai">GPT-5.5 (旗艦)</option>
+                    <option value="openai-54">GPT-5.4 (均衡)</option>
+                    <option value="openai-54mini">GPT-5.4 Mini</option>
+                    <option value="openai-4o">GPT-4o (穩定)</option>
+                  </select>
+                  <select class="form-select form-select-sm" id="forgeLangSel" title="輸出語言">
+                    <option value="繁體中文">繁體中文</option>
+                    <option value="English">English</option>
+                    <option value="简体中文">简体中文</option>
+                    <option value="日本語">日本語</option>
+                  </select>
+                </div>
                 <div class="forge-actions-top">
                   <button class="btn-primary btn-sm" id="forgeToNaturalBtn">✨ 轉自然語言</button>
                   <button class="btn-primary btn-sm" id="forgeToSdTagsBtn">🏷️ 轉 SD Tags</button>
@@ -557,6 +573,14 @@
       <label class="form-label">分類</label>
       <select class="form-input" id="promptCategoryInput">
         <!-- Categories are dynamically populated by prompts.js -->
+      </select>
+      <label class="form-label">語言 (Language)</label>
+      <select class="form-input" id="promptLanguageInput">
+        <option value="">不指定</option>
+        <option value="繁體中文">繁體中文</option>
+        <option value="English">English</option>
+        <option value="简体中文">简体中文</option>
+        <option value="日本語">日本語</option>
       </select>
       <label class="form-label">提示詞內容</label>
       <textarea class="form-textarea" id="promptContentInput" placeholder="輸入提示詞..."></textarea>
