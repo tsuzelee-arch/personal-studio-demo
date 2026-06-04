@@ -23,34 +23,6 @@
     let nodeIdCounter = 0;
     const nodeDOMCache = {}; // Cache to preserve DOM state on re-render
 
-    // Helper to resize base64 image using canvas
-    function resizeImage(dataUrl, targetWidth, targetHeight) {
-      return new Promise((resolve) => {
-        if (!dataUrl) {
-          resolve(dataUrl);
-          return;
-        }
-        const img = new Image();
-        img.onload = () => {
-          if (img.width === targetWidth && img.height === targetHeight) {
-            resolve(dataUrl);
-            return;
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = targetWidth;
-          canvas.height = targetHeight;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-          resolve(canvas.toDataURL('image/png'));
-        };
-        img.onerror = (err) => {
-          console.error('Failed to load image for resizing:', err);
-          resolve(dataUrl);
-        };
-        img.src = dataUrl;
-      });
-    }
-
     // Helper to resolve a single asset tag to its base64 data
     async function resolveAssetTag(str) {
       if (!str) return str;
@@ -772,9 +744,6 @@
               } else {
                 imageUrl = await window.AIService.generateWithNanoBanana(finalPrompt, apiKey, finalW, finalH);
               }
-              
-              // Downscale to requested resolution if needed
-              imageUrl = await resizeImage(imageUrl, finalW, finalH);
               
               imgEl.src = imageUrl;
               imgEl.style.display = 'block';
