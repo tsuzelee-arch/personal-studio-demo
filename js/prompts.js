@@ -693,7 +693,7 @@
       apiKey = geminiKey;
       modelName = 'gemini';
     } else {
-      showToast('請先在設定中配置 API 金鑰');
+      showToast('請先在 API 設定中配置 API 金鑰');
       return;
     }
 

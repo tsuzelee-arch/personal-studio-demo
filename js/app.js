@@ -8,9 +8,9 @@ window.StudioState = {
 const panels = {
   decode: '圖像解構',
   prompts: '提示詞庫與熔爐',
-  workflow: '自定工作流與IDE Agent(開發中)',
+  workflow: '自定工作流',
   assets: '資產庫',
-  settings: '設定'
+  settings: 'API 設定'
 };
 
 document.querySelectorAll('.nav-item').forEach(item => {

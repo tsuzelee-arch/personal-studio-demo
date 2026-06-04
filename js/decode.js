@@ -167,7 +167,7 @@
         'geminilite':    'Gemini 2.5 Lite',
         'groq':          'Groq'
       };
-      showToast(`❌ 請先前往設定面板輸入 ${modelNames[model] || model} 的 API Key`, 4000);
+      showToast(`❌ 請先前往 API 設定面板輸入 ${modelNames[model] || model} 的 API Key`, 4000);
       return;
     }
 

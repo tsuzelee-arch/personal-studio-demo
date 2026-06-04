@@ -276,7 +276,7 @@ window.IDEAgent = (function() {
 
   async function directImageGeneration(prompt, refImages) {
     const apiKey = window.StudioSettings.getGptimageKey() || window.StudioSettings.getOpenAIKey();
-    if (!apiKey) throw new Error('請先在設定中配置 OpenAI / GPT Image API Key');
+    if (!apiKey) throw new Error('請先在 API 設定中配置 OpenAI / GPT Image API Key');
 
     const size = genSizeEl ? genSizeEl.value : '1024x1024';
     const quality = genQualityEl ? genQualityEl.value : 'high';
@@ -386,7 +386,7 @@ window.IDEAgent = (function() {
   // ── OpenAI (ChatGPT 5.5 with Tool Calling) ──
   async function callOpenAI(text, images) {
     const apiKey = window.StudioSettings.getOpenAIKey();
-    if (!apiKey) throw new Error('請先在設定中配置 OpenAI API Key');
+    if (!apiKey) throw new Error('請先在 API 設定中配置 OpenAI API Key');
 
     const messages = buildOpenAIMessages(text, images);
 
@@ -481,7 +481,7 @@ window.IDEAgent = (function() {
   // ── Google Gemini (3.5 Flash / 3.1 Pro with Tool Calling) ──
   async function callGemini(text, images, modelType) {
     const apiKey = window.StudioSettings.getGeminiKey();
-    if (!apiKey) throw new Error('請先在設定中配置 Gemini API Key');
+    if (!apiKey) throw new Error('請先在 API 設定中配置 Gemini API Key');
 
     const modelName = modelType === 'gemini-3.1-pro' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
 
