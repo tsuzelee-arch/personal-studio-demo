@@ -160,7 +160,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
 
   // ── Gemini 2.5 Lite API ──
   async function analyzeWithGeminilite(imageBase64, apiKey, mimeType, outputLanguage = '繁體中文') {
-    return analyzeWithGemini(imageBase64, apiKey, mimeType, 'gemini-2.5-flash-lite', outputLanguage);
+    return analyzeWithGemini(imageBase64, apiKey, mimeType, 'gemini-3.5-flash-lite', outputLanguage);
   }
 
   // ── Natural Language Rewriter ──
@@ -197,7 +197,7 @@ ${structuredPrompt}`;
       return data.choices[0].message.content.trim();
     } else {
       // Use Gemini for gemini and geminilite
-      const modelName = model === 'geminilite' ? 'gemini-2.5-flash-lite' : 'gemini-3.5-flash';
+      const modelName = model === 'geminilite' ? 'gemini-3.5-flash-lite' : 'gemini-3.5-flash';
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
       const payload = {
         contents: [{ role: "user", parts: [{ text: rewritePrompt }] }],

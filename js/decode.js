@@ -1,7 +1,7 @@
 (function() {
-  const dropZone       = document.getElementById('dropZone');
+  const cardPreview    = document.getElementById('cardPreview');
+  const previewPlaceholder = document.getElementById('previewPlaceholder');
   const imageInput     = document.getElementById('imageInput');
-  const uploadBtn      = document.getElementById('uploadBtn');
   const decodeLoading  = document.getElementById('decodeLoading');
   const loadingBarFill = document.getElementById('loadingBarFill');
   const decodeResult   = document.getElementById('decodeResult');
@@ -77,24 +77,26 @@
   }
 
   // ── Upload / Drag-drop handlers ──
-  uploadBtn.addEventListener('click', () => imageInput.click());
+  cardPreview.addEventListener('click', (e) => {
+    // If clicking on the image, don't trigger upload if we want lightbox
+    if (e.target === previewImg && previewImg.src) return;
+    imageInput.click();
+  });
   imageInput.addEventListener('change', e => { if (e.target.files[0]) loadImage(e.target.files[0]); });
 
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-  dropZone.addEventListener('drop', e => {
+  cardPreview.addEventListener('dragover', e => { e.preventDefault(); cardPreview.style.border = '2px dashed #007aff'; });
+  cardPreview.addEventListener('dragleave', () => cardPreview.style.border = '');
+  cardPreview.addEventListener('drop', e => {
     e.preventDefault();
-    dropZone.classList.remove('dragover');
+    cardPreview.style.border = '';
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) loadImage(file);
   });
-  dropZone.addEventListener('click', e => { if (e.target !== uploadBtn) imageInput.click(); });
 
   // Paste image directly (Ctrl+V) when decode panel is active
   document.addEventListener('paste', (e) => {
     const panelActive = document.getElementById('panel-decode')?.classList.contains('active');
-    const dropVisible = !dropZone.classList.contains('hidden');
-    if (!panelActive || !dropVisible) return;
+    if (!panelActive) return;
     const item = Array.from(e.clipboardData?.items || []).find(i => i.type.startsWith('image/'));
     if (!item) return;
     e.preventDefault();
@@ -105,9 +107,10 @@
   resetDecodeBtn.addEventListener('click', resetDecode);
 
   function resetDecode() {
-    decodeResult.classList.add('hidden');
     decodeLoading.classList.add('hidden');
-    dropZone.classList.remove('hidden');
+    previewImg.style.display = 'none';
+    previewImg.src = '';
+    previewPlaceholder.style.display = 'flex';
     imageInput.value = '';
     currentAnalysis = null;
     currentFile = null;
@@ -134,16 +137,17 @@
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
+      previewPlaceholder.style.display = 'none';
+      previewImg.style.display = 'block';
       previewImg.src = url;
       // Add lightbox on click
       previewImg.onclick = () => {
         if (window.AssetsService) {
-          window.AssetsService.openLightBox(url, '解碼影像', true);
+          window.AssetsService.openLightBox(url, '解構影像', true);
         }
       };
       previewImg.style.cursor = 'pointer';
       currentImageThumb = makeThumbnail(img);
-      dropZone.classList.add('hidden');
       decodeLoading.classList.remove('hidden');
       startAnalysis(file);
     };
@@ -156,7 +160,9 @@
 
     if (!hasKey) {
       decodeLoading.classList.add('hidden');
-      dropZone.classList.remove('hidden');
+      previewImg.style.display = 'none';
+      previewImg.src = '';
+      previewPlaceholder.style.display = 'flex';
       const modelNames = {
         'openai':        'GPT-5.5',
         'openai-54':     'GPT-5.4',

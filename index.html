@@ -16,7 +16,7 @@
     </div>
     <div class="nav-group">
       <div class="nav-cat">工作室</div>
-      <div class="nav-item active" data-panel="decode">提示詞解構</div>
+      <div class="nav-item active" data-panel="decode">圖像解構</div>
       <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
       <div class="nav-item" data-panel="workflow">自定工作流與IDE Agent(開發中)</div>
       <div class="nav-item" data-panel="assets">資產庫</div>
@@ -30,27 +30,36 @@
 
   <main class="main">
     <header class="topbar">
-      <div class="page-title" id="pageTitle">圖像解碼</div>
+      <div class="page-title" id="pageTitle">圖像解構</div>
       <div class="topbar-actions" id="topbarActions"></div>
     </header>
     <div class="content">
 
-      <!-- Panel: 圖像解碼 -->
+      <!-- Panel: 圖像解構 -->
       <section class="panel active" id="panel-decode">
         <div class="decode-layout">
+          <input type="file" id="imageInput" accept="image/*" hidden>
           <!-- Model Selector -->
           <div class="model-selector-bar" style="display: flex; align-items: center;">
             <div class="control-group" style="display: flex; align-items: center;">
               <label>分析模型：</label>
               <select id="modelSelect" class="form-select form-select-sm">
                 <option value="gemini">Gemini 3.5 Flash</option>
-                <option value="geminilite">Gemini 2.5 Lite</option>
+                <option value="geminilite">Gemini 3.5 Lite</option>
                 <option value="openai">GPT-5.5 (最新旗艦)</option>
                 <option value="openai-54">GPT-5.4 (均衡專業)</option>
                 <option value="openai-54mini">GPT-5.4 Mini (快速)</option>
                 <option value="openai-4o">GPT-4o (穩定)</option>
               </select>
               <span class="model-status" id="modelStatus"></span>
+            </div>
+            <div class="control-group" style="margin-left:15px; display: flex; align-items: center;">
+              <label>解構方式：</label>
+              <select id="decodeMethodSelect" class="form-select form-select-sm">
+                <option value="general">通用結構 (通用)</option>
+                <option value="character" disabled>角色結構 (開發中)</option>
+                <option value="scene" disabled>場景結構 (開發中)</option>
+              </select>
             </div>
             <div class="control-group" style="margin-left:15px; display: flex; align-items: center;">
               <label>輸出語言：</label>
@@ -63,13 +72,6 @@
             </div>
           </div>
 
-          <div class="decode-upload-area" id="dropZone">
-            <input type="file" id="imageInput" accept="image/*" hidden>
-            <div class="drop-icon">&#9707;</div>
-            <div class="drop-text">拖曳圖像至此，或</div>
-            <button class="btn-primary" id="uploadBtn">選擇圖像</button>
-            <div class="drop-hint">支援 JPG、PNG、WEBP</div>
-          </div>
 
           <!-- Loading State -->
           <div class="decode-loading hidden" id="decodeLoading">
@@ -79,7 +81,7 @@
           </div>
 
           <!-- Full Dashboard Result -->
-          <div class="decode-result hidden" id="decodeResult">
+          <div class="decode-result" id="decodeResult">
             <!-- Dashboard Top Bar -->
             <div class="decode-dashboard-bar">
               <div class="dashboard-title">
@@ -97,9 +99,14 @@
             <div class="decode-dashboard">
               <!-- Left Column: Preview + Palette -->
               <div class="dashboard-left">
-                <div class="dash-card dash-card-preview" id="cardPreview">
-                  <div class="decode-preview-wrap">
-                    <img id="previewImg" src="" alt="preview">
+                <div class="dash-card dash-card-preview" id="cardPreview" style="position: relative; cursor: pointer; min-height: 250px;">
+                  <div class="decode-preview-wrap" id="previewWrap" style="height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                    <div id="previewPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #888; text-align: center; padding: 20px;">
+                      <div style="font-size: 32px; margin-bottom: 10px;">&#9707;</div>
+                      <div style="font-size: 14px; margin-bottom: 8px;">點擊或拖曳上傳圖像</div>
+                      <div style="font-size: 12px; color: #555;">支援 JPG、PNG、WEBP</div>
+                    </div>
+                    <img id="previewImg" src="" alt="preview" style="display: none; max-width: 100%; max-height: 100%; border-radius: 8px;">
                   </div>
                 </div>
 
