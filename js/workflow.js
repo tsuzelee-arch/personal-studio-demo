@@ -350,9 +350,10 @@
       }
     });
 
-    // Delete edge on double click
-    graph.on('edge:dblclick', (e) => {
-      const edgeId = e.target.id;
+    // Delete edge on single click
+    graph.on('edge:click', (e) => {
+      const edgeId = e.target.id || (e.itemId) || (e.item && e.item.id) || e.id;
+      // In G6 v5, edge ID can be on e.itemId or e.target.id
       if (edgeId) {
         graph.removeEdgeData([edgeId]);
         graph.draw();
