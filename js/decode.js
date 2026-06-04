@@ -257,11 +257,15 @@
     });
   }
 
-  // Auto-resize a textarea to fit its content
+  // Auto-resize a textarea to fit its content, and sync to rich editor if available
   function autoResize(el) {
     if (el && el.tagName === 'TEXTAREA') {
-      el.style.height = 'auto';
-      el.style.height = el.scrollHeight + 'px';
+      if (window.EditorService) {
+        window.EditorService.setContent(el, el.value);
+      } else {
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+      }
     }
   }
 
