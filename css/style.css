@@ -1783,11 +1783,29 @@ body {
   background-size: 20px 20px;
   user-select: none;
   -webkit-user-select: none;
+  
+  /* Support sharp 3D transforms */
+  transform-style: preserve-3d;
+  perspective: 1000px;
 }
 /* G6 Node internal container reset (since we use inline styles in JS, we just ensure no conflicts) */
 .wf-node {
   box-sizing: border-box;
   pointer-events: auto !important;
+  
+  /* Prevent blurry rendering when scaled/zoomed */
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* G6 HTML Node wrapper performance optimizations */
+.g6-html-node-container, .g6-html-node, .g6-html-node-container * {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform;
 }
 .wf-node * {
   box-sizing: border-box;
