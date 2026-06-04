@@ -98,9 +98,9 @@
       }
 
       el.innerHTML = `
-        <div class="wf-dom-port" style="position:absolute; left:-14px; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
-        <div class="wf-dom-port" style="position:absolute; right:-14px; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
-        <div class="wf-node-header" style="background:#333; color:#fff; padding:6px 10px; font-size:12px; font-weight:600; border-top-left-radius:6px; border-top-right-radius:6px; cursor:move;">
+        <div class="wf-dom-port" onpointerdown="window.__wfDragState='port'" onmousedown="window.__wfDragState='port'" style="position:absolute; left:-14px; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
+        <div class="wf-dom-port" onpointerdown="window.__wfDragState='port'" onmousedown="window.__wfDragState='port'" style="position:absolute; right:-14px; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
+        <div class="wf-node-header" onpointerdown="window.__wfDragState='header'" onmousedown="window.__wfDragState='header'" style="background:#333; color:#fff; padding:6px 10px; font-size:12px; font-weight:600; border-top-left-radius:6px; border-top-right-radius:6px; cursor:move;">
           ${headerText}
           <span class="wf-node-del" style="float:right; cursor:pointer; color:#ccc;" title="刪除節點">&times;</span>
         </div>
@@ -218,7 +218,6 @@
       node: {
         type: 'html',
         style: {
-          pointerEvents: 'none',
           innerHTML: (datum) => createNodeDOM(datum),
           size: (datum) => getNodeSize(datum.data.type)
         }
@@ -241,20 +240,12 @@
         'zoom-canvas',
         {
           type: 'drag-element',
-          enable: (e) => {
-            const tgt = (e.originalEvent && e.originalEvent.target) || (e.nativeEvent && e.nativeEvent.target) || e.target;
-            if (tgt && tgt.classList && tgt.classList.contains('wf-node-header')) return true;
-            return false;
-          }
+          enable: () => window.__wfDragState === 'header'
         },
         {
           type: 'create-edge',
           trigger: 'drag',
-          enable: (e) => {
-            const tgt = (e.originalEvent && e.originalEvent.target) || (e.nativeEvent && e.nativeEvent.target) || e.target;
-            if (tgt && tgt.classList && tgt.classList.contains('wf-dom-port')) return true;
-            return false;
-          },
+          enable: () => window.__wfDragState === 'port',
           style: { stroke: '#1783FF', lineWidth: 2, lineDash: [4, 2], endArrow: true },
           onCreate: (edge) => {
             if (edge.source === edge.target) return undefined; // No self loops
@@ -270,6 +261,13 @@
     });
 
     graph.render();
+
+    window.addEventListener('pointerup', () => {
+      setTimeout(() => { window.__wfDragState = null; }, 100);
+    });
+    window.addEventListener('mouseup', () => {
+      setTimeout(() => { window.__wfDragState = null; }, 100);
+    });
 
     // Toolbar logic
     if (toolbar) {
