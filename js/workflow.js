@@ -31,10 +31,9 @@
       
       const el = document.createElement('div');
       el.className = 'wf-node';
-      el.style.width = 'calc(100% - 24px)';
+      el.style.width = '100%';
       el.style.height = '100%';
       el.style.position = 'relative';
-      el.style.left = '12px';
       el.dataset.type = type;
 
       let headerText = '';
@@ -98,8 +97,8 @@
       }
 
       el.innerHTML = `
-        <div class="wf-dom-port" onpointerdown="window.__wfDragState='port'" onmousedown="window.__wfDragState='port'" style="position:absolute; left:-14px; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
-        <div class="wf-dom-port" onpointerdown="window.__wfDragState='port'" onmousedown="window.__wfDragState='port'" style="position:absolute; right:-14px; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
+        <div class="wf-dom-port" onpointerdown="window.__wfDragState='port'" onmousedown="window.__wfDragState='port'" style="position:absolute; left:0; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translate(-50%, -50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
+        <div class="wf-dom-port" onpointerdown="window.__wfDragState='port'" onmousedown="window.__wfDragState='port'" style="position:absolute; right:0; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translate(50%, -50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
         <div class="wf-node-header" onpointerdown="window.__wfDragState='header'" onmousedown="window.__wfDragState='header'" style="background:#333; color:#fff; padding:6px 10px; font-size:12px; font-weight:600; border-top-left-radius:6px; border-top-right-radius:6px; cursor:move;">
           ${headerText}
           <span class="wf-node-del" style="float:right; cursor:pointer; color:#ccc;" title="刪除節點">&times;</span>
@@ -198,7 +197,13 @@
       ]
     };
 
-    // Remove G6 getPorts as we use DOM ports
+    // Provide invisible G6 ports so edges route perfectly to the bounding box edges
+    function getPorts(type) {
+      return [
+        { key: 'in', placement: 'left' },
+        { key: 'out', placement: 'right' }
+      ];
+    }
 
     function getNodeSize(type) {
       switch(type) {
@@ -219,7 +224,11 @@
         type: 'html',
         style: {
           innerHTML: (datum) => createNodeDOM(datum),
-          size: (datum) => getNodeSize(datum.data.type)
+          size: (datum) => getNodeSize(datum.data.type),
+          ports: (datum) => getPorts(datum.data.type),
+          portR: 0.1,
+          portStrokeOpacity: 0,
+          portFillOpacity: 0
         }
       },
       edge: {
@@ -227,6 +236,7 @@
         style: {
           stroke: '#999',
           lineWidth: 2,
+          lineAppendWidth: 15,
           endArrow: true,
           cursor: 'pointer'
         },
@@ -267,6 +277,31 @@
     });
     window.addEventListener('mouseup', () => {
       setTimeout(() => { window.__wfDragState = null; }, 100);
+    });
+    window.addEventListener('dragend', () => {
+      setTimeout(() => { window.__wfDragState = null; }, 100);
+    });
+
+    // Handle edge deletion via Keyboard
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Do not delete edges if user is typing in an input
+        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+        
+        const edges = graph.getEdgeData();
+        let deleted = false;
+        edges.forEach(edge => {
+          const state = graph.getElementState(edge.id);
+          if (state && state.includes('selected')) {
+            graph.removeEdgeData([edge.id]);
+            deleted = true;
+          }
+        });
+        if (deleted) {
+          graph.draw();
+          e.preventDefault();
+        }
+      }
     });
 
     // Toolbar logic

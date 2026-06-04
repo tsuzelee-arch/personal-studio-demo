@@ -1740,6 +1740,8 @@ body {
   overflow: hidden;
   background-image: radial-gradient(#d4cfc6 1px, transparent 1px);
   background-size: 20px 20px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 /* G6 Node internal container reset (since we use inline styles in JS, we just ensure no conflicts) */
 .wf-node {
@@ -1748,6 +1750,10 @@ body {
 }
 .wf-node * {
   box-sizing: border-box;
+}
+.wf-node input, .wf-node textarea, .wf-node select {
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
 #nodePrompt  { animation-delay: 0.05s; }
