@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Studio</title>
-<link rel="stylesheet" href="css/style.css?v=58">
+<link rel="stylesheet" href="css/style.css?v=59">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 <body>
@@ -127,6 +127,21 @@
                     <textarea class="editable-field" id="moodText" rows="3"></textarea>
                   </div>
                 </div>
+
+                <!-- Prompt Output Card (Moved here) -->
+                <div class="dash-card dash-card-prompt" id="cardPrompt">
+                  <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <span class="dash-card-icon">✨</span>
+                      <span class="dash-card-title">視覺解構提示詞 (Prompt)</span>
+                    </div>
+                    <button class="btn-primary btn-sm" id="toNaturalBtn" style="font-size: 12px; padding: 4px 10px;">轉換為自然語言</button>
+                  </div>
+                  <div class="dash-card-body">
+                    <textarea class="prompt-output" id="promptOutput" style="width: 100%; min-height: 150px; resize: vertical; border: none; outline: none; background: transparent; color: inherit; font-family: inherit; font-size: inherit;"></textarea>
+                  </div>
+                </div>
+
               </div>
 
               <!-- Right Column: Analysis Cards -->
@@ -278,20 +293,6 @@
                   </div>
                   <div class="dash-card-body">
                     <ul class="negative-list" id="negativeList"></ul>
-                  </div>
-                </div>
-
-                <!-- Prompt Output Card -->
-                <div class="dash-card dash-card-prompt" id="cardPrompt">
-                  <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                      <span class="dash-card-icon">✨</span>
-                      <span class="dash-card-title">視覺解構提示詞 (Prompt)</span>
-                    </div>
-                    <button class="btn-primary btn-sm" id="toNaturalBtn" style="font-size: 12px; padding: 4px 10px;">轉換為自然語言</button>
-                  </div>
-                  <div class="dash-card-body">
-                    <textarea class="prompt-output" id="promptOutput" style="width: 100%; min-height: 150px; resize: vertical; border: none; outline: none; background: transparent; color: inherit; font-family: inherit; font-size: inherit;"></textarea>
                   </div>
                 </div>
 
@@ -613,14 +614,14 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://unpkg.com/@antv/g6@5/dist/g6.min.js"></script>
-<script src="js/app.js?v=58"></script>
-<script src="js/assets.js?v=58"></script>
-<script src="js/editor.js?v=58"></script>
-<script src="js/ai-service.js?v=58"></script>
-<script src="js/settings.js?v=58"></script>
-<script src="js/decode.js?v=58"></script>
-<script src="js/prompts.js?v=58"></script>
-<script src="js/workflow.js?v=58"></script>
-<script src="js/ide-agent.js?v=58"></script>
+<script src="js/app.js?v=59"></script>
+<script src="js/assets.js?v=59"></script>
+<script src="js/editor.js?v=59"></script>
+<script src="js/ai-service.js?v=59"></script>
+<script src="js/settings.js?v=59"></script>
+<script src="js/decode.js?v=59"></script>
+<script src="js/prompts.js?v=59"></script>
+<script src="js/workflow.js?v=59"></script>
+<script src="js/ide-agent.js?v=59"></script>
 </body>
 </html>

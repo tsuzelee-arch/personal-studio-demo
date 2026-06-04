@@ -2794,3 +2794,21 @@ input.editable-field:focus { resize: none; }
   font-weight: 600;
   color: var(--ink);
 }
+
+/* ── Optimize Image Decode UI Spacing ── */
+#elementsBody .element-section {
+  margin-bottom: 6px;
+}
+#elementsBody .element-layer-badge {
+  margin-bottom: 3px;
+}
+#elSubject.subject-grid {
+  gap: 6px;
+  margin-top: 3px;
+}
+#elSubject .subject-item {
+  padding: 6px 10px;
+}
+#elSubject .subject-label {
+  margin-bottom: 2px;
+}
