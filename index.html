@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Studio</title>
-<link rel="stylesheet" href="css/style.css?v=57">
+<link rel="stylesheet" href="css/style.css?v=58">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 <body>
@@ -170,7 +170,10 @@
                       <textarea class="editable-field" id="elForeground" rows="2"></textarea>
                     </div>
                     <div class="element-section">
-                      <div class="element-layer-badge subject-badge">主體 (Subject)</div>
+                      <div class="element-layer-badge subject-badge" style="display: flex; align-items: center;">
+                        主體 (Subject)
+                        <button class="btn-primary btn-sm" id="saveSubjectBtn" style="font-size: 11px; padding: 2px 6px; margin-left: auto;">💾 保存角色</button>
+                      </div>
                       <div class="subject-grid" id="elSubject">
                         <div class="subject-item">
                           <div class="subject-label">身分</div>
@@ -350,6 +353,7 @@
                     <option value="简体中文">简体中文</option>
                     <option value="日本語">日本語</option>
                   </select>
+                  <button class="btn-primary btn-sm" id="saveForgeBtn" style="font-size: 12px; padding: 4px 10px; margin-left: 10px;">💾 保存為完整提示詞</button>
                 </div>
                 <div class="forge-actions-top">
                   <button class="btn-primary btn-sm" id="forgeToNaturalBtn">✨ 轉自然語言</button>
@@ -609,14 +613,14 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://unpkg.com/@antv/g6@5/dist/g6.min.js"></script>
-<script src="js/app.js?v=57"></script>
-<script src="js/assets.js?v=57"></script>
-<script src="js/editor.js?v=57"></script>
-<script src="js/ai-service.js?v=57"></script>
-<script src="js/settings.js?v=57"></script>
-<script src="js/decode.js?v=57"></script>
-<script src="js/prompts.js?v=57"></script>
-<script src="js/workflow.js?v=57"></script>
-<script src="js/ide-agent.js?v=57"></script>
+<script src="js/app.js?v=58"></script>
+<script src="js/assets.js?v=58"></script>
+<script src="js/editor.js?v=58"></script>
+<script src="js/ai-service.js?v=58"></script>
+<script src="js/settings.js?v=58"></script>
+<script src="js/decode.js?v=58"></script>
+<script src="js/prompts.js?v=58"></script>
+<script src="js/workflow.js?v=58"></script>
+<script src="js/ide-agent.js?v=58"></script>
 </body>
 </html>

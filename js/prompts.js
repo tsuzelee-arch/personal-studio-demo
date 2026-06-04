@@ -10,8 +10,6 @@
     'character_source':       { label: '角色出處 (Source)',        catClass: 'cat-identity' },
     'clothing_or_surface':    { label: '服裝 (Clothing)',          catClass: 'cat-clothing' },
     'pose_and_action':        { label: '姿勢 (Pose)',             catClass: 'cat-pose' },
-    'foreground_fx':          { label: '前景 (Foreground)',        catClass: 'cat-foreground' },
-    'midground_objects':      { label: '中景 (Midground)',        catClass: 'cat-midground' },
     'background_environment': { label: '背景 (Background)',       catClass: 'cat-background' },
     'main_visual_composition':{ label: '主視覺構圖 (Composition)', catClass: 'cat-custom' },
     'estimated_style':        { label: '風格 (Style)',            catClass: 'cat-style' },
@@ -26,7 +24,7 @@
   };
 
   // Pinned categories always at top (not draggable)
-  const PINNED_CATEGORIES = ['創作主題', '編輯模式'];
+  const PINNED_CATEGORIES = ['創作主題', '編輯模式', '完整提示詞', '角色庫（優化中）'];
 
   function getDefaultCategories() {
     return Object.values(SCHEMA_CATEGORY_MAP)
@@ -120,6 +118,15 @@
           content: '編輯模式：尺寸不變，保持當前圖像形體和結構不變。未指定區域的所有圖像必須完全保持原樣，所有修改必須按照用戶的要求進行。不得重繪、修飾、增強、裁切、縮放、變色、銳化、模糊或改動任何像素。\n\n編輯：分析視覺主體，將圖像轉化為銳利，簡潔線稿，輪廓線介於1px~2px, 次要線0.2~0.5px。去除噪點\n\n采色：#ffffff,#000000',
           thumbnail: null,
           createdAt: Date.now()
+        });
+        prompts.push({
+          id: 2,
+          title: '黑白',
+          category: '色盤',
+          language: '不指定',
+          content: '#ffffff,#000000',
+          thumbnail: { type: 'palette', colors: ['#ffffff', '#000000'] },
+          createdAt: Date.now() + 1
         });
         save();
       }
@@ -500,6 +507,16 @@
       const canvas = cropperInstance.getCroppedCanvas({ width: 320, height: 320 });
       if (canvas) thumbToSave = canvas.toDataURL('image/jpeg', 0.82);
     }
+    
+    // Auto sync palette thumbnails
+    if (category === '色盤') {
+      const hexColors = (content.match(/#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})\b/gi) || []);
+      if (hexColors.length > 0) {
+        thumbToSave = { type: 'palette', colors: hexColors };
+      } else {
+        thumbToSave = null;
+      }
+    }
 
     if (editingId) {
       const p = prompts.find(x => x.id === editingId);
@@ -596,6 +613,18 @@
     if (copyBtn) copyBtn.addEventListener('click', () => {
       if (!textarea.value.trim()) { showToast('熔爐為空'); return; }
       navigator.clipboard.writeText(textarea.value).then(() => showToast('已複製熔爐內容！'));
+    });
+
+    // Save to Vault
+    const saveForgeBtn = document.getElementById('saveForgeBtn');
+    if (saveForgeBtn) saveForgeBtn.addEventListener('click', () => {
+      const text = textarea.value.trim();
+      if (!text) { showToast('熔爐為空，無法保存'); return; }
+      const lang = langSel ? langSel.value : '不指定';
+      const title = '合成提示詞 - ' + new Date().toLocaleString();
+      if (window.PromptsService && window.PromptsService.addPrompt) {
+        window.PromptsService.addPrompt(title, '完整提示詞', lang, text, null);
+      }
     });
 
     // Initialize rich editor for forge
@@ -748,8 +777,23 @@ ${text}`;
     getAllCategories: function() {
       return getAllCategories().filter(c => c !== '全部');
     },
-    getPromptsByCategory: function(category) {
-      return prompts.filter(p => p.category === category);
+    getCategoryForSchemaKey: function(key) {
+      const entry = SCHEMA_CATEGORY_MAP[key];
+      if (entry) return entry.label;
+      return '全部';
+    },
+    loadCategoryOrder,
+    saveCategoryOrder,
+    getPromptsByCategory: (cat) => {
+      if (cat === '全部') return prompts;
+      return prompts.filter(p => p.category === cat);
+    },
+    addPrompt: (title, category, language, content, thumbnail = null) => {
+      prompts.unshift({ id: nextId(), title, category, language, content, thumbnail, createdAt: Date.now() });
+      save();
+      renderSidebar();
+      renderPromptRows();
+      showToast('已保存提示詞：' + title);
     },
     getCategoryForSchemaKey: function(key) {
       const entry = SCHEMA_CATEGORY_MAP[key];

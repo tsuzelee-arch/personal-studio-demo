@@ -708,6 +708,31 @@
     });
   }
 
+  // Save Subject to Character Vault
+  const saveSubjectBtn = document.getElementById('saveSubjectBtn');
+  if (saveSubjectBtn) {
+    saveSubjectBtn.addEventListener('click', () => {
+      const id = elSubjectIdentity ? elSubjectIdentity.value.trim() : '';
+      const src = elSubjectSource ? elSubjectSource.value.trim() : '';
+      const cloth = elSubjectClothing ? elSubjectClothing.value.trim() : '';
+      const pose = elSubjectPose ? elSubjectPose.value.trim() : '';
+      
+      const parts = [id, src, cloth, pose].filter(x => x);
+      if (parts.length === 0) {
+        if (window.showToast) window.showToast('角色資訊為空');
+        return;
+      }
+      
+      const content = parts.join('\n');
+      const title = id || '未命名角色';
+      const lang = window.StudioSettings ? window.StudioSettings.getOutputLanguage() : '不指定';
+      
+      if (window.PromptsService && window.PromptsService.addPrompt) {
+        window.PromptsService.addPrompt(title, '角色庫（優化中）', lang, content, null);
+      }
+    });
+  }
+
   // Initialize Rich Editor
   setTimeout(() => {
     if (window.EditorService) window.EditorService.setupRichPromptEditor('promptOutput');
