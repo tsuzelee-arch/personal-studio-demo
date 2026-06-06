@@ -151,7 +151,7 @@
           </select>
         `;
       } else if (type === 'prompt') {
-        headerText = '提示詞 (Prompt)';
+        headerText = datum.data.title || '提示詞 (Prompt)';
         bodyHTML = `
           <textarea id="${id}_prompt" class="wf-prompt-input" placeholder="輸入提示詞 (支援 / 與 @)..." style="width:100%; height:100%; min-height:80px; resize:none; box-sizing:border-box; outline:none; font-family:inherit; padding:4px; border:1px solid #eee; border-radius:4px;"></textarea>
         `;
