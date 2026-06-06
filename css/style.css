@@ -2657,6 +2657,15 @@ input.editable-field:focus { resize: none; }
   align-items: flex-end;
   z-index: 50;
   gap: 10px;
+  transform: translateX(120%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+.workflow-prompt-quickbar.active {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 .quickbar-cat-btn {
   width: auto;
