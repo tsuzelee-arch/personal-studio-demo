@@ -151,7 +151,7 @@
           </select>
         `;
       } else if (type === 'prompt') {
-        headerText = datum.data.title || '提示詞 (Prompt)';
+        headerText = '提示詞 (Prompt)';
         bodyHTML = `
           <textarea id="${id}_prompt" class="wf-prompt-input" placeholder="輸入提示詞 (支援 / 與 @)..." style="width:100%; height:100%; min-height:80px; resize:none; box-sizing:border-box; outline:none; font-family:inherit; padding:4px; border:1px solid #eee; border-radius:4px;"></textarea>
         `;
@@ -384,17 +384,9 @@
       }
     }
 
-    let activeData = initialData;
-    try {
-      const savedStr = localStorage.getItem('workflow_layout_default');
-      if (savedStr) {
-        activeData = JSON.parse(savedStr);
-      }
-    } catch(e) {}
-
     const graph = new Graph({
       container: container,
-      data: activeData,
+      data: initialData,
       node: {
         type: 'html',
         style: {
@@ -610,19 +602,12 @@
         });
       }
 
-      // Save Layout Toggle
-      const saveBtn = document.getElementById('wfSaveBtn');
-      if (saveBtn) {
-        saveBtn.addEventListener('click', () => {
-          if (!graph) return;
-          const data = graph.save();
-          try {
-            localStorage.setItem('workflow_layout_default', JSON.stringify(data));
-            if (window.showToast) window.showToast('✅ 工作流佈局已保存為預設');
-          } catch(e) {
-            console.error(e);
-            if (window.showToast) window.showToast('❌ 保存佈局失敗');
-          }
+      // Prompt Toggle
+      const promptToggleBtn = document.getElementById('wfPromptToggleBtn');
+      const promptQuickBar = document.getElementById('wfPromptQuickBar');
+      if (promptToggleBtn && promptQuickBar) {
+        promptToggleBtn.addEventListener('click', () => {
+          promptQuickBar.classList.toggle('active');
         });
       }
     }
