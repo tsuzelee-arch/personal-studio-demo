@@ -4,8 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Studio</title>
-<link rel="stylesheet" href="css/style.css?v=63">
+<link rel="stylesheet" href="css/style.css?v=67">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+<script>
+  (function() {
+    const savedTheme = localStorage.getItem('ps_theme') || 'light';
+    if (savedTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
 </head>
 <body>
 <div class="shell">
@@ -24,6 +32,9 @@
       <div class="nav-item" data-panel="settings">⚙ API 設定</div>
     </div>
     <div class="sidebar-footer">
+      <div class="nav-item theme-toggle" id="themeToggleBtn" style="margin-bottom: 8px; justify-content: center;">
+        🌙 切換色彩模式
+      </div>
       <div class="sidebar-footer-text">Personal Studio v1.0</div>
     </div>
   </nav>
@@ -376,11 +387,12 @@
         <div class="workflow-header" style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
           <div class="workflow-desc" style="font-weight: 500;">自定工作流 (Node-based)</div>
           <div class="workflow-toolbar" id="wfToolbar" style="display: flex; gap: 8px;">
-            <button class="btn-ghost btn-sm" id="wfExportBtn">📤 導出</button>
-            <label class="btn-ghost btn-sm" style="cursor: pointer; display: flex; align-items: center; margin: 0;">
+            <button class="btn-ghost btn-sm" id="wfSaveBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💾 儲存</button>
+            <button class="btn-ghost btn-sm" id="wfExportBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">📤 導出</button>
+            <label class="btn-ghost btn-sm" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin: 0;">
               📥 導入<input type="file" id="wfImportInput" accept=".json" style="display: none;">
             </label>
-            <button class="btn-ghost btn-sm" id="wfPromptToggleBtn">💡 Prompt 列表</button>
+            <button class="btn-ghost btn-sm" id="wfPromptToggleBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💡 Prompt 列表</button>
             <div style="width: 1px; background: var(--border); margin: 0 5px;"></div>
             <button class="btn-ghost btn-sm" data-add="model">➕ Model</button>
             <button class="btn-ghost btn-sm" data-add="prompt">➕ Prompt</button>
@@ -624,14 +636,14 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://unpkg.com/@antv/g6@5/dist/g6.min.js"></script>
-<script src="js/app.js?v=62"></script>
+<script src="js/app.js?v=65"></script>
 <script src="js/assets.js?v=62"></script>
 <script src="js/editor.js?v=62"></script>
 <script src="js/ai-service.js?v=62"></script>
-<script src="js/settings.js?v=62"></script>
+<script src="js/settings.js?v=63"></script>
 <script src="js/decode.js?v=62"></script>
 <script src="js/prompts.js?v=62"></script>
-<script src="js/workflow.js?v=64"></script>
+<script src="js/workflow.js?v=84"></script>
 <script src="js/ide-agent.js?v=62"></script>
 </body>
 </html>

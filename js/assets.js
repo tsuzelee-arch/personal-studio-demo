@@ -419,6 +419,7 @@ window.AssetsService = (function() {
     openLightBox,
     getFolders,
     addFolder,
-    saveAssetToLocalDir
+    saveAssetToLocalDir,
+    getActiveFolder: () => activeFolder
   };
 })();

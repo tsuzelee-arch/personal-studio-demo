@@ -20,8 +20,64 @@
     const oldSvg = document.getElementById('workflowSvg');
     if (oldSvg) oldSvg.remove();
 
-    let nodeIdCounter = 0;
-    const nodeDOMCache = {}; // Cache to preserve DOM state on re-render
+    let nodeIdCounter = 3;
+    const nodeDOMCache = {};
+    window.nodeDOMCache = nodeDOMCache;
+
+    function syncDOMToGraph() {
+      if (!graph || graph.destroyed) return;
+      const nodes = graph.getNodeData ? graph.getNodeData() : [];
+      let updated = false;
+      nodes.forEach(n => {
+        const el = nodeDOMCache[n.id];
+        if (!el) return;
+        const type = n.data.type;
+        let changed = false;
+        if (type === 'model') {
+           const val = el.querySelector('.wf-model-sel').value;
+           if(n.data.model !== val) { n.data.model = val; changed = true; }
+        } else if (type === 'parameters') {
+           const val = el.querySelector('.wf-res-sel').value;
+           if(n.data.resolution !== val) { n.data.resolution = val; changed = true; }
+        } else if (type === 'prompt') {
+           const ta = el.querySelector('.wf-prompt-input');
+           const val = window.EditorService ? window.EditorService.getContent(ta.id) : ta.value;
+           if(n.data.prefill !== val) { n.data.prefill = val; changed = true; }
+        } else if (type === 'img2img') {
+           const input = el.querySelector('.wf-i2i-base');
+           if (input) {
+             const val = input.value;
+             if(n.data.initialImage !== val) { n.data.initialImage = val; changed = true; }
+           }
+           const folderSel = el.querySelector('.wf-i2i-folder');
+           if (folderSel) {
+             const val = folderSel.value;
+             if(n.data.saveFolder !== val) { n.data.saveFolder = val; changed = true; }
+           }
+        } else if (type === 'mask') {
+           const val = el.dataset.maskData;
+           if(n.data.maskData !== val) { n.data.maskData = val; changed = true; }
+        }
+        if (changed) updated = true;
+      });
+      if (updated && graph.updateNodeData) {
+         graph.updateNodeData(nodes);
+      }
+    }
+    
+    // Inject Custom Focus Style
+    if (!document.getElementById('wf-custom-focus-style')) {
+      const styleTag = document.createElement('style');
+      styleTag.id = 'wf-custom-focus-style';
+      styleTag.innerHTML = `
+        .wf-node-selected {
+          outline: 3px solid #1783FF !important;
+          box-shadow: 0 0 15px rgba(23, 131, 255, 0.6) !important;
+          border-radius: 10px;
+        }
+      `;
+      document.head.appendChild(styleTag);
+    }
 
     // Helper to resolve a single asset tag to its base64 data
     async function resolveAssetTag(str) {
@@ -143,64 +199,77 @@
       if (type === 'model') {
         headerText = '生成模型 (Model)';
         bodyHTML = `
-          <label>Model</label>
-          <select class="form-select form-select-sm wf-model-sel" style="width:100%;">
-            <option value="nanobanana2">Nano Banana 2</option>
-            <option value="nanobanana">Nano Banana Pro</option>
-            <option value="gptimage">GPT Image 2.0</option>
+          <label style="color:var(--node-text); font-weight:500;">Model</label>
+          <select class="form-select form-select-sm wf-model-sel" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px;">
+            <option value="nanobanana2" ${datum.data.model === 'nanobanana2' || !datum.data.model ? 'selected' : ''}>Nano Banana 2</option>
+            <option value="nanobanana" ${datum.data.model === 'nanobanana' ? 'selected' : ''}>Nano Banana Pro</option>
+            <option value="gptimage" ${datum.data.model === 'gptimage' ? 'selected' : ''}>GPT Image 2.0</option>
           </select>
         `;
       } else if (type === 'prompt') {
         headerText = '提示詞 (Prompt)';
         bodyHTML = `
-          <textarea id="${id}_prompt" class="wf-prompt-input" placeholder="輸入提示詞 (支援 / 與 @)..." style="width:100%; height:100%; min-height:80px; resize:none; box-sizing:border-box; outline:none; font-family:inherit; padding:4px; border:1px solid #eee; border-radius:4px;"></textarea>
+          <textarea id="${id}_prompt" class="wf-prompt-input" placeholder="輸入提示詞 (支援 / 與 @)..." style="width:100%; height:100%; min-height:80px; resize:none; box-sizing:border-box; outline:none; font-family:inherit; padding:8px; border:1px solid var(--node-input-border); border-radius:4px; background:var(--node-input-bg); color:var(--node-text);"></textarea>
         `;
       } else if (type === 'parameters') {
-        headerText = '參數 (測試)';
+        headerText = '參數設定 (Parameters)';
         bodyHTML = `
-          <label>Resolution</label>
-          <select class="form-select form-select-sm wf-res-sel" style="width:100%;">
-            <option value="1024x1024" selected>1024x1024 (1:1)</option>
-            <option value="1024x576">1024x576 (16:9)</option>
-            <option value="576x1024">576x1024 (9:16)</option>
+          <label style="color:var(--node-text); font-weight:500;">Resolution</label>
+          <select class="form-select form-select-sm wf-res-sel" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px;">
+            <option value="1024x1024" ${datum.data.resolution === '1024x1024' || !datum.data.resolution ? 'selected' : ''}>1024x1024 (1:1)</option>
+            <option value="1024x576" ${datum.data.resolution === '1024x576' ? 'selected' : ''}>1024x576 (16:9)</option>
+            <option value="576x1024" ${datum.data.resolution === '576x1024' ? 'selected' : ''}>576x1024 (9:16)</option>
           </select>
         `;
       } else if (type === 'img2img') {
         headerText = '生成器 / 圖生圖 (Generator / Img2Img)';
+        
+        let folders = [];
+        if (window.AssetsService && window.AssetsService.getFolders) {
+            folders = window.AssetsService.getFolders();
+        }
+        if (folders.length === 0) folders = ['已完成'];
+        let folderOptions = folders.map(f => `<option value="${f}" ${datum.data.saveFolder === f ? 'selected' : ''}>${f}</option>`).join('');
+        
         bodyHTML = `
-          <label style="font-size:11px; font-weight:600; color:#666; margin-bottom:4px; display:block;">Base Image (留空為純文字生成)</label>
-          <input type="text" class="form-input wf-i2i-base" placeholder="貼上或@資產..." style="margin-bottom:10px; width:100%; flex-shrink:0;">
-          <div class="wf-preview-img-container" style="width:100%; flex:1; min-height:150px; position:relative; display:flex;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="font-size:11px; font-weight:600; color:var(--node-text);">Base Image</label>
+            <select class="wf-i2i-folder" style="font-size:10px; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px; max-width:90px;" title="儲存資料夾">
+              <option value="">(自動儲存)</option>
+              ${folderOptions}
+            </select>
+          </div>
+          <input type="text" class="form-input wf-i2i-base" placeholder="貼上或@資產..." style="margin-bottom:10px; width:100%; flex-shrink:0; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px; padding:4px;">
+          <div class="wf-preview-img-container" style="width:100%; flex:1; min-height:150px; position:relative; display:flex; background:var(--node-input-bg); border:1px solid var(--node-input-border); border-radius:4px;">
             <img class="wf-preview-img" src="" style="display:none; width:100%; height:100%; object-fit:contain; border-radius:4px; cursor:pointer;">
             <button class="wf-preview-download" style="display:none; position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.55); color:#fff; border:none; border-radius:4px; padding:4px 8px; font-size:14px; cursor:pointer; z-index:5;" title="下載圖片">📥</button>
-            <div class="wf-preview-placeholder" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#f9f9f9; border-radius:4px; border:1px dashed #ccc; color:#aaa; font-size:12px;">No Image</div>
+            <div class="wf-preview-placeholder" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px;">No Image</div>
           </div>
         `;
       } else if (type === 'mask') {
-        headerText = '遮罩 (Mask)';
+        headerText = '局部重繪遮罩 (Inpaint Mask)';
         bodyHTML = `
-          <label>Mask Image (B/W)</label>
+          <label style="color:var(--node-text); font-weight:500;">Mask Image (B/W)</label>
+          <input type="text" class="form-input wf-mask-input" placeholder="貼上遮罩或@資產..." style="width:100%; margin-bottom:4px; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px; padding:4px;">
           <input type="file" class="wf-mask-file" accept="image/*" style="display:none;">
-          <div class="wf-mask-preview" style="width:100%; height:100px; background:#eaeaea; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+          <div class="wf-mask-upload-btn" style="width:100%; height:80px; border:2px dashed var(--node-input-border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--muted); background:var(--node-input-bg); border-radius:4px; margin-top:4px;">
             點擊上傳遮罩圖
           </div>
         `;
       }
 
       el.innerHTML = `
-        <div class="wf-dom-port" onpointerdown="window.__wfDragState='port'" onmousedown="window.__wfDragState='port'" style="position:absolute; left:0; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translate(-50%, -50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
-        <div class="wf-dom-port" onpointerdown="window.__wfDragState='port'" onmousedown="window.__wfDragState='port'" style="position:absolute; right:0; top:50%; width:14px; height:14px; background:#fff; border:2px solid #1783FF; border-radius:50%; transform:translate(50%, -50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
-        <div class="wf-node-header" onpointerdown="window.__wfDragState='header'" onmousedown="window.__wfDragState='header'" style="background:#333; color:#fff; padding:6px 10px; font-size:12px; font-weight:600; border-top-left-radius:6px; border-top-right-radius:6px; cursor:move;">
-          ${headerText}
-          <span class="wf-node-del" style="float:right; cursor:pointer; color:#ccc;" title="刪除節點">&times;</span>
+        <div id="port-${id}-in" class="wf-dom-port" onpointerdown="window.__wfDragState='port'; window.__wfActivePort=this;" onmousedown="window.__wfDragState='port'; window.__wfActivePort=this;" style="position:absolute; left:-7px; top:50%; width:14px; height:14px; background:var(--node-input-bg); border:3px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
+        <div id="port-${id}-out" class="wf-dom-port" onpointerdown="window.__wfDragState='port'; window.__wfActivePort=this;" onmousedown="window.__wfDragState='port'; window.__wfActivePort=this;" style="position:absolute; right:-7px; top:50%; width:14px; height:14px; background:var(--node-input-bg); border:3px solid #1783FF; border-radius:50%; transform:translateY(-50%); cursor:crosshair; z-index:10; pointer-events:auto;" title="拖曳以連線"></div>
+        <div class="wf-node-header" onpointerdown="window.__wfDragState='header'" onmousedown="window.__wfDragState='header'" style="background:var(--node-header-bg); color:var(--node-header-text); padding:8px 12px; font-size:13px; font-weight:600; border-top-left-radius:10px; border-top-right-radius:10px; cursor:move; border-bottom:1px solid var(--node-border);">
+          <span class="wf-node-title">${headerText}</span>
+          <span class="wf-node-del" style="float:right; cursor:pointer; color:var(--muted);" title="刪除節點">&times;</span>
         </div>
-        <div class="wf-node-body" style="padding:10px; background:#fff; border:1px solid #ccc; border-top:none; border-bottom-left-radius:6px; border-bottom-right-radius:6px; height:calc(100% - 28px); display:flex; flex-direction:column; overflow:hidden; box-sizing:border-box;">
+        <div class="wf-node-body" style="padding:15px 12px; background:var(--node-body-bg); border:none; border-bottom-left-radius:10px; border-bottom-right-radius:10px; height:calc(100% - 34px); display:flex; flex-direction:column; overflow:hidden; box-sizing:border-box; color:var(--node-text); box-shadow:var(--node-shadow);">
           ${bodyHTML}
         </div>
         <div class="wf-node-resizer" style="position:absolute; right:2px; bottom:2px; width:16px; height:16px; cursor:nwse-resize; z-index:20; display:flex; align-items:flex-end; justify-content:flex-end; padding:2px;">
-          <svg viewBox="0 0 10 10" style="width:10px; height:10px;">
-            <path d="M 10 0 L 10 10 L 0 10 Z" fill="#ccc"/>
-          </svg>
+          <div style="width:0;height:0;border-left:8px solid transparent;border-bottom:8px solid var(--muted);border-bottom-right-radius:8px;"></div>
         </div>
       `;
 
@@ -289,7 +358,7 @@
 
       if (type === 'mask') {
         const fileInput = el.querySelector('.wf-mask-file');
-        const preview = el.querySelector('.wf-mask-preview');
+        const preview = el.querySelector('.wf-mask-upload-btn');
         preview.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
           const file = e.target.files[0];
@@ -301,6 +370,11 @@
           };
           reader.readAsDataURL(file);
         });
+        
+        if (datum.data.maskData) {
+          el.dataset.maskData = datum.data.maskData;
+          preview.innerHTML = `<img src="${datum.data.maskData}" style="width:100%; height:100%; object-fit:cover;">`;
+        }
       }
 
       // Ensure node body elements capture pointer events so they can be clicked/focused
@@ -328,29 +402,54 @@
       el.addEventListener('dragover', e => e.stopPropagation());
       el.addEventListener('drop', e => e.stopPropagation());
 
+      // Support manual selection since pointer events are stopped by body
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.wf-node-selected').forEach(n => n.classList.remove('wf-node-selected'));
+        el.classList.add('wf-node-selected');
+        window.__wfSelectedNodeId = id;
+      });
+
       nodeDOMCache[id] = el;
       return el;
     }
 
     // Default graph data — 6-node chain
     const defaultPrompt2 = `編輯模式：尺寸不變，保持當前圖像形體和結構不變。未指定區域的所有圖像必須完全保持原樣，所有修改必須按照用戶的要求進行。不得重繪、修飾、增強、裁切、縮放、變色、銳化、模糊或改動任何像素。\n\n編輯：分析視覺主體，將圖像轉化為銳利，簡潔線稿，輪廓線介於1px~2px, 次要線0.2~0.5px。去除噪點\n\n采色：#ffffff,#000000`;
-    const initialData = {
+    let initialData = {
       nodes: [
-        { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 100 } },
-        { id: 'node_3', data: { type: 'parameters' }, style: { x: 100, y: 350 } },
-        { id: 'node_2', data: { type: 'prompt' }, style: { x: 450, y: 100 } },
-        { id: 'node_4', data: { type: 'img2img' }, style: { x: 450, y: 350 } },
-        { id: 'node_5', data: { type: 'prompt', prefill: defaultPrompt2 }, style: { x: 850, y: 100 } },
-        { id: 'node_6', data: { type: 'img2img' }, style: { x: 850, y: 350 } }
+        { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 100, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
+        { id: 'node_3', data: { type: 'parameters' }, style: { x: 100, y: 350, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
+        { id: 'node_2', data: { type: 'prompt' }, style: { x: 450, y: 100, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
+        { id: 'node_4', data: { type: 'img2img' }, style: { x: 450, y: 350, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
+        { id: 'node_5', data: { type: 'prompt', prefill: defaultPrompt2 }, style: { x: 850, y: 100, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
+        { id: 'node_6', data: { type: 'img2img' }, style: { x: 850, y: 350, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } }
       ],
       edges: [
-        { source: 'node_1', target: 'node_3', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_3', target: 'node_2', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_2', target: 'node_4', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_4', target: 'node_5', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_5', target: 'node_6', sourcePort: 'out', targetPort: 'in' }
+        { source: 'node_1', target: 'node_3', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 },
+        { source: 'node_3', target: 'node_2', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 },
+        { source: 'node_2', target: 'node_4', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 },
+        { source: 'node_4', target: 'node_5', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 },
+        { source: 'node_5', target: 'node_6', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 }
       ]
     };
+
+    const savedDataStr = localStorage.getItem('ps_workflow');
+    if (savedDataStr) {
+      try {
+        const parsed = JSON.parse(savedDataStr);
+        if (parsed && parsed.nodes && parsed.nodes.length > 0) {
+          // Check if the saved nodes have coordinate data (graph.save() in G6 v5 drops them without our custom getGraphDataDump)
+          if (parsed.nodes[0].style && parsed.nodes[0].style.x !== undefined) {
+            initialData = parsed;
+          } else {
+            console.warn("Saved workflow nodes are missing coordinates due to old bug. Falling back to default.");
+            localStorage.removeItem('ps_workflow');
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse saved workflow", e);
+      }
+    }
 
     // Provide invisible G6 ports so edges route perfectly to the bounding box edges
     function getPorts(type) {
@@ -384,7 +483,8 @@
       }
     }
 
-    const graph = new Graph({
+
+    const graph = new window.G6.Graph({
       container: container,
       data: initialData,
       node: {
@@ -392,7 +492,14 @@
         style: {
           innerHTML: (datum) => createNodeDOM(datum),
           size: (datum) => getNodeSize(datum.data.type),
-          ports: (datum) => getPorts(datum.data.type),
+          ports: [
+            { key: 'in', position: 'left', placement: 'left' },
+            { key: 'out', position: 'right', placement: 'right' }
+          ],
+          anchorPoints: [
+            [0, 0.5],
+            [1, 0.5]
+          ],
           portR: 0.1,
           portStrokeOpacity: 0,
           portFillOpacity: 0
@@ -401,7 +508,8 @@
       edge: {
         type: 'cubic-horizontal',
         style: {
-          stroke: '#999',
+          opacity: 0, // 徹底隱藏 G6 的原生連線
+          stroke: 'transparent',
           lineWidth: 2,
           endArrow: true,
           cursor: 'pointer'
@@ -422,22 +530,31 @@
           type: 'create-edge',
           trigger: 'drag',
           enable: () => window.__wfDragState === 'port',
-          style: { stroke: '#1783FF', lineWidth: 2, lineDash: [4, 2], endArrow: true },
-          onCreate: (edge) => {
-            if (edge.source === edge.target) return undefined; // No self loops
-            return {
-              ...edge,
-              type: 'cubic-horizontal',
-              sourcePort: 'out',
-              targetPort: 'in',
-              style: {
-                stroke: '#999',
-                lineWidth: 2,
-                lineDash: [],
-                endArrow: true
-              }
-            };
-          }
+          shouldBegin: (e) => {
+              return window.__wfDragState === 'port';
+            },
+            onCreate: (edge) => {
+              window.__wfDragState = null;
+              window.__wfActivePort = null;
+              if (window.scheduleHistory) window.scheduleHistory();
+              if (edge.source === edge.target) return undefined; // No self loops
+              return {
+                ...edge,
+                id: edge.id || `edge_${edge.source}_${edge.target}_${Date.now()}`,
+                type: 'cubic-horizontal',
+                sourcePort: 'out',
+                targetPort: 'in',
+                sourceAnchor: 1,
+                targetAnchor: 0,
+                style: {
+                  opacity: 0, // 徹底隱藏 G6 的原生連線
+                  stroke: 'transparent',
+                  lineWidth: 2,
+                  lineDash: [],
+                  endArrow: true
+                }
+              };
+            }
         },
         'click-select',
         {
@@ -448,6 +565,216 @@
     });
 
     graph.render();
+    window.workflowGraph = graph;
+
+    // === CUSTOM SVG EDGE OVERLAY (COMFYUI STYLE) ===
+    const svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svgOverlay.id = 'wf-custom-edges';
+    svgOverlay.style.position = 'absolute';
+    svgOverlay.style.top = '0';
+    svgOverlay.style.left = '0';
+    svgOverlay.style.width = '100%';
+    svgOverlay.style.height = '100%';
+    svgOverlay.style.pointerEvents = 'none';
+    svgOverlay.style.zIndex = '0';
+    container.style.position = 'relative';
+    container.insertBefore(svgOverlay, container.firstChild);
+
+    function updateCustomEdges() {
+      if (!graph || graph.destroyed) return;
+      
+      let edges = [];
+      try {
+        edges = graph.getEdgeData ? graph.getEdgeData() : (graph.save ? graph.save().edges : []);
+      } catch (e) {
+        // ignore during init
+      }
+      const containerRect = container.getBoundingClientRect();
+      
+      let pathHTML = '';
+      edges.forEach(edge => {
+        const sourcePort = document.getElementById(`port-${edge.source}-out`);
+        const targetPort = document.getElementById(`port-${edge.target}-in`);
+        if (sourcePort && targetPort) {
+          const r1 = sourcePort.getBoundingClientRect();
+          const r2 = targetPort.getBoundingClientRect();
+          
+          const x1 = r1.left - containerRect.left + r1.width / 2;
+          const y1 = r1.top - containerRect.top + r1.height / 2;
+          const x2 = r2.left - containerRect.left + r2.width / 2;
+          const y2 = r2.top - containerRect.top + r2.height / 2;
+          
+          const zoom = (graph && graph.getZoom) ? graph.getZoom() : 1;
+          const xDist = Math.abs(x2 - x1);
+          const offset = Math.max(xDist * 0.5, 80 * zoom);
+          const strokeWidth = Math.max(1, 3 * zoom);
+          const isSelected = (window.__wfSelectedEdgeId === edge.id);
+          const color = isSelected ? '#1783FF' : 'var(--node-edge-color, #a0a0a0)';
+          
+          // Thin visible path
+          pathHTML += `<path d="M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="${strokeWidth + (isSelected ? 1 : 0)}" stroke-linecap="round" style="pointer-events:none; ${isSelected ? 'filter: drop-shadow(0 0 5px rgba(23,131,255,0.8));' : ''}" />`;
+        }
+      });
+      
+      if (window.__wfDragState === 'port' && window.__wfActivePort && window.__wfMouseX !== undefined) {
+        const r1 = window.__wfActivePort.getBoundingClientRect();
+        const x1 = r1.left - containerRect.left + r1.width / 2;
+        const y1 = r1.top - containerRect.top + r1.height / 2;
+        const x2 = window.__wfMouseX - containerRect.left;
+        const y2 = window.__wfMouseY - containerRect.top;
+        const zoom = (graph && graph.getZoom) ? graph.getZoom() : 1;
+        const xDist = Math.abs(x2 - x1);
+        const offset = Math.max(xDist * 0.5, 80 * zoom);
+        const strokeWidth = Math.max(1, 3 * zoom);
+        pathHTML += `<path d="M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}" fill="none" stroke="#a0a0a0" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-dasharray="5,5" />`;
+      }
+      
+      if (svgOverlay.innerHTML !== pathHTML) {
+        svgOverlay.innerHTML = pathHTML;
+      }
+      requestAnimationFrame(updateCustomEdges);
+    }
+    requestAnimationFrame(updateCustomEdges);
+    
+    // Mouse tracking for drag line
+    window.addEventListener('pointermove', (e) => {
+        window.__wfMouseX = e.clientX;
+        window.__wfMouseY = e.clientY;
+    });
+    
+    // Add SVG dblclick listener using Bezier Math for ultimate deletion reliability
+    function getDistanceToBezier(px, py, x1, y1, cx1, cy1, cx2, cy2, x2, y2) {
+      let minDistance = Infinity;
+      for (let t = 0; t <= 1; t += 0.05) {
+        const u = 1 - t; const tt = t * t; const uu = u * u; const uuu = uu * u; const ttt = tt * t;
+        const pX = uuu * x1 + 3 * uu * t * cx1 + 3 * u * tt * cx2 + ttt * x2;
+        const pY = uuu * y1 + 3 * uu * t * cy1 + 3 * u * tt * cy2 + ttt * y2;
+        const dist = Math.sqrt((pX - px) ** 2 + (pY - py) ** 2);
+        if (dist < minDistance) minDistance = dist;
+      }
+      return minDistance;
+    }
+
+    window.__wfSelectedEdgeId = null;
+    let wfLastMouseClickTime = 0;
+
+    window.addEventListener('mousedown', (e) => {
+      const panel = document.getElementById('panel-workflow');
+      if (!panel || !panel.classList.contains('active')) return;
+      if (!container.contains(e.target) && e.target !== container) return;
+
+      if (!graph) return;
+      const containerRect = container.getBoundingClientRect();
+      const px = e.clientX - containerRect.left;
+      const py = e.clientY - containerRect.top;
+      const edges = graph.getEdgeData ? graph.getEdgeData() : [];
+      let closestEdgeId = null;
+      let minDistance = Infinity;
+
+      edges.forEach(edge => {
+        const sourcePort = document.getElementById(`port-${edge.source}-out`);
+        const targetPort = document.getElementById(`port-${edge.target}-in`);
+        if (sourcePort && targetPort) {
+          const r1 = sourcePort.getBoundingClientRect();
+          const r2 = targetPort.getBoundingClientRect();
+          const x1 = r1.left - containerRect.left + r1.width / 2;
+          const y1 = r1.top - containerRect.top + r1.height / 2;
+          const x2 = r2.left - containerRect.left + r2.width / 2;
+          const y2 = r2.top - containerRect.top + r2.height / 2;
+          const zoom = (graph && graph.getZoom) ? graph.getZoom() : 1;
+          const offset = Math.max(Math.abs(x2 - x1) * 0.5, 80 * zoom);
+          
+          const dist = getDistanceToBezier(px, py, x1, y1, x1 + offset, y1, x2 - offset, y2, x2, y2);
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestEdgeId = edge.id;
+          }
+        }
+      });
+
+      const now = Date.now();
+      const isDblClick = (now - wfLastMouseClickTime < 350);
+      wfLastMouseClickTime = now;
+
+      if (minDistance <= 25 && closestEdgeId) {
+        if (isDblClick) {
+          // Double click delete
+          if (graph.removeEdgeData) {
+            graph.removeEdgeData([closestEdgeId]);
+            window.__wfSelectedEdgeId = null;
+            graph.render();
+            if (window.scheduleHistory) window.scheduleHistory();
+          }
+        } else {
+          // Single click select
+          window.__wfSelectedEdgeId = closestEdgeId;
+          document.querySelectorAll('.wf-node-selected').forEach(n => n.classList.remove('wf-node-selected'));
+          window.__wfSelectedNodeId = null;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+      } else {
+        // Clicked empty space
+        if (e.target.tagName === 'CANVAS' || e.target.tagName === 'svg') {
+          window.__wfSelectedEdgeId = null;
+        }
+      }
+    }, true);
+    
+    // Clear custom node focus when clicking canvas
+    container.addEventListener('click', (e) => {
+      if (e.target.tagName === 'CANVAS' || e.target.tagName === 'svg') {
+        document.querySelectorAll('.wf-node-selected').forEach(n => n.classList.remove('wf-node-selected'));
+        window.__wfSelectedNodeId = null;
+        window.__wfSelectedEdgeId = null;
+      }
+    });
+    
+    // History system
+    window.wfHistory = [];
+    window.isUndoing = false;
+    // Dump graph data with precise positions
+    window.getGraphDataDump = function() {
+      if (!graph || graph.destroyed) return { nodes: [], edges: [] };
+      syncDOMToGraph();
+      const nodes = (graph.getNodeData ? graph.getNodeData() : []).map(n => {
+         const cloned = JSON.parse(JSON.stringify(n));
+         if (graph.getElementPosition) {
+           const pos = graph.getElementPosition(n.id);
+           if (pos) {
+             if (!cloned.style) cloned.style = {};
+             cloned.style.x = pos[0];
+             cloned.style.y = pos[1];
+           }
+         }
+         return cloned;
+      });
+      const edges = graph.getEdgeData ? graph.getEdgeData() : [];
+      return { nodes, edges };
+    };
+
+    window.pushHistory = function() {
+      if (window.isUndoing || !graph || graph.destroyed) return;
+      try {
+        const data = window.getGraphDataDump();
+        window.wfHistory.push(JSON.parse(JSON.stringify(data)));
+        if (window.wfHistory.length > 50) window.wfHistory.shift();
+      } catch (e) {}
+    };
+
+    window.scheduleHistory = function() {
+      clearTimeout(window.__wfHistoryTimer);
+      window.__wfHistoryTimer = setTimeout(() => {
+        if (window.pushHistory) window.pushHistory();
+      }, 100);
+    };
+    
+    // Initial history push
+    window.scheduleHistory();
+
+    graph.on('node:dragend', (e) => {
+      if (window.scheduleHistory) window.scheduleHistory();
+    });
 
     // Handle dynamic canvas resizing
     const resizeObserver = new ResizeObserver((entries) => {
@@ -504,38 +831,116 @@
       setTimeout(() => { window.__wfDragState = null; }, 100);
     });
 
-    // Handle edge deletion via Keyboard
+    // Keyboard Shortcuts (Delete, Copy, Cut, Paste)
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Do not delete edges if user is typing in an input
-        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (!document.getElementById('panel-workflow').classList.contains('active')) return;
+
+      const activeTag = document.activeElement.tagName;
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) && !document.activeElement.classList.contains('wf-node-header');
+      
+      // Delete node / edge
+      if (e.key === 'Delete' && !isInput) {
+        const selectedNodes = graph.getElementDataByState ? graph.getElementDataByState('node', 'selected') : [];
+        let nodeIds = selectedNodes.map(n => n.id);
         
-        const edges = graph.getEdgeData();
-        const nodes = graph.getNodeData();
-        let deleted = false;
-        
-        edges.forEach(edge => {
-          const state = graph.getElementState(edge.id);
-          if (state && state.includes('selected')) {
-            graph.removeEdgeData([edge.id]);
-            deleted = true;
-          }
-        });
-        
-        nodes.forEach(node => {
-          const state = graph.getElementState(node.id);
-          if (state && state.includes('selected')) {
-            graph.removeNodeData([node.id]);
-            deleted = true;
-          }
-        });
-        
-        if (deleted) {
-          graph.draw();
-          e.preventDefault();
+        if (window.__wfSelectedNodeId && !nodeIds.includes(window.__wfSelectedNodeId)) {
+          nodeIds.push(window.__wfSelectedNodeId);
         }
+
+        if (nodeIds.length > 0) {
+          if (graph.removeNodeData) graph.removeNodeData(nodeIds);
+          nodeIds.forEach(id => delete nodeDOMCache[id]);
+          graph.render();
+          if (window.scheduleHistory) window.scheduleHistory();
+          window.__wfSelectedNodeId = null;
+        }
+
+        const selectedEdges = graph.getElementDataByState ? graph.getElementDataByState('edge', 'selected') : [];
+        let edgeIds = selectedEdges.map(ed => ed.id);
+        
+        if (window.__wfSelectedEdgeId && !edgeIds.includes(window.__wfSelectedEdgeId)) {
+          edgeIds.push(window.__wfSelectedEdgeId);
+        }
+
+        if (edgeIds.length > 0) {
+          if (graph.removeEdgeData) graph.removeEdgeData(edgeIds);
+          window.__wfSelectedEdgeId = null;
+          graph.render();
+          if (window.scheduleHistory) window.scheduleHistory();
+        }
+        return;
+      }
+
+      // Undo (Ctrl+Z / Cmd+Z)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !isInput) {
+        if (window.wfHistory.length > 1) {
+          window.wfHistory.pop(); // Remove current state
+          const prevState = window.wfHistory[window.wfHistory.length - 1];
+          window.isUndoing = true;
+          // Clear node DOM cache to force re-render
+          Object.keys(nodeDOMCache).forEach(k => delete nodeDOMCache[k]);
+          graph.setData(JSON.parse(JSON.stringify(prevState)));
+          graph.render();
+          window.isUndoing = false;
+          if (window.showToast) window.showToast(`✅ 已復原上一動`);
+        } else {
+          if (window.showToast) window.showToast(`⚠️ 沒有更多歷史紀錄`);
+        }
+        return;
+      }
+
+      // Copy (Ctrl+C / Cmd+C)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !isInput) {
+        syncDOMToGraph();
+        const selectedNodes = graph.getElementDataByState('node', 'selected');
+        if (selectedNodes.length > 0) {
+           wfClipboard = selectedNodes.map(n => JSON.parse(JSON.stringify(n)));
+           if (window.showToast) window.showToast(`✅ 已複製 ${selectedNodes.length} 個節點`);
+        }
+        return;
+      }
+
+      // Cut (Ctrl+X / Cmd+X)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x' && !isInput) {
+        syncDOMToGraph();
+        const selectedNodes = graph.getElementDataByState('node', 'selected');
+        if (selectedNodes.length > 0) {
+           wfClipboard = selectedNodes.map(n => JSON.parse(JSON.stringify(n)));
+           const nodeIds = selectedNodes.map(n => n.id);
+           if (graph.removeNodeData) graph.removeNodeData(nodeIds);
+           nodeIds.forEach(id => delete nodeDOMCache[id]); // cleanup cache
+           
+           graph.render();
+           if (window.scheduleHistory) window.scheduleHistory();
+           if (window.showToast) window.showToast(`✅ 已剪下 ${selectedNodes.length} 個節點`);
+        }
+        return;
+      }
+
+      // Paste (Ctrl+V / Cmd+V)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && !isInput) {
+        if (wfClipboard && wfClipboard.length > 0) {
+           const newNodes = [];
+           wfClipboard.forEach(node => {
+               nodeIdCounter++;
+               const newId = 'node_copy_' + Date.now() + '_' + nodeIdCounter;
+               const newNode = JSON.parse(JSON.stringify(node));
+               newNode.id = newId;
+               newNode.style.x += 30; // offset
+               newNode.style.y += 30; // offset
+               newNodes.push(newNode);
+           });
+           graph.addNodeData(newNodes);
+           graph.draw();
+           if (window.scheduleHistory) window.scheduleHistory();
+           wfClipboard = newNodes; // Update clipboard for multiple pastes
+           if (window.showToast) window.showToast(`✅ 已貼上 ${newNodes.length} 個節點`);
+        }
+        return;
       }
     });
+
+    let wfClipboard = null;
 
     // Toolbar logic
     if (toolbar) {
@@ -558,12 +963,23 @@
         });
       });
 
+      // Save Workflow
+      const saveBtn = document.getElementById('wfSaveBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+          if (!graph) return;
+          const data = window.getGraphDataDump();
+          localStorage.setItem('ps_workflow', JSON.stringify(data));
+          if (window.showToast) window.showToast('💾 工作流已儲存');
+        });
+      }
+
       // Export JSON
       const exportBtn = document.getElementById('wfExportBtn');
       if (exportBtn) {
         exportBtn.addEventListener('click', () => {
           if (!graph) return;
-          const data = graph.save();
+          const data = window.getGraphDataDump();
           const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
           const anchor = document.createElement('a');
           anchor.href = dataStr;
@@ -584,11 +1000,8 @@
             try {
               const data = JSON.parse(event.target.result);
               if (graph) {
-                // To safely import, clear cache and remove old elements first or use changeData
-                // But G6 v5 changeData works well
                 nodeDOMCache = {}; // reset DOM cache
                 graph.changeData(data);
-                // Wait for render then fitView
                 setTimeout(() => { graph.fitView(); }, 100);
                 if (window.showToast) window.showToast('✅ 工作流配置已導入');
               }
@@ -611,85 +1024,6 @@
         });
       }
     }
-
-    let wfClipboard = null;
-
-    // Keyboard Shortcuts (Delete, Copy, Cut, Paste)
-    window.addEventListener('keydown', (e) => {
-      if (!document.getElementById('panel-workflow').classList.contains('active')) return;
-
-      const activeTag = document.activeElement.tagName;
-      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) && !document.activeElement.classList.contains('wf-node-header');
-      
-      // Delete / Backspace
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
-        const selectedNodes = graph.getElementDataByState('node', 'selected');
-        const selectedEdges = graph.getElementDataByState('edge', 'selected');
-
-        if (selectedNodes.length > 0) {
-          const nodeIds = selectedNodes.map(n => n.id);
-          graph.removeNodeData(nodeIds);
-          nodeIds.forEach(id => delete nodeDOMCache[id]); // cleanup cache
-        }
-        if (selectedEdges.length > 0) {
-          graph.removeEdgeData(selectedEdges.map(ed => ed.id));
-        }
-        if (selectedNodes.length > 0 || selectedEdges.length > 0) {
-          graph.draw();
-        }
-        return;
-      }
-
-      // Copy (Ctrl+C / Cmd+C)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !isInput) {
-        const selectedNodes = graph.getElementDataByState('node', 'selected');
-        if (selectedNodes.length > 0) {
-           wfClipboard = selectedNodes.map(n => JSON.parse(JSON.stringify(n)));
-           if (window.showToast) window.showToast(`✅ 已複製 ${selectedNodes.length} 個節點`);
-        }
-        return;
-      }
-
-      // Cut (Ctrl+X / Cmd+X)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x' && !isInput) {
-        const selectedNodes = graph.getElementDataByState('node', 'selected');
-        if (selectedNodes.length > 0) {
-           wfClipboard = selectedNodes.map(n => JSON.parse(JSON.stringify(n)));
-           const nodeIds = selectedNodes.map(n => n.id);
-           graph.removeNodeData(nodeIds);
-           nodeIds.forEach(id => delete nodeDOMCache[id]); // cleanup cache
-           
-           const selectedEdges = graph.getElementDataByState('edge', 'selected');
-           if (selectedEdges.length > 0) {
-             graph.removeEdgeData(selectedEdges.map(ed => ed.id));
-           }
-           graph.draw();
-           if (window.showToast) window.showToast(`✅ 已剪下 ${selectedNodes.length} 個節點`);
-        }
-        return;
-      }
-
-      // Paste (Ctrl+V / Cmd+V)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && !isInput) {
-        if (wfClipboard && wfClipboard.length > 0) {
-           const newNodes = [];
-           wfClipboard.forEach(node => {
-               nodeIdCounter++;
-               const newId = 'node_copy_' + Date.now() + '_' + nodeIdCounter;
-               const newNode = JSON.parse(JSON.stringify(node));
-               newNode.id = newId;
-               newNode.style.x += 30; // offset
-               newNode.style.y += 30; // offset
-               newNodes.push(newNode);
-           });
-           graph.addNodeData(newNodes);
-           graph.draw();
-           wfClipboard = newNodes; // Update clipboard for multiple pastes
-           if (window.showToast) window.showToast(`✅ 已貼上 ${newNodes.length} 個節點`);
-        }
-        return;
-      }
-    });
 
     // Delete edge on single click
     graph.on('edge:click', (e) => {
@@ -980,12 +1314,18 @@
               if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) {
                 const ts = Date.now();
                 if (window.AssetsService) {
-                  if (window.AssetsService.getFolders && !window.AssetsService.getFolders().includes('已完成')) {
-                    window.AssetsService.addFolder('已完成');
+                  let targetFolder = state.saveFolder;
+                  if (!targetFolder) targetFolder = window.AssetsService.getActiveFolder ? window.AssetsService.getActiveFolder() : '已完成';
+                  if (window.AssetsService.getFolders && !window.AssetsService.getFolders().includes(targetFolder)) {
+                    window.AssetsService.addFolder(targetFolder);
                   }
-                  window.AssetsService.saveAsset('Workflow_Out_' + ts, imageUrl, '已完成').then(() => {
+                  window.AssetsService.saveAsset('Workflow_Out_' + ts, imageUrl, targetFolder).then(() => {
                     if (window.refreshAssetsGrid) window.refreshAssetsGrid();
                   });
+                  
+                  if (window.localDirHandle && window.AssetsService.saveAssetToLocalDir) {
+                    window.AssetsService.saveAssetToLocalDir(imageUrl, 'Workflow_Out_' + ts + '.png');
+                  }
                 }
               }
             } catch (err) {

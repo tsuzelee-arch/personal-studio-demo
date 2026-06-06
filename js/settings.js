@@ -222,6 +222,30 @@
     }
   };
 
+  // ── Theme toggle ──
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  function updateThemeUI() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (themeToggleBtn) {
+      themeToggleBtn.innerHTML = isDark ? '☀️ 切換日間模式' : '🌙 切換夜間模式';
+    }
+  }
+  
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('ps_theme', 'light');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('ps_theme', 'dark');
+      }
+      updateThemeUI();
+    });
+    updateThemeUI();
+  }
+
   // ── Initialize ──
   loadSettings();
 
