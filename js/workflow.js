@@ -336,19 +336,22 @@
     const defaultPrompt2 = `編輯模式：尺寸不變，保持當前圖像形體和結構不變。未指定區域的所有圖像必須完全保持原樣，所有修改必須按照用戶的要求進行。不得重繪、修飾、增強、裁切、縮放、變色、銳化、模糊或改動任何像素。\n\n編輯：分析視覺主體，將圖像轉化為銳利，簡潔線稿，輪廓線介於1px~2px, 次要線0.2~0.5px。去除噪點\n\n采色：#ffffff,#000000`;
     const initialData = {
       nodes: [
-        { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 200 } },
-        { id: 'node_2', data: { type: 'prompt' }, style: { x: 380, y: 200 } },
-        { id: 'node_3', data: { type: 'parameters' }, style: { x: 700, y: 200 } },
-        { id: 'node_4', data: { type: 'img2img' }, style: { x: 1000, y: 200 } },
-        { id: 'node_5', data: { type: 'prompt', prefill: defaultPrompt2 }, style: { x: 1350, y: 200 } },
-        { id: 'node_6', data: { type: 'img2img' }, style: { x: 1700, y: 200 } }
+        { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 100 } },
+        { id: 'node_3', data: { type: 'parameters' }, style: { x: 100, y: 350 } },
+        { id: 'node_2', data: { type: 'prompt' }, style: { x: 450, y: 100 } },
+        { id: 'node_4', data: { type: 'img2img' }, style: { x: 450, y: 350 } },
+        { id: 'node_5', data: { type: 'prompt', prefill: defaultPrompt2 }, style: { x: 850, y: 100 } },
+        { id: 'node_6', data: { type: 'img2img' }, style: { x: 850, y: 350 } }
       ],
       edges: [
         { source: 'node_1', target: 'node_2', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_2', target: 'node_3', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_1', target: 'node_4', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_3', target: 'node_2', sourcePort: 'out', targetPort: 'in' },
         { source: 'node_3', target: 'node_4', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_2', target: 'node_5', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_2', target: 'node_6', sourcePort: 'out', targetPort: 'in' },
         { source: 'node_4', target: 'node_5', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_5', target: 'node_6', sourcePort: 'out', targetPort: 'in' }
+        { source: 'node_4', target: 'node_6', sourcePort: 'out', targetPort: 'in' }
       ]
     };
 
