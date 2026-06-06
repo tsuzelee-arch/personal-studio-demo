@@ -344,14 +344,11 @@
         { id: 'node_6', data: { type: 'img2img' }, style: { x: 850, y: 350 } }
       ],
       edges: [
-        { source: 'node_1', target: 'node_2', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_1', target: 'node_4', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_1', target: 'node_3', sourcePort: 'out', targetPort: 'in' },
         { source: 'node_3', target: 'node_2', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_3', target: 'node_4', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_2', target: 'node_5', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_2', target: 'node_6', sourcePort: 'out', targetPort: 'in' },
+        { source: 'node_2', target: 'node_4', sourcePort: 'out', targetPort: 'in' },
         { source: 'node_4', target: 'node_5', sourcePort: 'out', targetPort: 'in' },
-        { source: 'node_4', target: 'node_6', sourcePort: 'out', targetPort: 'in' }
+        { source: 'node_5', target: 'node_6', sourcePort: 'out', targetPort: 'in' }
       ]
     };
 
