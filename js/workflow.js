@@ -384,9 +384,17 @@
       }
     }
 
+    let activeData = initialData;
+    try {
+      const savedStr = localStorage.getItem('workflow_layout_default');
+      if (savedStr) {
+        activeData = JSON.parse(savedStr);
+      }
+    } catch(e) {}
+
     const graph = new Graph({
       container: container,
-      data: initialData,
+      data: activeData,
       node: {
         type: 'html',
         style: {
@@ -602,12 +610,19 @@
         });
       }
 
-      // Prompt Toggle
-      const promptToggleBtn = document.getElementById('wfPromptToggleBtn');
-      const promptQuickBar = document.getElementById('wfPromptQuickBar');
-      if (promptToggleBtn && promptQuickBar) {
-        promptToggleBtn.addEventListener('click', () => {
-          promptQuickBar.classList.toggle('active');
+      // Save Layout Toggle
+      const saveBtn = document.getElementById('wfSaveBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+          if (!graph) return;
+          const data = graph.save();
+          try {
+            localStorage.setItem('workflow_layout_default', JSON.stringify(data));
+            if (window.showToast) window.showToast('✅ 工作流佈局已保存為預設');
+          } catch(e) {
+            console.error(e);
+            if (window.showToast) window.showToast('❌ 保存佈局失敗');
+          }
         });
       }
     }
