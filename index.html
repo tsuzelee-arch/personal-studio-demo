@@ -376,6 +376,12 @@
         <div class="workflow-header" style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
           <div class="workflow-desc" style="font-weight: 500;">自定工作流 (Node-based)</div>
           <div class="workflow-toolbar" id="wfToolbar" style="display: flex; gap: 8px;">
+            <button class="btn-ghost btn-sm" id="wfExportBtn">📤 導出</button>
+            <label class="btn-ghost btn-sm" style="cursor: pointer; display: flex; align-items: center; margin: 0;">
+              📥 導入<input type="file" id="wfImportInput" accept=".json" style="display: none;">
+            </label>
+            <button class="btn-ghost btn-sm" id="wfPromptToggleBtn">💡 Prompt 列表</button>
+            <div style="width: 1px; background: var(--border); margin: 0 5px;"></div>
             <button class="btn-ghost btn-sm" data-add="model">➕ Model</button>
             <button class="btn-ghost btn-sm" data-add="prompt">➕ Prompt</button>
             <button class="btn-ghost btn-sm" data-add="parameters">➕ Parameters</button>
@@ -519,6 +525,7 @@
         <div class="prompts-toolbar" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 20px; display:flex; align-items:center; justify-content:space-between;">
           <div style="font-size: 16px; font-weight: 600;">本地資產庫 (IndexedDB)</div>
           <div style="display: flex; gap: 8px;">
+            <button class="btn-primary" id="assetAuthDirBtn" style="background: #28a745; border-color: #28a745;">📂 授權本機目錄</button>
             <button class="btn-ghost hidden" id="assetDelSelectedBtn" style="color: #dc3545;">刪除選取</button>
             <button class="btn-ghost hidden" id="assetClearFolderBtn" style="color: #dc3545;">清空資料夾</button>
             <button class="btn-ghost" id="assetManageBtn">管理</button>

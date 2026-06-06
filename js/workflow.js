@@ -101,6 +101,20 @@
         previewImg.style.display = 'block';
         downloadBtn.style.display = 'block';
         previewPlaceholder.style.display = 'none';
+        
+        // Auto-save to authorized local directory if it's a generated/pasted base64 image
+        // To prevent infinite re-saving when re-opening workflow, we could check a dataset flag, 
+        // but for simplicity, we just save if it's base64 and authorized. 
+        // We'll mark the image to avoid duplicate saves.
+        if (imgSrc.startsWith('data:image/') && window.localDirHandle && window.AssetsService && window.AssetsService.saveAssetToLocalDir) {
+          const savedKey = 'saved_' + (imgSrc.length); // simple hash
+          if (previewImg.dataset.lastSaved !== savedKey) {
+            previewImg.dataset.lastSaved = savedKey;
+            const filename = 'img2img_' + Date.now() + '.png';
+            window.AssetsService.saveAssetToLocalDir(imgSrc, filename);
+          }
+        }
+
       } else {
         previewImg.style.display = 'none';
         downloadBtn.style.display = 'none';
@@ -543,6 +557,59 @@
           graph.draw();
         });
       });
+
+      // Export JSON
+      const exportBtn = document.getElementById('wfExportBtn');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+          if (!graph) return;
+          const data = graph.save();
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+          const anchor = document.createElement('a');
+          anchor.href = dataStr;
+          anchor.download = "workflow_config.json";
+          anchor.click();
+          if (window.showToast) window.showToast('✅ 工作流配置已導出');
+        });
+      }
+
+      // Import JSON
+      const importInput = document.getElementById('wfImportInput');
+      if (importInput) {
+        importInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            try {
+              const data = JSON.parse(event.target.result);
+              if (graph) {
+                // To safely import, clear cache and remove old elements first or use changeData
+                // But G6 v5 changeData works well
+                nodeDOMCache = {}; // reset DOM cache
+                graph.changeData(data);
+                // Wait for render then fitView
+                setTimeout(() => { graph.fitView(); }, 100);
+                if (window.showToast) window.showToast('✅ 工作流配置已導入');
+              }
+            } catch (err) {
+              console.error(err);
+              if (window.showToast) window.showToast('❌ 導入失敗：JSON 格式錯誤');
+            }
+          };
+          reader.readAsText(file);
+          importInput.value = ''; // reset
+        });
+      }
+
+      // Prompt Toggle
+      const promptToggleBtn = document.getElementById('wfPromptToggleBtn');
+      const promptQuickBar = document.getElementById('wfPromptQuickBar');
+      if (promptToggleBtn && promptQuickBar) {
+        promptToggleBtn.addEventListener('click', () => {
+          promptQuickBar.classList.toggle('active');
+        });
+      }
     }
 
     let wfClipboard = null;
@@ -1018,11 +1085,15 @@
         
         btn.addEventListener('mouseenter', () => {
           if (isPinned && activeCategory === cat) return;
+          showPopover(cat, btn);
           startPinTimer(cat, btn);
         });
         
         btn.addEventListener('mouseleave', () => {
           cancelPinTimer();
+          if (!isPinned) {
+            hidePopover();
+          }
         });
         
         btn.addEventListener('click', () => {
@@ -1076,6 +1147,15 @@
             
             item.appendChild(pTitle);
             
+            // Click logic
+            item.addEventListener('click', () => {
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(p.content);
+                if (window.showToast) window.showToast('✅ 已複製提示詞');
+              }
+              hidePopover(true);
+            });
+
             // Drag Drop logic
             item.addEventListener('dragstart', (e) => {
               e.dataTransfer.setData('text/prompt-id', String(p.id || Date.now()));
@@ -1107,7 +1187,8 @@
         pinTimer = setTimeout(() => {
           btn.classList.remove('timer-active');
           isPinned = true;
-          showPopover(cat, btn);
+          // Ensure it's showing the correct category
+          if (activeCategory !== cat) showPopover(cat, btn);
         }, 400);
       }
       

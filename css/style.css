@@ -2652,11 +2652,14 @@ input.editable-field:focus { resize: none; }
   right: 20px;
   width: auto;
   background: transparent;
-  display: flex;
+  display: none;
   flex-direction: column;
   align-items: flex-end;
   z-index: 50;
   gap: 10px;
+}
+.workflow-prompt-quickbar.active {
+  display: flex;
 }
 .quickbar-cat-btn {
   width: auto;
@@ -2812,3 +2815,4 @@ input.editable-field:focus { resize: none; }
 #elSubject .subject-label {
   margin-bottom: 2px;
 }
+

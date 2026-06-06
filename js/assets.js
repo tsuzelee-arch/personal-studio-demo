@@ -301,6 +301,29 @@ window.AssetsService = (function() {
     const manageBtn = document.getElementById('assetManageBtn');
     const delSelBtn = document.getElementById('assetDelSelectedBtn');
     const clearBtn = document.getElementById('assetClearFolderBtn');
+    const authDirBtn = document.getElementById('assetAuthDirBtn');
+
+    if (authDirBtn) {
+      authDirBtn.addEventListener('click', async () => {
+        try {
+          if (!window.showDirectoryPicker) {
+            alert('您的瀏覽器不支援本機資料夾存取功能 (File System Access API)。請使用最新版 Chrome 或 Edge。');
+            return;
+          }
+          const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+          window.localDirHandle = dirHandle;
+          authDirBtn.textContent = '✅ 已授權: ' + dirHandle.name;
+          authDirBtn.style.background = '#1e7e34';
+          authDirBtn.style.borderColor = '#1c7430';
+          if (window.showToast) window.showToast('✅ 本機資產目錄授權成功！');
+        } catch (err) {
+          console.error(err);
+          if (err.name !== 'AbortError') {
+            if (window.showToast) window.showToast('❌ 授權失敗');
+          }
+        }
+      });
+    }
 
     if (manageBtn) {
       manageBtn.addEventListener('click', () => {
@@ -361,6 +384,32 @@ window.AssetsService = (function() {
     }
   });
 
+  // ── Native File System Helper ──
+  async function saveAssetToLocalDir(base64Data, filename) {
+    if (!window.localDirHandle) return false;
+    try {
+      const match = base64Data.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+      if (!match) return false;
+      const bstr = atob(match[2]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while(n--){
+          u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], {type: `image/${match[1]}`});
+      
+      const fileHandle = await window.localDirHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      if (window.showToast) window.showToast(`✅ 已自動儲存至本機目錄: ${filename}`);
+      return true;
+    } catch (err) {
+      console.error('Failed to save to local dir:', err);
+      return false;
+    }
+  }
+
   return {
     initDB,
     saveAsset,
@@ -369,6 +418,7 @@ window.AssetsService = (function() {
     deleteAsset,
     openLightBox,
     getFolders,
-    addFolder
+    addFolder,
+    saveAssetToLocalDir
   };
 })();
