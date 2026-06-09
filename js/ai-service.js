@@ -474,7 +474,7 @@ ${JSON.stringify(analysis)}`;
     return `data:${mime_type || 'image/png'};base64,${b64}`;
   }
 
-  async function generateWithGPTImage(prompt, apiKey, width=1024, height=1024, baseImage=null) {
+  async function generateWithGPTImage(prompt, apiKey, size="1024x1024", baseImage=null, options={}) {
     const isEdit = !!baseImage;
     const url = isEdit ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations';
     
@@ -483,19 +483,28 @@ ${JSON.stringify(analysis)}`;
       'Authorization': `Bearer ${apiKey}`
     };
 
+    const quality = options.quality || "high";
+    let background = options.background || "auto";
+    if (background === "transparent") background = "auto";
+
     if (isEdit) {
       const formData = new FormData();
-      formData.append('model', 'gpt-image-1');
+      formData.append('model', 'gpt-image-2');
       formData.append('prompt', prompt);
-      formData.append('size', `${width}x${height}`);
-      formData.append('quality', 'low');
       formData.append('n', '1');
+      formData.append('size', size);
+      formData.append('quality', quality);
+      formData.append('background', 'auto');
+      formData.append('output_format', 'webp');
+      formData.append('output_compression', '80');
+      formData.append('moderation', 'auto');
+      formData.append('input_fidelity', options.input_fidelity || 'high');
 
       // Convert dataURL to Blob asynchronously (avoids main-thread blocking)
       const blobRes = await fetch(baseImage);
       const blob = await blobRes.blob();
 
-      formData.append('image[]', blob, 'ref_0.png');
+      formData.append('image', blob, 'ref_0.png');
       body = formData;
     } else {
       headers['Content-Type'] = 'application/json';
@@ -503,8 +512,12 @@ ${JSON.stringify(analysis)}`;
         model: "gpt-image-2",
         prompt: prompt,
         n: 1,
-        size: `${width}x${height}`,
-        quality: "low"
+        size: size,
+        quality: quality,
+        background: background,
+        output_format: "webp",
+        output_compression: 80,
+        moderation: "auto"
       });
     }
 

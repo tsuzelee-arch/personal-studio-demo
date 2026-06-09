@@ -7,7 +7,6 @@
     geminiKey: 'ps_gemini_key',
     geminiliteKey: 'ps_geminilite_key',
     nanobananaKey: 'ps_nanobanana_key',
-    gptimageKey: 'ps_gptimage_key',
     selectedModel: 'ps_selected_model',
     outputLanguage: 'ps_output_language'
   };
@@ -17,12 +16,10 @@
   const geminiKeyInput  = document.getElementById('geminiKeyInput');
   const geminiliteKeyInput = document.getElementById('geminiliteKeyInput');
   const nanobananaKeyInput = document.getElementById('nanobananaKeyInput');
-  const gptimageKeyInput = document.getElementById('gptimageKeyInput');
   const saveOpenaiBtn   = document.getElementById('saveOpenaiBtn');
   const saveGeminiBtn   = document.getElementById('saveGeminiBtn');
   const saveGeminiliteBtn = document.getElementById('saveGeminiliteBtn');
   const saveNanobananaBtn = document.getElementById('saveNanobananaBtn');
-  const saveGptimageBtn = document.getElementById('saveGptimageBtn');
   const testOpenaiBtn   = document.getElementById('testOpenaiBtn');
   const testGeminiBtn   = document.getElementById('testGeminiBtn');
   const testGeminiliteBtn = document.getElementById('testGeminiliteBtn');
@@ -30,7 +27,6 @@
   const geminiStatus    = document.getElementById('geminiStatus');
   const geminiliteStatus = document.getElementById('geminiliteStatus');
   const nanobananaStatus = document.getElementById('nanobananaStatus');
-  const gptimageStatus = document.getElementById('gptimageStatus');
   const modelSelect     = document.getElementById('modelSelect');
   const languageSelect  = document.getElementById('languageSelect');
 
@@ -40,7 +36,6 @@
     const gKey = localStorage.getItem(STORAGE_KEYS.geminiKey) || '';
     const glKey = localStorage.getItem(STORAGE_KEYS.geminiliteKey) || '';
     const nbKey = localStorage.getItem(STORAGE_KEYS.nanobananaKey) || '';
-    const giKey = localStorage.getItem(STORAGE_KEYS.gptimageKey) || '';
     const model = localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini';
     const lang = localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文';
 
@@ -48,7 +43,6 @@
     if (geminiKeyInput) geminiKeyInput.value = gKey;
     if (geminiliteKeyInput) geminiliteKeyInput.value = glKey;
     if (nanobananaKeyInput) nanobananaKeyInput.value = nbKey;
-    if (gptimageKeyInput) gptimageKeyInput.value = giKey;
     if (modelSelect)    modelSelect.value = model;
     if (languageSelect) languageSelect.value = lang;
   }
@@ -80,13 +74,6 @@
     localStorage.setItem(STORAGE_KEYS.nanobananaKey, key);
     showToast(key ? 'Nano Banana API Key 已儲存' : 'Nano Banana API Key 已清除');
     updateStatusIndicator(nanobananaStatus, 'saved');
-  }
-
-  function saveGptimageKey() {
-    const key = gptimageKeyInput.value.trim();
-    localStorage.setItem(STORAGE_KEYS.gptimageKey, key);
-    showToast(key ? 'GPT Image API Key 已儲存' : 'GPT Image API Key 已清除');
-    updateStatusIndicator(gptimageStatus, 'saved');
   }
 
   // ── Test connections ──
@@ -197,7 +184,6 @@
   if (saveGeminiBtn) saveGeminiBtn.addEventListener('click', saveGeminiKey);
   if (saveGeminiliteBtn) saveGeminiliteBtn.addEventListener('click', saveGeminiliteKey);
   if (saveNanobananaBtn) saveNanobananaBtn.addEventListener('click', saveNanobananaKey);
-  if (saveGptimageBtn) saveGptimageBtn.addEventListener('click', saveGptimageKey);
   if (testOpenaiBtn) testOpenaiBtn.addEventListener('click', testOpenAI);
   if (testGeminiBtn) testGeminiBtn.addEventListener('click', testGemini);
   if (testGeminiliteBtn) testGeminiliteBtn.addEventListener('click', testGeminilite);
@@ -208,7 +194,6 @@
     getGeminiKey:    () => localStorage.getItem(STORAGE_KEYS.geminiKey) || '',
     getGeminiliteKey:() => localStorage.getItem(STORAGE_KEYS.geminiliteKey) || '',
     getNanobananaKey: () => localStorage.getItem(STORAGE_KEYS.nanobananaKey) || '',
-    getGptimageKey:   () => localStorage.getItem(STORAGE_KEYS.gptimageKey) || '',
     getSelectedModel:() => localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini',
     getOutputLanguage:() => localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文',
     hasApiKey: function(model) {
@@ -217,7 +202,7 @@
       if (model === 'geminilite') return !!this.getGeminiliteKey();
       if (model === 'groq') return !!this.getGroqKey();
       if (model === 'nanobanana') return !!this.getNanobananaKey();
-      if (model === 'gptimage') return !!this.getGptimageKey();
+      if (model === 'gptimage') return !!this.getOpenAIKey();
       return false;
     }
   };

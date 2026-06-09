@@ -287,25 +287,52 @@ window.IDEAgent = (function() {
 
   // ── GPT Image 2.0 Core ──
   async function generateWithGPTImage2(apiKey, prompt, refImages, size, quality) {
-    const formData = new FormData();
-    formData.append('model', 'gpt-image-1');
-    formData.append('prompt', prompt);
-    formData.append('size', size || '1024x1024');
-    formData.append('quality', quality || 'high');
-    formData.append('n', '1');
+    const isEdit = refImages && refImages.length > 0;
+    const url = isEdit ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations';
+    
+    let body;
+    let headers = {
+      'Authorization': `Bearer ${apiKey}`
+    };
 
-    // Attach reference images if available
-    if (refImages && refImages.length > 0) {
+    if (isEdit) {
+      const formData = new FormData();
+      formData.append('model', 'gpt-image-2');
+      formData.append('prompt', prompt);
+      formData.append('size', size || '1024x1024');
+      formData.append('quality', quality || 'high');
+      formData.append('n', '1');
+      formData.append('background', 'auto');
+      formData.append('output_format', 'webp');
+      formData.append('output_compression', '80');
+      formData.append('moderation', 'auto');
+      formData.append('input_fidelity', 'high');
+
+      // Attach reference images if available
       for (let i = 0; i < Math.min(refImages.length, 4); i++) {
         const blob = dataURLtoBlob(refImages[i]);
-        formData.append('image[]', blob, `ref_${i}.png`);
+        if (i === 0) formData.append('image', blob, `ref_0.png`);
       }
+      body = formData;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify({
+        model: "gpt-image-2",
+        prompt: prompt,
+        n: 1,
+        size: size || '1024x1024',
+        quality: quality || 'high',
+        background: 'auto',
+        output_format: 'webp',
+        output_compression: 80,
+        moderation: 'auto'
+      });
     }
 
-    const res = await fetch('https://api.openai.com/v1/images/edits', {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      body: formData
+      headers: headers,
+      body: body
     });
 
     if (!res.ok) {
@@ -341,13 +368,13 @@ window.IDEAgent = (function() {
           },
           size: {
             type: 'string',
-            enum: ['1024x1024', '1792x1024', '1024x1792'],
-            description: '圖片尺寸。1024x1024 為正方形，1792x1024 為橫向，1024x1792 為直向。'
+            enum: ['1024x1024', '1536x1024', '1024x1536', 'auto'],
+            description: '圖片尺寸。1024x1024 為正方形，1536x1024 為橫向，1024x1536 為直向，auto 為自動適應。'
           },
           quality: {
             type: 'string',
-            enum: ['standard', 'high'],
-            description: '圖片品質。high 為高解析度，standard 為標準。'
+            enum: ['auto', 'low', 'medium', 'high'],
+            description: '圖片品質。high 為高解析度，auto 為自動。'
           }
         },
         required: ['prompt']
@@ -369,13 +396,13 @@ window.IDEAgent = (function() {
           },
           size: {
             type: 'STRING',
-            enum: ['1024x1024', '1792x1024', '1024x1792'],
-            description: '圖片尺寸。1024x1024 為正方形，1792x1024 為橫向，1024x1792 為直向。'
+            enum: ['1024x1024', '1536x1024', '1024x1536', 'auto'],
+            description: '圖片尺寸。1024x1024 為正方形，1536x1024 為橫向，1024x1536 為直向，auto 為自動適應。'
           },
           quality: {
             type: 'STRING',
-            enum: ['standard', 'high'],
-            description: '圖片品質。high 為高解析度，standard 為標準。'
+            enum: ['auto', 'low', 'medium', 'high'],
+            description: '圖片品質。high 為高解析度，auto 為自動。'
           }
         },
         required: ['prompt']

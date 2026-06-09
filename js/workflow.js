@@ -58,6 +58,17 @@
             if (n.data.outputLength !== _outLen) { n.data.outputLength = _outLen; changed = true; }
             if (n.data.topP !== _topP) { n.data.topP = _topP; changed = true; }
           }
+          const _gptParams = el.querySelector('.wf-gpt-params');
+          if (_gptParams) {
+            const _q = el.querySelector('.wf-gpt-quality').value;
+            const _sz = el.querySelector('.wf-gpt-size').value;
+            const _bg = el.querySelector('.wf-gpt-bg').value;
+            const _fi = el.querySelector('.wf-gpt-fidelity').value;
+            if (n.data.quality !== _q) { n.data.quality = _q; changed = true; }
+            if (n.data.gptImageSize !== _sz) { n.data.gptImageSize = _sz; changed = true; }
+            if (n.data.gptBackground !== _bg) { n.data.gptBackground = _bg; changed = true; }
+            if (n.data.gptFidelity !== _fi) { n.data.gptFidelity = _fi; changed = true; }
+          }
         } else if (type === 'parameters') {
            const val = el.querySelector('.wf-res-sel').value;
            if(n.data.resolution !== val) { n.data.resolution = val; changed = true; }
@@ -238,6 +249,42 @@
             <option value="nanobanana" ${datum.data.model === 'nanobanana' ? 'selected' : ''}>Nano Banana Pro</option>
             <option value="gptimage" ${datum.data.model === 'gptimage' ? 'selected' : ''}>GPT Image 2.0</option>
           </select>
+
+          <div class="wf-gpt-params" style="display:${_isGpt ? 'flex' : 'none'}; flex-direction:column; flex:1; overflow-y:auto; gap:8px;">
+            <div>
+              <label style="color:var(--node-text); font-size:11px; font-weight:500; display:block; margin-bottom:2px;">Quality (生成品質)</label>
+              <select class="form-select form-select-sm wf-gpt-quality" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px;">
+                <option value="low" ${datum.data.quality === 'low' || !datum.data.quality ? 'selected' : ''}>Low</option>
+                <option value="medium" ${datum.data.quality === 'medium' ? 'selected' : ''}>Medium</option>
+                <option value="high" ${datum.data.quality === 'high' ? 'selected' : ''}>High</option>
+                <option value="auto" ${datum.data.quality === 'auto' ? 'selected' : ''}>Auto</option>
+              </select>
+            </div>
+            <div>
+              <label style="color:var(--node-text); font-size:11px; font-weight:500; display:block; margin-bottom:2px;">Image Size (尺寸)</label>
+              <select class="form-select form-select-sm wf-gpt-size" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px;">
+                <option value="1024x1024" ${datum.data.gptImageSize === '1024x1024' || !datum.data.gptImageSize ? 'selected' : ''}>1024x1024</option>
+                <option value="1536x1024" ${datum.data.gptImageSize === '1536x1024' ? 'selected' : ''}>1536x1024</option>
+                <option value="1024x1536" ${datum.data.gptImageSize === '1024x1536' ? 'selected' : ''}>1024x1536</option>
+                <option value="auto" ${datum.data.gptImageSize === 'auto' ? 'selected' : ''}>Auto</option>
+              </select>
+            </div>
+            <div>
+              <label style="color:var(--node-text); font-size:11px; font-weight:500; display:block; margin-bottom:2px;">Background (背景)</label>
+              <select class="form-select form-select-sm wf-gpt-bg" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px;">
+                <option value="auto" ${datum.data.gptBackground === 'auto' || !datum.data.gptBackground ? 'selected' : ''}>Auto</option>
+                <option value="opaque" ${datum.data.gptBackground === 'opaque' ? 'selected' : ''}>Opaque</option>
+              </select>
+            </div>
+            <div>
+              <label style="color:var(--node-text); font-size:11px; font-weight:500; display:block; margin-bottom:2px;">Fidelity (還原度 - 限修圖)</label>
+              <select class="form-select form-select-sm wf-gpt-fidelity" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px;">
+                <option value="high" ${datum.data.gptFidelity === 'high' || !datum.data.gptFidelity ? 'selected' : ''}>High</option>
+                <option value="low" ${datum.data.gptFidelity === 'low' ? 'selected' : ''}>Low</option>
+              </select>
+            </div>
+          </div>
+
           <div class="wf-model-params" style="display:${_isGpt ? 'none' : 'flex'}; flex-direction:column; flex:1; overflow-y:auto; gap:0;">
             <div style="margin-bottom:8px;">
               <label style="color:var(--node-text); font-size:11px; font-weight:500; display:flex; justify-content:space-between; margin-bottom:2px;">
@@ -421,8 +468,12 @@
         const _toppSlider = el.querySelector('.wf-topp-slider');
         const _toppVal = el.querySelector('.wf-topp-val');
 
+        const _gptParamsDiv = el.querySelector('.wf-gpt-params');
+
         _modelSel.addEventListener('change', () => {
-          _paramsDiv.style.display = _modelSel.value === 'gptimage' ? 'none' : 'flex';
+          const isGpt = _modelSel.value === 'gptimage';
+          if (_paramsDiv) _paramsDiv.style.display = isGpt ? 'none' : 'flex';
+          if (_gptParamsDiv) _gptParamsDiv.style.display = isGpt ? 'flex' : 'none';
         });
         _aspectSel.addEventListener('change', () => {
           _customAspect.style.display = _aspectSel.value === 'custom' ? 'block' : 'none';
@@ -1272,6 +1323,7 @@
     // Execution Pipeline (DAG Topological Sort)
     if (runBtn) {
       runBtn.addEventListener('click', async () => {
+        syncDOMToGraph();
         const nodeData = graph.getNodeData();
         const edgeData = graph.getEdgeData();
         
@@ -1432,10 +1484,21 @@
               temperature: state.temperature ?? 0.4,
               topP: state.topP ?? 0.95,
               maxOutputTokens: state.outputLength || 65536,
-              stopSequences: state.stopSequences || [],
-              thinkingLevel: state.thinkingLevel || 'none',
-              googleSearch: state.googleSearch || false,
             };
+            
+            const _modelNode = nodeData.find(x => x.data.type === 'model');
+
+            let apiKey = '';
+            if (finalModel === 'geminilite') apiKey = window.StudioSettings.getGeminiliteKey();
+            else if (finalModel === 'gptimage') apiKey = window.StudioSettings.getOpenAIKey();
+            else apiKey = window.StudioSettings.getNanobananaKey();
+
+            if (!apiKey) {
+                 if (window.showToast) window.showToast('⚠️ API Key 尚未設定 (' + finalModel + ')');
+                 throw new Error('API Key missing');
+            }
+
+            if (window.showToast) window.showToast(`🚀 節點 [${id}] 開始生成...`);
 
             const placeholder = el.querySelector('.wf-preview-placeholder');
             const imgEl = el.querySelector('.wf-preview-img');
@@ -1445,21 +1508,21 @@
             imgEl.style.display = 'none';
 
             try {
-              let apiKey = '';
-              if (finalModel === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
-              else apiKey = window.StudioSettings.getNanobananaKey();
-
-              if (!apiKey) {
-                 if (window.showToast) window.showToast('⚠️ API Key 尚未設定 (' + finalModel + ')');
-                 throw new Error('API Key missing');
-              }
-
-              if (window.showToast) window.showToast(`🚀 節點 [${id}] 開始生成...`);
 
               let imageUrl = '';
               if (finalModel === 'gptimage') {
-                const [finalW, finalH] = finalRes.split('x').map(Number);
-                imageUrl = await window.AIService.generateWithGPTImage(finalPrompt, apiKey, finalW, finalH, state.i2i_base);
+                let gptSize = _modelNode?.data?.gptImageSize || '1024x1024';
+                if (!['1024x1024', '1536x1024', '1024x1536', 'auto'].includes(gptSize)) {
+                  gptSize = '1024x1024';
+                }
+                const gptBackground = _modelNode?.data?.gptBackground || 'auto';
+                const gptFidelity = _modelNode?.data?.gptFidelity || 'high';
+
+                imageUrl = await window.AIService.generateWithGPTImage(finalPrompt, apiKey, gptSize, state.i2i_base, {
+                  quality: _modelNode?.data?.quality || 'low',
+                  background: gptBackground,
+                  input_fidelity: gptFidelity
+                });
               } else if (finalModel === 'nanobanana2') {
                 imageUrl = await window.AIService.generateWithNanoBanana2(finalPrompt, apiKey, state.i2i_base || null, state.mask || null, genOptions);
               } else {
