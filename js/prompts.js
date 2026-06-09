@@ -306,6 +306,7 @@
       return;
     }
 
+    const containerFrag = document.createDocumentFragment();
     catsToShow.forEach(cat => {
       const catPrompts = filtered.filter(p => p.category === cat);
       if (catPrompts.length === 0) return;
@@ -372,8 +373,9 @@
       });
 
       group.appendChild(scroll);
-      container.appendChild(group);
+      containerFrag.appendChild(group);
     });
+    container.appendChild(containerFrag);
   }
 
   // ── Category Management ──
@@ -678,24 +680,13 @@
     const selectedModel = modelSel ? modelSel.value : 'gemini';
     const targetLang = langSel ? langSel.value : '繁體中文';
 
-    const geminiKey = localStorage.getItem('ps_gemini_key');
-    const geminiliteKey = localStorage.getItem('ps_geminilite_key');
-    const openaiKey = localStorage.getItem('ps_openai_key');
-
-    let apiKey, modelName;
-    if (selectedModel.startsWith('openai') && openaiKey) {
-      apiKey = openaiKey;
-      modelName = selectedModel;
-    } else if (selectedModel === 'geminilite' && geminiliteKey) {
-      apiKey = geminiliteKey;
-      modelName = 'geminilite';
-    } else if (geminiKey) {
-      apiKey = geminiKey;
-      modelName = 'gemini';
-    } else {
+    // Use unified key resolution from AIService
+    const apiKey = window.AIService.resolveApiKey(selectedModel);
+    if (!apiKey) {
       showToast('請先在 API 設定中配置 API 金鑰');
       return;
     }
+    const modelName = selectedModel;
 
     const originalText = btn.textContent;
     btn.disabled = true;

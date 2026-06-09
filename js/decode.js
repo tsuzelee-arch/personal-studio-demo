@@ -174,23 +174,11 @@
     try {
       updateLoadingText('正在將圖像傳送至 AI 模型...');
       startLoadingAnimation();
-
-      const { base64, mimeType } = await window.AIService.fileToBase64(file);
       updateLoadingText(`正在使用 ${model} 進行深度視覺解構...`);
 
-      let analysis;
       const lang = window.StudioSettings.getOutputLanguage();
-
-      if (model.startsWith('openai')) {
-        const key = window.StudioSettings.getOpenAIKey();
-        analysis = await window.AIService.analyzeWithOpenAI(base64, key, mimeType, lang, model);
-      } else if (model === 'geminilite') {
-        const key = window.StudioSettings.getGeminiliteKey();
-        analysis = await window.AIService.analyzeWithGeminilite(base64, key, mimeType, lang);
-      } else {
-        const key = window.StudioSettings.getGeminiKey();
-        analysis = await window.AIService.analyzeWithGemini(base64, key, mimeType, 'gemini-3.5-flash', lang);
-      }
+      // Use unified analyze entry — no need to resolve keys or dispatch here
+      const analysis = await window.AIService.analyze(file, model, lang);
 
       currentAnalysis = analysis;
       if (window.StudioSettings && window.StudioSettings.getOutputLanguage) {
@@ -348,6 +336,7 @@
 
   function renderPalette(palette) {
     paletteRow.innerHTML = '';
+    const frag = document.createDocumentFragment();
     (palette || []).forEach(hex => {
       const block = document.createElement('div');
       block.className = 'swatch';
@@ -373,8 +362,9 @@
       });
       block.appendChild(text);
       block.appendChild(del);
-      paletteRow.appendChild(block);
+      frag.appendChild(block);
     });
+    paletteRow.appendChild(frag);
 
     // Allow saving the whole palette to the vault (thumbnail = colour swatches)
     const paletteCard = paletteRow.closest('.dash-card');
@@ -476,6 +466,7 @@
 
   function renderMaterials(mats) {
     materialsList.innerHTML = '';
+    const frag = document.createDocumentFragment();
     for (const [key, value] of Object.entries(mats || {})) {
       const item = document.createElement('div');
       item.className = 'material-item';
@@ -490,13 +481,15 @@
       item.appendChild(desc);
       const keyLabel = key.replace(/_/g, ' ');
       addVaultButton(item, keyLabel, 'material', () => `${keyLabel}: ${desc.value}`);
-      materialsList.appendChild(item);
+      frag.appendChild(item);
     }
+    materialsList.appendChild(frag);
   }
 
   function renderNegativeConstraints(constraints) {
     negativeList.innerHTML = '';
     const list = constraints || [];
+    const frag = document.createDocumentFragment();
     list.forEach(text => {
       const li = document.createElement('li');
       const ta = document.createElement('textarea');
@@ -507,8 +500,9 @@
       li.appendChild(ta);
       // Per-item vault button reads live textarea value
       addVaultButton(li, `負面約束：${text}`, 'negative', () => ta.value);
-      negativeList.appendChild(li);
+      frag.appendChild(li);
     });
+    negativeList.appendChild(frag);
 
     // Whole-group vault button reads live textarea values
     const negCard = negativeList.closest('.dash-card');
@@ -589,10 +583,7 @@
       
       try {
         const model = modelSelect ? modelSelect.value : 'gemini';
-        let key = '';
-        if (model.startsWith('openai')) key = window.StudioSettings.getOpenAIKey();
-        else if (model === 'geminilite') key = window.StudioSettings.getGeminiliteKey();
-        else key = window.StudioSettings.getGeminiKey();
+        const key = window.AIService.resolveApiKey(model);
         
         const lang = window.StudioSettings.getOutputLanguage();
         
@@ -678,10 +669,7 @@
         if (translationsCache[lang]) {
           translated = translationsCache[lang];
         } else {
-          let key = '';
-          if (model.startsWith('openai')) key = window.StudioSettings.getOpenAIKey();
-          else if (model === 'geminilite') key = window.StudioSettings.getGeminiliteKey();
-          else key = window.StudioSettings.getGeminiKey();
+          const key = window.AIService.resolveApiKey(model);
           translated = await window.AIService.translateAnalysis(currentAnalysis, lang, key, model);
           translationsCache[lang] = translated;
         }

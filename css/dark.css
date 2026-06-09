@@ -1,0 +1,103 @@
+/* ── Dark Theme Overrides for Hardcoded Backgrounds ── */
+[data-theme="dark"] .lightbox-content,
+[data-theme="dark"] .dash-card-preview .decode-preview-wrap,
+[data-theme="dark"] .prompts-right-forge,
+[data-theme="dark"] .settings-card-header,
+[data-theme="dark"] .model-selector-bar {
+  background: var(--surface) !important;
+}
+
+[data-theme="dark"] .dash-card-negative {
+  background: rgba(181, 92, 92, 0.1) !important;
+  border-color: var(--danger) !important;
+}
+
+[data-theme="dark"] .dash-card-negative .dash-card-header {
+  border-bottom-color: rgba(181, 92, 92, 0.2) !important;
+}
+
+[data-theme="dark"] .dash-card-prompt {
+  background: rgba(213, 185, 132, 0.05) !important;
+}
+
+[data-theme="dark"] .dash-card-prompt .dash-card-header {
+  border-bottom-color: rgba(213, 185, 132, 0.15) !important;
+}
+
+[data-theme="dark"] .settings-intro {
+  background: rgba(213, 185, 132, 0.1) !important;
+}
+
+[data-theme="dark"] .nav-item.active {
+  background: #2a2a2a !important;
+}
+
+[data-theme="dark"] [class*="cat-"],
+[data-theme="dark"] .style-tag {
+  background: rgba(255,255,255,0.08) !important;
+  color: #e0e0e0 !important;
+  border-color: rgba(255,255,255,0.15) !important;
+}
+
+[data-theme="dark"] .step-body.done {
+  background: rgba(107, 168, 125, 0.1) !important;
+  border-color: var(--success) !important;
+}
+
+[data-theme="dark"] .builder-header {
+  background: var(--surface) !important;
+}
+
+[data-theme="dark"] .dash-card,
+[data-theme="dark"] .settings-card {
+  background: var(--white) !important;
+}
+
+[data-theme="dark"] .dash-card-header,
+[data-theme="dark"] .settings-card-header {
+  border-bottom-color: var(--border) !important;
+}
+
+[data-theme="dark"] .prompt-thumb-preview {
+  background: var(--surface) !important;
+}
+
+[data-theme="dark"] .palette-box {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .workflow-canvas,
+[data-theme="dark"] #workflowContainer {
+  background-color: var(--paper) !important;
+  background-image: radial-gradient(#333333 1px, transparent 1px) !important;
+}
+
+[data-theme="dark"] select,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .agent-model-select {
+  background-color: var(--paper) !important;
+  color: var(--ink) !important;
+}
+
+[data-theme="dark"] select option,
+[data-theme="dark"] .form-select option,
+[data-theme="dark"] .agent-model-select option {
+  background-color: var(--paper) !important;
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--paper);
+}
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

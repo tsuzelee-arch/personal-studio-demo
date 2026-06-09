@@ -362,52 +362,69 @@ ${JSON.stringify(analysis)}`;
   }
 
   // ── Image Generation APIs ──
-  async function generateWithNanoBanana(prompt, apiKey, width=1024, height=1024) {
+  async function generateWithNanoBanana(prompt, apiKey, options = {}) {
     // Nano Banana Pro -> gemini-3-pro-image
+    const {
+      aspectRatio = '1:1',
+      imageSize = '',
+      thinkingLevel = 'none',
+      googleSearch = false,
+    } = options;
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent?key=${apiKey}`;
+
+    const _imgCfgPro = { aspectRatio };
+    if (imageSize) _imgCfgPro.imageSize = imageSize;
+
+    const generationConfig = { imageConfig: _imgCfgPro };
+    if (googleSearch) generationConfig.responseModalities = ['TEXT', 'IMAGE'];
+    if (thinkingLevel !== 'none') {
+      const _apiThinkingLevel = thinkingLevel === 'low' ? 'minimal' : thinkingLevel;
+      generationConfig.thinkingConfig = { thinkingLevel: _apiThinkingLevel };
+    }
+
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        imageConfig: {
-          aspectRatio: toAspectRatio(width, height)
-        }
-      }
+      generationConfig,
+      tools: googleSearch ? [{ google_search: {} }] : undefined,
     };
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    
+
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.error?.message || `Nano Banana Pro API Error: HTTP ${response.status}`);
     }
-    
+
     const data = await response.json();
-    const base64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64) throw new Error("No image data returned from Nano Banana Pro");
-    return `data:image/png;base64,${base64}`;
+    const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    if (!imagePart) throw new Error("No image data returned from Nano Banana Pro");
+    const { mime_type, data: b64 } = imagePart.inlineData;
+    return `data:${mime_type || 'image/png'};base64,${b64}`;
   }
 
-  function toAspectRatio(w, h) {
-    const r = w / h;
-    if (r > 1.7) return '16:9';
-    if (r < 0.6) return '9:16';
-    if (r > 1.2) return '4:3';
-    if (r < 0.85) return '3:4';
-    return '1:1';
-  }
+  async function generateWithNanoBanana2(prompt, apiKey, image = null, mask = null, options = {}) {
+    // Nano Banana 2 -> gemini-3.1-flash-image (supports img2img + mask + advanced params)
+    const {
+      aspectRatio = '1:1',
+      imageSize = '',
+      temperature = 0.4,
+      topP = 0.95,
+      maxOutputTokens = 65536,
+      stopSequences = [],
+      thinkingLevel = 'none',
+      googleSearch = false,
+    } = options;
 
-  async function generateWithNanoBanana2(prompt, apiKey, width=1024, height=1024, image=null, mask=null, cfg=7) {
-    // Nano Banana 2 -> gemini-3.1-flash-image (supports img2img + mask + cfg)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
 
     const stripPrefix = (dataUrl) => dataUrl ? dataUrl.replace(/^data:[^;]+;base64,/, '') : null;
 
-    const sizedPrompt = `[${width}x${height}] ${prompt}`;
-    const parts = [{ text: sizedPrompt }];
+    const parts = [{ text: prompt }];
     if (image) {
       const mimeMatch = image.match(/^data:([^;]+);/);
       parts.push({ inline_data: { mime_type: mimeMatch ? mimeMatch[1] : 'image/jpeg', data: stripPrefix(image) } });
@@ -417,15 +434,26 @@ ${JSON.stringify(analysis)}`;
       parts.push({ inline_data: { mime_type: mimeMask ? mimeMask[1] : 'image/png', data: stripPrefix(mask) } });
     }
 
+    const _imgCfg2 = { aspectRatio };
+    if (imageSize) _imgCfg2.imageSize = imageSize;
+
+    const generationConfig = {
+      temperature,
+      topP,
+      maxOutputTokens,
+      stopSequences: stopSequences.length ? stopSequences : undefined,
+      imageConfig: _imgCfg2,
+    };
+    if (googleSearch) generationConfig.responseModalities = ['TEXT', 'IMAGE'];
+    if (thinkingLevel !== 'none') {
+      const _apiThinkingLevel = thinkingLevel === 'low' ? 'minimal' : thinkingLevel;
+      generationConfig.thinkingConfig = { thinkingLevel: _apiThinkingLevel };
+    }
+
     const payload = {
       contents: [{ parts }],
-      generationConfig: {
-        temperature: Math.min(1.0, Math.max(0.0, (cfg - 1) / 19)),
-        responseModalities: ['IMAGE'],
-        imageConfig: {
-          aspectRatio: toAspectRatio(width, height)
-        }
-      }
+      generationConfig,
+      tools: googleSearch ? [{ google_search: {} }] : undefined,
     };
 
     const response = await fetch(url, {
@@ -463,13 +491,9 @@ ${JSON.stringify(analysis)}`;
       formData.append('quality', 'low');
       formData.append('n', '1');
 
-      // Convert dataURL to Blob
-      const parts = baseImage.split(',');
-      const mime = parts[0].match(/:(.*?);/)[1];
-      const raw = atob(parts[1]);
-      const arr = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-      const blob = new Blob([arr], { type: mime });
+      // Convert dataURL to Blob asynchronously (avoids main-thread blocking)
+      const blobRes = await fetch(baseImage);
+      const blob = await blobRes.blob();
 
       formData.append('image[]', blob, 'ref_0.png');
       body = formData;
@@ -525,6 +549,31 @@ ${JSON.stringify(analysis)}`;
     throw new Error("No image data returned from GPT Image 2");
   }
 
+  // ── Unified API key resolution ──
+  // Centralises "which model needs which key" so UI controllers don't need to know.
+  function resolveApiKey(model) {
+    if (!window.StudioSettings) return null;
+    if (model.startsWith('openai')) return window.StudioSettings.getOpenAIKey();
+    if (model === 'geminilite') return window.StudioSettings.getGeminiliteKey();
+    return window.StudioSettings.getGeminiKey();
+  }
+
+  // ── Unified analysis entry point ──
+  // UI controllers can call `AIService.analyze(file, model, lang)` without
+  // worrying about key resolution or model-specific dispatch.
+  async function analyze(file, model, lang) {
+    const key = resolveApiKey(model);
+    if (!key) throw new Error('API Key 未設定');
+    const { base64, mimeType } = await fileToBase64(file);
+    if (model.startsWith('openai')) {
+      return analyzeWithOpenAI(base64, key, mimeType, lang, model);
+    }
+    if (model === 'geminilite') {
+      return analyzeWithGeminilite(base64, key, mimeType, lang);
+    }
+    return analyzeWithGemini(base64, key, mimeType, 'gemini-3.5-flash', lang);
+  }
+
   // ── Public API ──
   return {
     analyzeWithOpenAI,
@@ -539,6 +588,8 @@ ${JSON.stringify(analysis)}`;
     testGemini,
     testGeminilite,
     fileToBase64,
+    resolveApiKey,
+    analyze,
     SYSTEM_PROMPT
   };
 

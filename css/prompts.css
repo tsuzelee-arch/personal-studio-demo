@@ -1,0 +1,569 @@
+/* ── 提示詞庫 Panel ── */
+.prompts-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+.search-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--white);
+  color: var(--ink);
+  outline: none;
+  transition: border-color .15s;
+}
+.search-input:focus { border-color: var(--warm); }
+
+.category-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.chip {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--white);
+  transition: all .15s;
+  user-select: none;
+}
+.chip:hover { border-color: var(--warm); color: var(--warm); }
+.chip.active { background: var(--warm); border-color: var(--warm); color: var(--ink); font-weight: 600; }
+
+.prompts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.prompt-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: box-shadow .15s;
+  animation: cardFadeIn 0.4s ease both;
+}
+.prompt-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.1); }
+.prompt-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.prompt-card-title { font-size: 13.5px; font-weight: 600; flex: 1; }
+.prompt-card-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.icon-btn {
+  width: 26px; height: 26px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  color: var(--muted);
+  transition: all .15s;
+}
+.icon-btn:hover { background: var(--paper); color: var(--ink); }
+.icon-btn.danger:hover { color: var(--danger); }
+
+.prompt-card-cat {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.cat-mj { background: #f0e8ff; color: #6030a0; }
+.cat-sd { background: #e0f0e8; color: #306040; }
+.cat-general { background: #e8f0ff; color: #304080; }
+.cat-style { background: #fff0e0; color: #804020; }
+.cat-other { background: var(--paper); color: var(--muted); }
+
+/* ── Dynamic Category Chip Enhancements ── */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.chip-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  line-height: 1;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s, background .15s, color .15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.chip:hover .chip-delete { opacity: 1; }
+.chip-delete:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.chip-add {
+  border-style: dashed;
+  color: var(--warm);
+  border-color: var(--warm);
+  background: transparent;
+  font-weight: 600;
+}
+.chip-add:hover {
+  background: #fdf5e6;
+  border-style: solid;
+}
+
+/* ── Dynamic Category Badge Colors ── */
+.cat-identity        { background: #e8f0ff; color: #304080; }
+.cat-clothing        { background: #fff0e0; color: #804020; }
+.cat-pose            { background: #f0e8ff; color: #6030a0; }
+.cat-foreground      { background: #e0f0e8; color: #306040; }
+.cat-midground       { background: #f0f0e0; color: #606020; }
+.cat-background      { background: #e0e8f0; color: #2a4060; }
+.cat-style           { background: #fff0e0; color: #804020; }
+.cat-mood            { background: #fce4ec; color: #8a2040; }
+.cat-lighting        { background: #fff8e1; color: #6a5a10; }
+.cat-camera          { background: #e0f7fa; color: #006070; }
+.cat-material        { background: #efebe9; color: #5a4030; }
+.cat-negative        { background: #fbe9e7; color: #7a3020; }
+.cat-color_palette   { background: #f3e5f5; color: #6a2080; }
+.cat-other_elements  { background: #e8f5e9; color: #2e7d32; }
+.cat-custom          { background: #e8eaf6; color: #3040a0; }
+.cat-pinned-theme    { background: #fff3e0; color: #a05020; font-weight: 700; }
+.other-badge         { background: #e8f5e9; color: #2e7d32; }
+
+/* ── Add to Vault Button (Decode Dashboard) ── */
+.add-to-vault-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .2s;
+  opacity: 0;
+  transform: translateX(-4px);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.subject-item:hover .add-to-vault-btn,
+.element-section:hover .add-to-vault-btn,
+.lighting-detail:hover .add-to-vault-btn,
+.lighting-section:hover > .add-to-vault-btn,
+.camera-item:hover .add-to-vault-btn,
+.material-item:hover .add-to-vault-btn,
+.dash-card-body:hover > .add-to-vault-btn,
+.meta-vault-wrap:hover .add-to-vault-btn,
+.mood-vault-wrap:hover .add-to-vault-btn,
+#cardPalette:hover > .add-to-vault-btn,
+#cardNegative:hover > .add-to-vault-btn,
+.negative-list li:hover .add-to-vault-btn {
+  opacity: 1;
+  transform: translateX(0);
+}
+/* Group vault buttons sit below their card content */
+#cardPalette > .add-to-vault-btn,
+#cardNegative > .add-to-vault-btn {
+  margin-top: 10px;
+}
+.add-to-vault-btn:hover {
+  background: var(--warm);
+  border-color: var(--warm);
+  color: var(--ink);
+}
+
+/* Wrapper for inline vault button placement */
+.vault-btn-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.vault-btn-row > p,
+.vault-btn-row > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.prompt-card-text {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Prompt Card Thumbnails ── */
+.prompt-card-thumbnail {
+  margin: 6px 0 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--paper);
+}
+.prompt-card-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+.prompt-card-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0 8px;
+}
+.prompt-card-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid rgba(0,0,0,.12);
+  flex-shrink: 0;
+}
+
+/* ── Modal Thumbnail Preview ── */
+.prompt-thumb-preview {
+  margin-top: 12px;
+}
+.prompt-thumb-preview.hidden { display: none; }
+.prompt-thumb-preview .prompt-card-thumbnail img { height: 140px; }
+.prompt-thumb-preview .btn-sm {
+  margin-top: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.empty-icon { font-size: 32px; margin-bottom: 10px; }
+.empty-text { font-size: 13px; }
+
+/* ── Prompts Body: Sidebar + Content ── */
+#panel-prompts {
+  display: none;
+  flex-direction: column;
+  height: calc(100vh - 100px);
+  overflow: hidden;
+}
+#panel-prompts.active {
+  display: flex;
+}
+#panel-prompts .prompts-toolbar {
+  flex-shrink: 0;
+}
+.prompts-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* ── Vertical Category Sidebar ── */
+.prompts-category-sidebar {
+  width: 160px;
+  min-width: 140px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 10px 0;
+  overflow-y: auto;
+  background: var(--paper);
+}
+.cat-sidebar-item {
+  padding: 8px 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all .15s;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cat-sidebar-item:hover {
+  background: rgba(0,0,0,.03);
+  color: var(--ink);
+}
+.cat-sidebar-item.active {
+  background: rgba(199, 155, 104, .08);
+  border-left-color: var(--warm);
+  color: var(--warm);
+  font-weight: 600;
+}
+.cat-sidebar-item .cat-drag-handle {
+  cursor: grab;
+  opacity: 0;
+  color: var(--muted);
+  font-size: 10px;
+  transition: opacity .15s;
+}
+.cat-sidebar-item:hover .cat-drag-handle {
+  opacity: 0.5;
+}
+.cat-sidebar-item .cat-drag-handle:active {
+  cursor: grabbing;
+}
+.cat-sidebar-item.cat-pinned .cat-drag-handle {
+  display: none;
+}
+.cat-sidebar-item .cat-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 6px;
+  min-width: 20px;
+  text-align: center;
+}
+.cat-sidebar-item.dragging {
+  opacity: 0.4;
+}
+.cat-sidebar-item.drag-over {
+  border-top: 2px solid var(--warm);
+}
+.cat-sidebar-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 12px;
+}
+.cat-sidebar-add {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--warm);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  font-weight: 600;
+  transition: all .15s;
+}
+.cat-sidebar-add:hover {
+  background: rgba(199, 155, 104, .06);
+}
+
+/* ── Prompts Content Area ── */
+.prompts-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  min-width: 0;
+}
+
+/* ── Horizontal Prompt Rows ── */
+.prompt-row-group {
+  margin-bottom: 20px;
+}
+.prompt-row-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.prompt-row-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.prompt-row-count {
+  font-size: 11px;
+  color: var(--muted);
+}
+.prompt-row-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+}
+.prompt-row-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.prompt-row-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+.prompt-row-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+/* Make prompt cards work in horizontal layout */
+.prompt-row-scroll .prompt-card {
+  min-width: 220px;
+  max-width: 260px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  cursor: grab;
+}
+.prompt-row-scroll .prompt-card:active {
+  cursor: grabbing;
+}
+.prompt-row-scroll .prompt-card.dragging {
+  opacity: 0.4;
+  transform: scale(0.95);
+}
+
+/* ── Prompts IDE Layout ── */
+.prompts-ide-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+.prompts-right-forge {
+  width: 300px;
+  flex-shrink: 0;
+  height: 100%;
+  border-left: 2px solid var(--warm);
+  background: linear-gradient(180deg, #fdf6ec 0%, var(--white) 100%);
+  display: flex;
+  flex-direction: column;
+}
+.prompts-left-library {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Prompt Forge ── */
+.prompt-forge {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 14px 14px;
+}
+.forge-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+.forge-icon {
+  font-size: 16px;
+}
+.forge-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.forge-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  transition: all .2s;
+  background: var(--white);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.forge-drop-zone.drag-over {
+  border-color: var(--warm);
+  background: #fdf5e6;
+  box-shadow: inset 0 0 12px rgba(199, 155, 104, .12);
+}
+.forge-textarea {
+  width: 100%;
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none; /* Disable manual resize since it fills flex space */
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: transparent;
+  padding: 8px;
+}
+.forge-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+.forge-actions-top {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.forge-actions-top .btn-primary {
+  flex: 1;
+  justify-content: center;
+}
+.forge-actions-bottom {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.forge-actions-bottom .btn-ghost {
+  flex: 1;
+  justify-content: center;
+}
+.forge-actions-options {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.forge-actions-options .form-select {
+  flex: 1;
+  font-size: 11.5px;
+  padding: 4px 8px;
+  min-width: 0;
+}
+.forge-actions .btn-primary.btn-sm {
+  font-size: 11.5px;
+  padding: 5px 12px;
+}
+.forge-actions .btn-ghost.btn-sm {
+  font-size: 11.5px;
+  padding: 5px 10px;
+}
+
+/* Loading spinner for Forge AI conversion */
+.forge-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--warm);
+  padding: 4px 0;
+}
+.forge-loading::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--warm);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+

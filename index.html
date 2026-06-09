@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Studio</title>
-<link rel="stylesheet" href="css/style.css?v=67">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+<link rel="stylesheet" href="css/style.css?v=__BUILD_TS__">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" integrity="sha384-6LFfkTKLRlzFtgx8xsWyBdKGpcMMQTkv+dB7rAbugeJAu1Ym2q1Aji1cjHBG12Xh" crossorigin="anonymous">
 <script>
   (function() {
     const savedTheme = localStorage.getItem('ps_theme') || 'light';
@@ -27,6 +27,7 @@
       <div class="nav-item active" data-panel="decode">圖像解構</div>
       <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
       <div class="nav-item" data-panel="workflow">自定工作流</div>
+      <div class="nav-item" data-panel="workflow-library">🗂 工作流庫</div>
       <div class="nav-item" data-panel="assets">資產庫</div>
       <div class="nav-cat" style="margin-top:12px">系統</div>
       <div class="nav-item" data-panel="settings">⚙ API 設定</div>
@@ -340,7 +341,7 @@
           </div>
 
           <!-- Right Pane: Prompt Forge -->
-          <div class="prompts-right-forge">
+          <div class="prompts-right-forge" id="promptRightForge">
             <div class="prompt-forge" id="promptForge">
               <div class="forge-header">
                 <span class="forge-icon">🔥</span>
@@ -387,12 +388,15 @@
         <div class="workflow-header" style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
           <div class="workflow-desc" style="font-weight: 500;">自定工作流 (Node-based)</div>
           <div class="workflow-toolbar" id="wfToolbar" style="display: flex; gap: 8px;">
-            <button class="btn-ghost btn-sm" id="wfSaveBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💾 儲存</button>
+            <button class="btn-ghost btn-sm" id="wfSaveBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💾 儲存至列表</button>
+            <button class="btn-ghost btn-sm" id="wfSaveProgressBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🔄 保存進度</button>
+            <button class="btn-ghost btn-sm" id="wfOverwriteBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">↩ 覆蓋workflow</button>
             <button class="btn-ghost btn-sm" id="wfExportBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">📤 導出</button>
             <label class="btn-ghost btn-sm" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin: 0;">
               📥 導入<input type="file" id="wfImportInput" accept=".json" style="display: none;">
             </label>
             <button class="btn-ghost btn-sm" id="wfPromptToggleBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💡 Prompt 列表</button>
+            <button class="btn-ghost btn-sm" id="wfWorkflowListBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🗂 workflow列表</button>
             <div style="width: 1px; background: var(--border); margin: 0 5px;"></div>
             <button class="btn-ghost btn-sm" data-add="model">➕ Model</button>
             <button class="btn-ghost btn-sm" data-add="prompt">➕ Prompt</button>
@@ -427,6 +431,32 @@
             <!-- Right Edge: Prompt Vault Quick-Bar -->
             <div class="workflow-prompt-quickbar" id="wfPromptQuickBar">
               <!-- Dynamically populated by workflow.js -->
+            </div>
+
+            <!-- Right Edge: Workflow List Quick-Bar -->
+            <div class="wf-list-quickbar" id="wfWorkflowQuickBar">
+              <div class="wf-list-qb-header">
+                <span>🗂 workflow列表</span>
+                <button class="wf-list-qb-close" id="wfWorkflowListClose">✕</button>
+              </div>
+              <input class="wf-list-qb-search" type="text" id="wfListQbSearch" placeholder="搜尋工作流...">
+              <div class="wf-list-qb-body" id="wfListQbBody"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: 工作流庫 -->
+      <section class="panel" id="panel-workflow-library">
+        <div class="prompts-ide-layout">
+          <div class="prompts-left-library">
+            <div class="prompts-toolbar">
+              <input type="text" class="search-input" id="wlSearch" placeholder="搜尋工作流...">
+              <button class="btn-primary" id="wlSaveCurrentBtn">🗂 儲存目前工作流</button>
+            </div>
+            <div class="prompts-body">
+              <div class="prompts-category-sidebar" id="wlCategorySidebar"></div>
+              <div class="prompts-content" id="wlContent"></div>
             </div>
           </div>
         </div>
@@ -597,6 +627,45 @@
 <!-- Toast notification -->
 <div class="toast hidden" id="toast"></div>
 
+<!-- Workflow Library: Save Modal -->
+<div class="modal-backdrop hidden" id="wlOverwriteModal">
+  <div class="modal" style="max-width: 360px;">
+    <div class="modal-header">
+      <span class="modal-title">覆蓋 workflow</span>
+      <button class="modal-close" id="wlOverwriteClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">選擇要覆蓋的 workflow</label>
+      <select class="form-input" id="wlOverwriteSelect"></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="wlOverwriteCancel">取消</button>
+      <button class="btn-primary" id="wlOverwriteConfirm">確認覆蓋</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="wlSaveModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="wlModalTitle">儲存工作流至庫</span>
+      <button class="modal-close" id="wlModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">名稱 *</label>
+      <input type="text" class="form-input" id="wlSaveName" placeholder="輸入工作流名稱...">
+      <label class="form-label">分類</label>
+      <select class="form-input" id="wlSaveCat"></select>
+      <label class="form-label">說明 (選填)</label>
+      <input type="text" class="form-input" id="wlSaveDesc" placeholder="輸入說明...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="wlModalCancel">取消</button>
+      <button class="btn-primary" id="wlSaveConfirmBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
 <!-- Global Color Picker (Hidden) -->
 <input type="color" id="globalColorPicker" style="position:absolute; opacity:0; pointer-events:none; width:0; height:0;" tabindex="-1">
 
@@ -634,16 +703,17 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-<script src="https://unpkg.com/@antv/g6@5/dist/g6.min.js"></script>
-<script src="js/app.js?v=65"></script>
-<script src="js/assets.js?v=62"></script>
-<script src="js/editor.js?v=62"></script>
-<script src="js/ai-service.js?v=62"></script>
-<script src="js/settings.js?v=63"></script>
-<script src="js/decode.js?v=62"></script>
-<script src="js/prompts.js?v=62"></script>
-<script src="js/workflow.js?v=84"></script>
-<script src="js/ide-agent.js?v=62"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" integrity="sha384-jrOgQzBlDeUNdmQn3rUt/PZD+pdcRBdWd/HWRqRo+n2OR2QtGyjSaJC0GiCeH+ir" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@antv/g6@5.1.1/dist/g6.min.js" integrity="sha384-UD8c5szelcdeclSWhUiFuz1tiZeIweaJygrWmWcSllSAfocHUyRyQZ5iiQ0J1MGm" crossorigin="anonymous"></script>
+<script src="js/app.js?v=__BUILD_TS__"></script>
+<script src="js/assets.js?v=__BUILD_TS__"></script>
+<script src="js/editor.js?v=__BUILD_TS__"></script>
+<script src="js/ai-service.js?v=__BUILD_TS__"></script>
+<script src="js/settings.js?v=__BUILD_TS__"></script>
+<script src="js/decode.js?v=__BUILD_TS__"></script>
+<script src="js/prompts.js?v=__BUILD_TS__"></script>
+<script src="js/workflow.js?v=__BUILD_TS__"></script>
+<script src="js/workflow-library.js?v=__BUILD_TS__"></script>
+<script src="js/ide-agent.js?v=__BUILD_TS__"></script>
 </body>
 </html>

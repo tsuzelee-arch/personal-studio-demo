@@ -388,15 +388,10 @@ window.AssetsService = (function() {
   async function saveAssetToLocalDir(base64Data, filename) {
     if (!window.localDirHandle) return false;
     try {
-      const match = base64Data.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
-      if (!match) return false;
-      const bstr = atob(match[2]);
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      while(n--){
-          u8arr[n] = bstr.charCodeAt(n);
-      }
-      const blob = new Blob([u8arr], {type: `image/${match[1]}`});
+      // Use fetch() to decode Base64 data URL → Blob asynchronously (no main-thread blocking)
+      const res = await fetch(base64Data);
+      const blob = await res.blob();
+      if (!blob || blob.size === 0) return false;
       
       const fileHandle = await window.localDirHandle.getFileHandle(filename, { create: true });
       const writable = await fileHandle.createWritable();

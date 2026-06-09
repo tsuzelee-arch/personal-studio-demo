@@ -1,0 +1,325 @@
+/* ── 簡易工作流 Panel ── */
+.workflow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.workflow-desc { color: var(--muted); font-size: 13px; }
+
+.workflow-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 560px;
+}
+
+.workflow-step {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  position: relative;
+}
+.step-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+.step-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  transition: all .25s;
+  flex-shrink: 0;
+  z-index: 1;
+}
+.step-badge.done {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+.step-badge.active-step {
+  border-color: var(--warm);
+  color: var(--warm);
+}
+
+.step-line {
+  width: 2px;
+  flex: 1;
+  background: var(--border);
+  min-height: 28px;
+  margin: 0 auto;
+  transition: background .25s;
+}
+.step-line.done { background: var(--success); }
+
+.step-body {
+  flex: 1;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  transition: border-color .2s;
+}
+.step-body.done { border-color: #b0d0b8; background: #f6fbf8; }
+.step-body.active-step { border-color: var(--warm); }
+
+.step-title { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
+.step-desc { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.step-status {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--success);
+  display: none;
+}
+.step-body.done .step-status { display: block; }
+.step-body.done .step-action { display: none; }
+
+.step-result {
+  font-family: monospace;
+  font-size: 11.5px;
+  background: var(--paper);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  display: none;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.step-result.visible { display: block; }
+
+
+/* ── Custom Workflow (Node-based) ── */
+.workflow-canvas {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  background-color: #f8f8f8;
+  background-image: radial-gradient(#d5d5d5 1px, transparent 1px);
+  background-size: 20px 20px;
+  overflow: hidden;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.workflow-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.workflow-svg path {
+  fill: none;
+  stroke: #888;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+
+
+/* Editable fields inside flex containers */
+.material-item .editable-field { flex: 1; min-width: 0; }
+.lighting-detail .editable-field { flex: 1; min-width: 0; }
+.camera-item .editable-field { text-align: center; }
+
+/* ── Workflow Canvas (AntV G6) ── */
+.workflow-canvas {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 120px);
+  background: #fdfbf7;
+  overflow: hidden;
+  background-image: radial-gradient(#d4cfc6 1px, transparent 1px);
+  background-size: 20px 20px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* G6 Node internal container reset (since we use inline styles in JS, we just ensure no conflicts) */
+.wf-node {
+  box-sizing: border-box;
+  pointer-events: auto !important;
+  
+  /* Disable hardware-acceleration layer locking that causes blurry texture stretching */
+  will-change: auto !important;
+  backface-visibility: visible !important;
+  transform-style: flat !important;
+  
+  /* Optimize font rendering at any resolution */
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+/* G6 HTML Node wrapper: Disable force-GPU caching which causes scaling blur */
+.g6-html-node-container, .g6-html-node, .g6-html-node-container * {
+  will-change: auto !important;
+  backface-visibility: visible !important;
+  transform-style: flat !important;
+}
+.wf-node * {
+  box-sizing: border-box;
+}
+.wf-node input, .wf-node textarea, .wf-node select {
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+
+#nodePrompt  { animation-delay: 0.05s; }
+#nodeModel   { animation-delay: 0.10s; }
+#nodePreview { animation-delay: 0.15s; }
+
+
+/* ── Workflow Library Panel ── */
+#panel-workflow-library {
+  display: none;
+  flex-direction: column;
+  height: calc(100vh - 100px);
+  overflow: hidden;
+}
+#panel-workflow-library.active {
+  display: flex;
+}
+#panel-workflow-library .prompts-toolbar {
+  flex-shrink: 0;
+}
+
+/* ── Workflow List QuickBar ── */
+.wf-list-quickbar {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  width: 260px;
+  max-height: calc(100% - 32px);
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  transform: translateX(120%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+.wf-list-quickbar.active {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.wf-list-qb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.wf-list-qb-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.wf-list-qb-close:hover { background: var(--hover); color: var(--ink); }
+.wf-list-qb-search {
+  margin: 8px 10px 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  flex-shrink: 0;
+}
+.wf-list-qb-search:focus { outline: none; border-color: var(--warm); }
+.wf-list-qb-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wf-list-qb-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.wf-list-qb-item:hover {
+  border-color: var(--warm);
+  box-shadow: 0 4px 12px rgba(199,155,104,0.15);
+  transform: translateY(-1px);
+}
+.wf-list-qb-name {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wf-list-qb-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.wf-list-qb-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 20px 0; }
+
+/* Workflow card — whole card is clickable */
+.wl-card { cursor: pointer; }
+.wl-card.dragging { opacity: 0.5; }
+
+/* Canvas drop target highlight */
+.workflow-canvas.wl-drag-over {
+  outline: 3px dashed var(--warm);
+  outline-offset: -3px;
+}
+
+/* "Add category" button in sidebar */
+.cat-sidebar-add {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  margin: 4px 8px 0;
+  transition: background .15s, color .15s;
+}
+.cat-sidebar-add:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* Icon buttons inside cards */
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1;
+  transition: background .15s, color .15s;
+}
+.icon-btn:hover { background: var(--hover); color: var(--text); }
+.icon-btn.danger:hover { background: #fee2e2; color: #dc2626; }
+

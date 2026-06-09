@@ -1,0 +1,931 @@
+/* ── Assets Panel Layout ── */
+.assets-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.assets-folder-sidebar {
+  width: 160px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  position: sticky;
+  top: 68px;
+}
+.assets-main { flex: 1; min-width: 0; }
+.folder-item {
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--muted);
+  transition: background 0.12s, color 0.12s;
+}
+.folder-item:hover { background: var(--paper); color: var(--ink); }
+.folder-item.active { background: var(--warm); color: var(--ink); font-weight: 600; }
+.folder-add-btn {
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 6px;
+  transition: border-color 0.12s, color 0.12s;
+}
+.folder-add-btn:hover { border-color: var(--warm); color: var(--warm); }
+
+/* ── Mask Node preview ── */
+.wf-mask-preview {
+  width: 100%;
+  height: 80px;
+  background: #eee;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  color: #888;
+  border: 1px dashed #ccc;
+  overflow: hidden;
+}
+.wf-mask-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ══════════════════════════════════════════════════════════════
+   IDE Agent — 3-Column Layout
+   ══════════════════════════════════════════════════════════════ */
+.workflow-ide-layout {
+  display: grid;
+  grid-template-columns: var(--ide-left-width, 240px) 4px 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Left Pane: Asset File Explorer ── */
+.ide-left-assets {
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  container-type: inline-size;
+  container-name: assets-container;
+}
+
+.ide-assets-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background: var(--border);
+  transition: background 0.15s;
+  z-index: 1000;
+  margin: 0 -2px;
+  position: relative;
+  flex-shrink: 0;
+}
+.ide-assets-resizer:hover,
+.ide-assets-resizer.dragging {
+  background: #1783FF !important;
+  width: 6px;
+  margin: 0 -3px;
+}
+.ide-assets-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--paper);
+}
+.ide-pane-title {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.ide-folder-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.ide-folder-item {
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ide-folder-item:hover { background: var(--paper); color: var(--ink); }
+.ide-folder-item.active { background: var(--warm); color: var(--ink); font-weight: 600; }
+.ide-assets-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  align-content: start;
+}
+
+@container assets-container (max-width: 220px) {
+  .ide-assets-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ide-left-assets.single-column .ide-assets-grid {
+  grid-template-columns: 1fr;
+}
+.ide-asset-thumb {
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  cursor: grab;
+  transition: box-shadow 0.15s, transform 0.15s;
+  background: #eee;
+  aspect-ratio: 1;
+}
+.ide-asset-thumb:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  transform: translateY(-2px);
+}
+.ide-asset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+.ide-asset-name {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+  padding: 3px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Center Pane: Node Workflow ── */
+.ide-center-workflow {
+  overflow: hidden;
+  position: relative;
+}
+.ide-center-workflow .workflow-canvas {
+  height: 100% !important;
+  border-radius: 0;
+}
+
+/* ── Right Pane: IDE Agent Chat ── */
+.ide-right-agent {
+  background: #faf9f7;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.agent-header {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--white);
+  flex-shrink: 0;
+}
+.agent-header-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.agent-model-select {
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-size: 11.5px;
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.agent-model-select:focus { border-color: var(--warm); }
+
+/* ── Chat Messages Area ── */
+.agent-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Welcome state */
+.agent-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  text-align: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--muted);
+}
+.agent-welcome-icon {
+  font-size: 42px;
+  line-height: 1;
+  opacity: 0.6;
+}
+.agent-welcome-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.agent-welcome-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  max-width: 260px;
+  line-height: 1.6;
+}
+
+/* Chat message — User (Right-aligned bubble) */
+.chat-msg {
+  display: flex;
+  gap: 8px;
+  animation: chatMsgIn 0.3s ease both;
+}
+@keyframes chatMsgIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.chat-msg.user {
+  justify-content: flex-end;
+}
+.chat-msg.user .chat-bubble {
+  background: #e8e4dd;
+  color: var(--ink);
+  border-radius: 18px 18px 4px 18px;
+  padding: 10px 16px;
+  max-width: 85%;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+/* Chat message — AI (Left-aligned, no bubble, modern style) */
+.chat-msg.ai {
+  justify-content: flex-start;
+  gap: 10px;
+}
+.chat-msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--warm), var(--warm-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  color: #fff;
+  margin-top: 2px;
+}
+.chat-msg.ai .chat-content {
+  max-width: 88%;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+.chat-msg.ai .chat-content p {
+  margin: 0 0 8px;
+}
+.chat-msg.ai .chat-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Generated image in chat */
+.chat-gen-image {
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin: 8px 0;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.chat-gen-image:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+.chat-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+.chat-save-btn:hover {
+  border-color: var(--warm);
+  color: var(--warm);
+  background: rgba(200,169,110,0.06);
+}
+
+/* User image attachment in chat */
+.chat-user-image {
+  max-width: 180px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+/* ── Bottom Input Area (Pill-shaped, ChatGPT/Gemini-style) ── */
+.agent-input-area {
+  padding: 12px 16px 16px;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Attachment previews above input */
+.agent-attachments {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 0;
+}
+.agent-attachments:empty { display: none; }
+.agent-attach-preview {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.agent-attach-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.agent-attach-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.agent-attach-remove:hover { background: rgba(0,0,0,0.75); }
+
+/* The pill-shaped input container */
+.agent-input-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 4px 6px 4px 4px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.agent-input-container:focus-within {
+  border-color: var(--warm);
+  box-shadow: 0 0 0 3px rgba(200,169,110,0.12);
+}
+
+.agent-attach-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: color 0.15s, background 0.15s;
+}
+.agent-attach-btn:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
+
+.agent-textarea {
+  flex: 1;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 4px;
+  outline: none;
+  max-height: 120px;
+  overflow-y: auto;
+  font-family: inherit;
+  color: var(--ink);
+}
+.agent-textarea::placeholder { color: var(--muted); }
+
+.agent-send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--ink);
+  color: var(--white);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s;
+}
+.agent-send-btn:hover { background: var(--warm-dark); }
+.agent-send-btn:active { transform: scale(0.92); }
+
+/* ── Loading indicator for AI response ── */
+.chat-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+}
+.chat-loading-dots {
+  display: flex;
+  gap: 4px;
+}
+.chat-loading-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: chatDotPulse 1.2s ease-in-out infinite;
+}
+.chat-loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.chat-loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chatDotPulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* ── Drop highlight for drag-and-drop ── */
+.ide-right-agent.drag-over {
+  outline: 2px dashed var(--warm);
+  outline-offset: -4px;
+  background: rgba(200,169,110,0.04);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Image Generation Mode — Toggle, Params Panel & Glow Effect
+   ══════════════════════════════════════════════════════════════ */
+
+/* 🎨 Image Mode Toggle Button */
+.agent-imgmode-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: color 0.15s, background 0.15s, box-shadow 0.2s;
+}
+.agent-imgmode-btn:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
+.agent-imgmode-btn.active {
+  background: linear-gradient(135deg, #c8a96e33, #e8c47722);
+  color: var(--warm-dark);
+  box-shadow: 0 0 8px rgba(200,169,110,0.3);
+}
+
+/* Glow effect on input container when image mode is active */
+.agent-input-container.image-mode {
+  border-color: var(--warm);
+  box-shadow: 0 0 0 3px rgba(200,169,110,0.15), 0 0 16px rgba(200,169,110,0.08);
+}
+.agent-input-container.image-mode .agent-textarea::placeholder {
+  color: var(--warm-dark);
+}
+
+/* Generation Parameters Panel */
+.agent-gen-params {
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(200,169,110,0.06), rgba(200,169,110,0.02));
+  border: 1px solid rgba(200,169,110,0.2);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  animation: genParamsSlideDown 0.25s ease both;
+}
+.agent-gen-params.hidden {
+  display: none;
+}
+@keyframes genParamsSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.gen-param-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.gen-param-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warm-dark);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+.gen-param-select {
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.gen-param-select:focus { border-color: var(--warm); }
+
+/* =========================================================================
+   22. IDE Agent Messages (Shared)
+   ========================================================================= */
+.agent-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+.agent-header-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.agent-model-select {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.agent-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.agent-welcome {
+  margin: auto;
+  text-align: center;
+  color: var(--text-light);
+}
+.agent-welcome-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+.agent-welcome-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+.agent-welcome-sub {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.agent-input-area {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.agent-input-container {
+  display: flex;
+  gap: 8px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+}
+.agent-textarea {
+  flex: 1;
+  border: none;
+  resize: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 4px;
+  min-height: 24px;
+  max-height: 120px;
+  color: var(--ink);
+}
+.agent-send-btn {
+  background: var(--warm);
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .2s;
+  flex-shrink: 0;
+}
+.agent-send-btn:disabled {
+  background: var(--border);
+  cursor: not-allowed;
+}
+
+/* =========================================================================
+   23. Global Floating IDE Agent
+   ========================================================================= */
+.global-ide-agent-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  background: var(--warm);
+  color: white;
+  font-size: 24px;
+  border: none;
+  box-shadow: 0 4px 12px rgba(199, 155, 104, 0.4);
+  cursor: pointer;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.global-ide-agent-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(199, 155, 104, 0.5);
+}
+.global-ide-agent-panel {
+  position: fixed;
+  bottom: 90px;
+  right: 24px;
+  width: 380px;
+  height: 500px;
+  max-height: calc(100vh - 120px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 0.2s, transform 0.2s;
+  transform-origin: bottom right;
+}
+.global-ide-agent-panel.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.95);
+}
+.agent-close-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.agent-close-btn:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* =========================================================================
+   24. Workflow Prompt Quick-Bar & Layout
+   ========================================================================= */
+.workflow-prompt-quickbar {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  width: auto;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  z-index: 50;
+  gap: 10px;
+  transform: translateX(120%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+.workflow-prompt-quickbar.active {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.quickbar-cat-btn {
+  width: auto;
+  height: auto;
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.quickbar-cat-btn:hover, .quickbar-cat-btn.active, .quickbar-cat-btn.pinned {
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  border-color: var(--warm);
+  background: var(--white);
+}
+.quickbar-cat-btn.pinned {
+  background: var(--warm);
+  color: white;
+  border-color: var(--warm-dark);
+}
+.quickbar-cat-text {
+  position: relative;
+  z-index: 2;
+}
+
+/* Timer countdown bar */
+.quickbar-timer-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--warm);
+  width: 100%;
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  z-index: 1;
+}
+.quickbar-cat-btn.timer-active .quickbar-timer-bar {
+  animation: quickbarTimer 400ms linear forwards;
+}
+@keyframes quickbarTimer {
+  0% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(0); opacity: 1; }
+}
+
+.quickbar-popover {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 0;
+  width: 280px;
+  max-height: calc(100vh - 120px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s;
+  z-index: 49;
+  overflow: hidden;
+}
+.quickbar-popover.visible {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: all;
+}
+.quickbar-popover-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+.quickbar-popover-close {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.quickbar-popover-close:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+.quickbar-popover-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quickbar-prompt-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  cursor: grab;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.quickbar-prompt-item:active {
+  cursor: grabbing;
+}
+.quickbar-prompt-item:hover {
+  border-color: var(--warm);
+  box-shadow: 0 4px 12px rgba(199, 155, 104, 0.15);
+  background: var(--white);
+  transform: translateY(-1px);
+}
+.quickbar-prompt-title {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ── Optimize Image Decode UI Spacing ── */
+#elementsBody .element-section {
+  margin-bottom: 6px;
+}
+#elementsBody .element-layer-badge {
+  margin-bottom: 3px;
+}
+#elSubject.subject-grid {
+  gap: 6px;
+  margin-top: 3px;
+}
+

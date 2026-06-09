@@ -21,7 +21,7 @@
     if (oldSvg) oldSvg.remove();
 
     let nodeIdCounter = 3;
-    const nodeDOMCache = {};
+    let nodeDOMCache = {};
     window.nodeDOMCache = nodeDOMCache;
 
     function syncDOMToGraph() {
@@ -34,8 +34,30 @@
         const type = n.data.type;
         let changed = false;
         if (type === 'model') {
-           const val = el.querySelector('.wf-model-sel').value;
-           if(n.data.model !== val) { n.data.model = val; changed = true; }
+          const val = el.querySelector('.wf-model-sel').value;
+          if (n.data.model !== val) { n.data.model = val; changed = true; }
+          const _pe = el.querySelector('.wf-model-params');
+          if (_pe) {
+            const _temp = parseFloat(el.querySelector('.wf-temp-slider').value);
+            const _aSel = el.querySelector('.wf-aspect-sel').value;
+            const _aCustom = el.querySelector('.wf-custom-aspect').value.trim();
+            const _aspect = _aSel === 'custom' ? (_aCustom || '1:1') : _aSel;
+            const _imageSize = el.querySelector('.wf-image-size-sel').value;
+            const _thinking = el.querySelector('.wf-thinking-sel').value;
+            const _gs = el.querySelector('.wf-google-search').checked;
+            const _stopRaw = el.querySelector('.wf-stop-seq').value;
+            const _stops = _stopRaw.split(',').map(s => s.trim()).filter(Boolean);
+            const _outLen = parseInt(el.querySelector('.wf-output-length').value) || 65536;
+            const _topP = parseFloat(el.querySelector('.wf-topp-slider').value);
+            if (n.data.temperature !== _temp) { n.data.temperature = _temp; changed = true; }
+            if (n.data.aspectRatio !== _aspect) { n.data.aspectRatio = _aspect; changed = true; }
+            if (n.data.imageSize !== _imageSize) { n.data.imageSize = _imageSize; changed = true; }
+            if (n.data.thinkingLevel !== _thinking) { n.data.thinkingLevel = _thinking; changed = true; }
+            if (n.data.googleSearch !== _gs) { n.data.googleSearch = _gs; changed = true; }
+            if (JSON.stringify(n.data.stopSequences) !== JSON.stringify(_stops)) { n.data.stopSequences = _stops; changed = true; }
+            if (n.data.outputLength !== _outLen) { n.data.outputLength = _outLen; changed = true; }
+            if (n.data.topP !== _topP) { n.data.topP = _topP; changed = true; }
+          }
         } else if (type === 'parameters') {
            const val = el.querySelector('.wf-res-sel').value;
            if(n.data.resolution !== val) { n.data.resolution = val; changed = true; }
@@ -198,13 +220,90 @@
 
       if (type === 'model') {
         headerText = '生成模型 (Model)';
+        const _isGpt = datum.data.model === 'gptimage';
+        const _savedTemp = datum.data.temperature ?? 0.4;
+        const _savedAspect = datum.data.aspectRatio || '1:1';
+        const _savedImageSize = datum.data.imageSize || '';
+        const _stdAspects = ['1:1','16:9','9:16','4:3','3:4','21:9','3:2','2:3','4:5','5:4'];
+        const _isCustomAspect = !_stdAspects.includes(_savedAspect);
+        const _savedThinking = datum.data.thinkingLevel || 'none';
+        const _savedGS = datum.data.googleSearch || false;
+        const _savedStopSeq = datum.data.stopSequences ? datum.data.stopSequences.join(',') : '';
+        const _savedOutputLen = datum.data.outputLength ?? 65536;
+        const _savedTopP = datum.data.topP ?? 0.95;
         bodyHTML = `
-          <label style="color:var(--node-text); font-weight:500;">Model</label>
-          <select class="form-select form-select-sm wf-model-sel" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px;">
+          <label style="color:var(--node-text); font-weight:500; font-size:11px; margin-bottom:2px; display:block;">Model</label>
+          <select class="form-select form-select-sm wf-model-sel" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px; margin-bottom:8px;">
             <option value="nanobanana2" ${datum.data.model === 'nanobanana2' || !datum.data.model ? 'selected' : ''}>Nano Banana 2</option>
             <option value="nanobanana" ${datum.data.model === 'nanobanana' ? 'selected' : ''}>Nano Banana Pro</option>
             <option value="gptimage" ${datum.data.model === 'gptimage' ? 'selected' : ''}>GPT Image 2.0</option>
           </select>
+          <div class="wf-model-params" style="display:${_isGpt ? 'none' : 'flex'}; flex-direction:column; flex:1; overflow-y:auto; gap:0;">
+            <div style="margin-bottom:8px;">
+              <label style="color:var(--node-text); font-size:11px; font-weight:500; display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span>Temperature</span><span class="wf-temp-val" style="color:var(--accent,#4ade80);">${_savedTemp.toFixed(2)}</span>
+              </label>
+              <input type="range" class="wf-temp-slider" min="0" max="2" step="0.05" value="${_savedTemp}" style="width:100%; accent-color:var(--accent,#4ade80); cursor:pointer;">
+            </div>
+            <div style="margin-bottom:8px;">
+              <label style="color:var(--node-text); font-size:11px; font-weight:500; display:block; margin-bottom:2px;">Aspect Ratio</label>
+              <select class="form-select form-select-sm wf-aspect-sel" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px; margin-bottom:4px;">
+                <option value="1:1" ${!_isCustomAspect && _savedAspect==='1:1' ? 'selected':''}>1:1</option>
+                <option value="16:9" ${!_isCustomAspect && _savedAspect==='16:9' ? 'selected':''}>16:9</option>
+                <option value="9:16" ${!_isCustomAspect && _savedAspect==='9:16' ? 'selected':''}>9:16</option>
+                <option value="4:3" ${!_isCustomAspect && _savedAspect==='4:3' ? 'selected':''}>4:3</option>
+                <option value="3:4" ${!_isCustomAspect && _savedAspect==='3:4' ? 'selected':''}>3:4</option>
+                <option value="3:2" ${!_isCustomAspect && _savedAspect==='3:2' ? 'selected':''}>3:2</option>
+                <option value="2:3" ${!_isCustomAspect && _savedAspect==='2:3' ? 'selected':''}>2:3</option>
+                <option value="4:5" ${!_isCustomAspect && _savedAspect==='4:5' ? 'selected':''}>4:5</option>
+                <option value="5:4" ${!_isCustomAspect && _savedAspect==='5:4' ? 'selected':''}>5:4</option>
+                <option value="21:9" ${!_isCustomAspect && _savedAspect==='21:9' ? 'selected':''}>21:9</option>
+                <option value="custom" ${_isCustomAspect ? 'selected':''}>Custom...</option>
+              </select>
+              <input type="text" class="wf-custom-aspect" placeholder="e.g. 1:4" value="${_isCustomAspect ? _savedAspect : ''}" style="display:${_isCustomAspect ? 'block':'none'}; width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px; padding:4px; box-sizing:border-box; font-size:11px;">
+            </div>
+            <div style="margin-bottom:8px;">
+              <label style="color:var(--node-text); font-size:11px; font-weight:500; display:block; margin-bottom:2px;">Image Size</label>
+              <select class="form-select form-select-sm wf-image-size-sel" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px;">
+                <option value="" ${_savedImageSize==='' ? 'selected':''}>Default</option>
+                <option value="512" ${_savedImageSize==='512' ? 'selected':''}>512px</option>
+                <option value="1K" ${_savedImageSize==='1K' ? 'selected':''}>1K</option>
+                <option value="2K" ${_savedImageSize==='2K' ? 'selected':''}>2K</option>
+                <option value="4K" ${_savedImageSize==='4K' ? 'selected':''}>4K</option>
+              </select>
+            </div>
+            <div style="margin-bottom:8px;">
+              <label style="color:var(--node-text); font-size:11px; font-weight:500; display:block; margin-bottom:2px;">Thinking Level</label>
+              <select class="form-select form-select-sm wf-thinking-sel" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px;">
+                <option value="none" ${_savedThinking==='none' ? 'selected':''}>None</option>
+                <option value="low" ${_savedThinking==='low' ? 'selected':''}>Low (Minimal)</option>
+                <option value="high" ${_savedThinking==='high' ? 'selected':''}>High</option>
+              </select>
+            </div>
+            <div style="margin-bottom:8px;">
+              <label style="color:var(--node-text); font-size:11px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="checkbox" class="wf-google-search" ${_savedGS ? 'checked':''} style="accent-color:var(--accent,#4ade80); cursor:pointer;">
+                <span>Grounding with Google Search</span>
+              </label>
+            </div>
+            <details class="wf-advanced">
+              <summary style="color:var(--muted,#888); font-size:11px; cursor:pointer; user-select:none; padding:2px 0; margin-bottom:6px;">Advanced Settings</summary>
+              <div style="margin-bottom:8px;">
+                <label style="color:var(--node-text); font-size:11px; font-weight:500; display:block; margin-bottom:2px;">Stop Sequences</label>
+                <input type="text" class="wf-stop-seq" placeholder="e.g. END,STOP" value="${_savedStopSeq}" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px; padding:4px; box-sizing:border-box; font-size:11px;">
+              </div>
+              <div style="margin-bottom:8px;">
+                <label style="color:var(--node-text); font-size:11px; font-weight:500; display:block; margin-bottom:2px;">Output Length</label>
+                <input type="number" class="wf-output-length" value="${_savedOutputLen}" min="1" max="65536" style="width:100%; background:var(--node-input-bg); color:var(--node-text); border:1px solid var(--node-input-border); border-radius:4px; padding:4px; box-sizing:border-box; font-size:11px;">
+              </div>
+              <div style="margin-bottom:4px;">
+                <label style="color:var(--node-text); font-size:11px; font-weight:500; display:flex; justify-content:space-between; margin-bottom:2px;">
+                  <span>Top P</span><span class="wf-topp-val" style="color:var(--accent,#4ade80);">${_savedTopP.toFixed(2)}</span>
+                </label>
+                <input type="range" class="wf-topp-slider" min="0" max="1" step="0.01" value="${_savedTopP}" style="width:100%; accent-color:var(--accent,#4ade80); cursor:pointer;">
+              </div>
+            </details>
+          </div>
         `;
       } else if (type === 'prompt') {
         headerText = '提示詞 (Prompt)';
@@ -312,6 +411,30 @@
         }
       }
 
+      if (type === 'model') {
+        const _modelSel = el.querySelector('.wf-model-sel');
+        const _paramsDiv = el.querySelector('.wf-model-params');
+        const _aspectSel = el.querySelector('.wf-aspect-sel');
+        const _customAspect = el.querySelector('.wf-custom-aspect');
+        const _tempSlider = el.querySelector('.wf-temp-slider');
+        const _tempVal = el.querySelector('.wf-temp-val');
+        const _toppSlider = el.querySelector('.wf-topp-slider');
+        const _toppVal = el.querySelector('.wf-topp-val');
+
+        _modelSel.addEventListener('change', () => {
+          _paramsDiv.style.display = _modelSel.value === 'gptimage' ? 'none' : 'flex';
+        });
+        _aspectSel.addEventListener('change', () => {
+          _customAspect.style.display = _aspectSel.value === 'custom' ? 'block' : 'none';
+        });
+        _tempSlider.addEventListener('input', () => {
+          _tempVal.textContent = parseFloat(_tempSlider.value).toFixed(2);
+        });
+        _toppSlider.addEventListener('input', () => {
+          _toppVal.textContent = parseFloat(_toppSlider.value).toFixed(2);
+        });
+      }
+
       // Parameters node no longer has interactive elements beyond the select
 
       if (type === 'img2img') {
@@ -417,16 +540,14 @@
     const defaultPrompt2 = `編輯模式：尺寸不變，保持當前圖像形體和結構不變。未指定區域的所有圖像必須完全保持原樣，所有修改必須按照用戶的要求進行。不得重繪、修飾、增強、裁切、縮放、變色、銳化、模糊或改動任何像素。\n\n編輯：分析視覺主體，將圖像轉化為銳利，簡潔線稿，輪廓線介於1px~2px, 次要線0.2~0.5px。去除噪點\n\n采色：#ffffff,#000000`;
     let initialData = {
       nodes: [
-        { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 100, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
-        { id: 'node_3', data: { type: 'parameters' }, style: { x: 100, y: 350, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
+        { id: 'node_1', data: { type: 'model' }, style: { x: 100, y: 200, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
         { id: 'node_2', data: { type: 'prompt' }, style: { x: 450, y: 100, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
         { id: 'node_4', data: { type: 'img2img' }, style: { x: 450, y: 350, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
         { id: 'node_5', data: { type: 'prompt', prefill: defaultPrompt2 }, style: { x: 850, y: 100, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } },
         { id: 'node_6', data: { type: 'img2img' }, style: { x: 850, y: 350, ports: [{key:'in', position:'left', placement:'left'}, {key:'out', position:'right', placement:'right'}] } }
       ],
       edges: [
-        { source: 'node_1', target: 'node_3', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 },
-        { source: 'node_3', target: 'node_2', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 },
+        { source: 'node_1', target: 'node_2', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 },
         { source: 'node_2', target: 'node_4', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 },
         { source: 'node_4', target: 'node_5', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 },
         { source: 'node_5', target: 'node_6', sourcePort: 'out', targetPort: 'in', sourceAnchor: 1, targetAnchor: 0 }
@@ -461,7 +582,7 @@
 
     function getNodeSize(type) {
       switch(type) {
-        case 'model': return [224, 90];
+        case 'model': return [280, 380];
         case 'prompt': return [304, 150];
         case 'parameters': return [224, 90];
         case 'img2img': return [284, 300];
@@ -582,7 +703,13 @@
 
     function updateCustomEdges() {
       if (!graph || graph.destroyed) return;
-      
+
+      const _wfPanel = document.getElementById('panel-workflow');
+      if (!_wfPanel || !_wfPanel.classList.contains('active')) {
+        requestAnimationFrame(updateCustomEdges);
+        return;
+      }
+
       let edges = [];
       try {
         edges = graph.getEdgeData ? graph.getEdgeData() : (graph.save ? graph.save().edges : []);
@@ -963,16 +1090,17 @@
         });
       });
 
-      // Save Workflow
-      const saveBtn = document.getElementById('wfSaveBtn');
-      if (saveBtn) {
-        saveBtn.addEventListener('click', () => {
-          if (!graph) return;
-          const data = window.getGraphDataDump();
-          localStorage.setItem('ps_workflow', JSON.stringify(data));
-          if (window.showToast) window.showToast('💾 工作流已儲存');
-        });
-      }
+      // Save Workflow → opens library save modal
+      document.getElementById('wfSaveBtn')?.addEventListener('click', () => {
+        if (window.WorkflowLibrary) window.WorkflowLibrary.openSaveModal();
+      });
+
+      // Silent backup on page unload
+      window.addEventListener('beforeunload', () => {
+        if (window.getGraphDataDump) {
+          localStorage.setItem('ps_workflow', JSON.stringify(window.getGraphDataDump()));
+        }
+      });
 
       // Export JSON
       const exportBtn = document.getElementById('wfExportBtn');
@@ -1000,9 +1128,10 @@
             try {
               const data = JSON.parse(event.target.result);
               if (graph) {
-                nodeDOMCache = {}; // reset DOM cache
-                graph.changeData(data);
-                setTimeout(() => { graph.fitView(); }, 100);
+                Object.keys(nodeDOMCache).forEach(k => delete nodeDOMCache[k]);
+                graph.setData(JSON.parse(JSON.stringify(data)));
+                graph.render();
+                setTimeout(() => { graph.fitView(); }, 150);
                 if (window.showToast) window.showToast('✅ 工作流配置已導入');
               }
             } catch (err) {
@@ -1014,6 +1143,14 @@
           importInput.value = ''; // reset
         });
       }
+
+      // Expose load function for Workflow Library
+      window.wfLoadData = function(data) {
+        if (!graph || graph.destroyed) return;
+        Object.keys(nodeDOMCache).forEach(k => delete nodeDOMCache[k]);
+        graph.setData(JSON.parse(JSON.stringify(data)));
+        graph.render();
+      };
 
       // Prompt Toggle
       const promptToggleBtn = document.getElementById('wfPromptToggleBtn');
@@ -1214,6 +1351,14 @@
               if (inc.i2i_base !== undefined) state.i2i_base = inc.i2i_base;
               if (inc.cfg !== undefined) state.cfg = inc.cfg;
               if (inc.upscale !== undefined) state.upscale = inc.upscale;
+              if (inc.aspectRatio !== undefined) state.aspectRatio = inc.aspectRatio;
+              if (inc.imageSize !== undefined) state.imageSize = inc.imageSize;
+              if (inc.temperature !== undefined) state.temperature = inc.temperature;
+              if (inc.thinkingLevel !== undefined) state.thinkingLevel = inc.thinkingLevel;
+              if (inc.googleSearch !== undefined) state.googleSearch = inc.googleSearch;
+              if (inc.stopSequences !== undefined) state.stopSequences = inc.stopSequences;
+              if (inc.outputLength !== undefined) state.outputLength = inc.outputLength;
+              if (inc.topP !== undefined) state.topP = inc.topP;
             });
           }
           
@@ -1226,6 +1371,20 @@
           
           if (type === 'model') {
             state.model = el.querySelector('.wf-model-sel').value;
+            const _runPe = el.querySelector('.wf-model-params');
+            if (_runPe) {
+              const _runASel = el.querySelector('.wf-aspect-sel').value;
+              const _runACustom = el.querySelector('.wf-custom-aspect').value.trim();
+              state.aspectRatio = _runASel === 'custom' ? (_runACustom || '1:1') : _runASel;
+              state.imageSize = el.querySelector('.wf-image-size-sel').value;
+              state.temperature = parseFloat(el.querySelector('.wf-temp-slider').value);
+              state.thinkingLevel = el.querySelector('.wf-thinking-sel').value;
+              state.googleSearch = el.querySelector('.wf-google-search').checked;
+              state.stopSequences = el.querySelector('.wf-stop-seq').value
+                .split(',').map(s => s.trim()).filter(Boolean);
+              state.outputLength = parseInt(el.querySelector('.wf-output-length').value) || 65536;
+              state.topP = parseFloat(el.querySelector('.wf-topp-slider').value);
+            }
           } else if (type === 'parameters') {
             state.resolution = el.querySelector('.wf-res-sel').value;
             // CFG and upscale are hardcoded
@@ -1266,20 +1425,26 @@
 
             const finalModel = state.model || 'nanobanana2';
             const finalRes = state.resolution || '1024x1024';
-            const finalCfg = state.cfg !== undefined ? state.cfg : 7;
+
+            const genOptions = {
+              aspectRatio: state.aspectRatio || '1:1',
+              imageSize: state.imageSize || '',
+              temperature: state.temperature ?? 0.4,
+              topP: state.topP ?? 0.95,
+              maxOutputTokens: state.outputLength || 65536,
+              stopSequences: state.stopSequences || [],
+              thinkingLevel: state.thinkingLevel || 'none',
+              googleSearch: state.googleSearch || false,
+            };
 
             const placeholder = el.querySelector('.wf-preview-placeholder');
             const imgEl = el.querySelector('.wf-preview-img');
-            
+
             placeholder.style.display = 'flex';
             placeholder.textContent = 'Generating...';
             imgEl.style.display = 'none';
 
             try {
-              const [width, height] = finalRes.split('x').map(Number);
-              const finalW = width;
-              const finalH = height;
-              
               let apiKey = '';
               if (finalModel === 'gptimage') apiKey = window.StudioSettings.getGptimageKey();
               else apiKey = window.StudioSettings.getNanobananaKey();
@@ -1288,16 +1453,17 @@
                  if (window.showToast) window.showToast('⚠️ API Key 尚未設定 (' + finalModel + ')');
                  throw new Error('API Key missing');
               }
-              
+
               if (window.showToast) window.showToast(`🚀 節點 [${id}] 開始生成...`);
-              
+
               let imageUrl = '';
               if (finalModel === 'gptimage') {
+                const [finalW, finalH] = finalRes.split('x').map(Number);
                 imageUrl = await window.AIService.generateWithGPTImage(finalPrompt, apiKey, finalW, finalH, state.i2i_base);
               } else if (finalModel === 'nanobanana2') {
-                imageUrl = await window.AIService.generateWithNanoBanana2(finalPrompt, apiKey, finalW, finalH, state.i2i_base, state.mask, finalCfg);
+                imageUrl = await window.AIService.generateWithNanoBanana2(finalPrompt, apiKey, state.i2i_base || null, state.mask || null, genOptions);
               } else {
-                imageUrl = await window.AIService.generateWithNanoBanana(finalPrompt, apiKey, finalW, finalH);
+                imageUrl = await window.AIService.generateWithNanoBanana(finalPrompt, apiKey, genOptions);
               }
               
               imgEl.src = imageUrl;
@@ -1330,7 +1496,8 @@
               }
             } catch (err) {
               console.error(err);
-              placeholder.textContent = 'Error';
+              placeholder.style.fontSize = '11px';
+              placeholder.textContent = err.message || 'Unknown error';
             }
           }
         }
