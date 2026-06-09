@@ -562,17 +562,27 @@
 
   // Insert text into forge textarea preserving undo history
   function forgeInsertText(textarea, newText) {
-    const current = textarea.value.trim();
-    const insertValue = current ? current + '\n\n' + newText : newText;
     textarea.focus();
+    const current = textarea.value;
+    // Move cursor to the end
+    textarea.selectionStart = current.length;
+    textarea.selectionEnd = current.length;
+
+    const prefix = current.trim() ? '\n\n' : '';
+    const insertValue = prefix + newText;
+
     // Use execCommand so the browser records this change in its undo stack
-    document.execCommand('selectAll');
     document.execCommand('insertText', false, insertValue);
-    // Fallback for browsers where execCommand is unsupported
-    if (textarea.value !== insertValue) {
-      textarea.value = insertValue;
+
+    // Fallback for browsers where execCommand is unsupported or failed
+    if (!textarea.value.endsWith(newText)) {
+      textarea.value = current + insertValue;
     }
-    if (window.EditorService) window.EditorService.setContent('forgeTextarea', insertValue);
+    
+    // Scroll to bottom
+    textarea.scrollTop = textarea.scrollHeight;
+
+    if (window.EditorService) window.EditorService.setContent('forgeTextarea', textarea.value);
   }
 
   // ── Forge Logic ──

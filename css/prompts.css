@@ -491,9 +491,11 @@
 .forge-textarea {
   width: 100%;
   flex: 1;
+  min-height: 0; /* Crucial for flex children to scroll properly */
   border: none;
   outline: none;
   resize: none; /* Disable manual resize since it fills flex space */
+  overflow-y: auto; /* Enable scrollbar when content exceeds height */
   font-family: inherit;
   font-size: 12.5px;
   line-height: 1.6;
