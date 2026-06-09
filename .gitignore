@@ -6,3 +6,12 @@ AGENT_SKILLS.md
 node_modules/
 .env
 n8n-data/
+
+# Agent Reports & Plans
+*plan*.md
+*report*.md
+implementation_plan_workflow.md
+implementation-plan-*.md
+
+# Scripts
+*.bat
