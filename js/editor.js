@@ -134,7 +134,8 @@ window.EditorService = (function() {
   async function updateSuggestions() {
     if (currentMode === '/') {
       const raw = localStorage.getItem('ps_prompts');
-      const allPrompts = raw ? JSON.parse(raw) : [];
+      let allPrompts = [];
+      try { allPrompts = raw ? JSON.parse(raw) : []; } catch (e) {}
       const q = query.toLowerCase();
       suggestionItems = allPrompts.filter(p => p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || p.content.toLowerCase().includes(q));
     } else if (currentMode === '@') {
@@ -281,6 +282,8 @@ window.EditorService = (function() {
     
     editor.addEventListener('keydown', onEditorKeyDown);
     editor.addEventListener('input', onEditorInput);
+    editor.addEventListener('dragover', e => e.preventDefault());
+    editor.addEventListener('drop', e => e.preventDefault());
     
     // Hide textarea and insert editor
     textarea.style.display = 'none';

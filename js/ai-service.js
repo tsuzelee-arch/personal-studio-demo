@@ -4,6 +4,28 @@
  */
 window.AIService = (function() {
 
+  // Resize + compress a base64 dataUrl before sending to API.
+  // Skips compression if image already fits within maxDim.
+  // outputFormat: 'image/jpeg' for photos, 'image/png' for masks.
+  function compressImage(dataUrl, maxDim = 1024, quality = 0.85, outputFormat = 'image/jpeg') {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width <= maxDim && height <= maxDim) { resolve(dataUrl); return; }
+        if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else { width = Math.round(width * maxDim / height); height = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL(outputFormat, quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
   const OPENAI_MODELS = {
     'openai':        'gpt-5.5',
     'openai-54':     'gpt-5.4',
@@ -361,6 +383,41 @@ ${JSON.stringify(analysis)}`;
     });
   }
 
+  async function _executeGeminiRequest(url, payload, modelName) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+    } catch (fetchErr) {
+      if (fetchErr.name === 'AbortError') throw new Error(`${modelName} 請求逾時（90秒），伺服器無回應`);
+      throw new Error('網路錯誤：' + fetchErr.message);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `${modelName} API Error: HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    if (!imagePart) {
+      const textPart = data.candidates?.[0]?.content?.parts?.find(p => p.text);
+      const errReason = textPart ? textPart.text : JSON.stringify(data);
+      throw new Error(`${modelName} Error: ${errReason}`);
+    }
+    const { mime_type, data: b64 } = imagePart.inlineData;
+    return `data:${mime_type || 'image/png'};base64,${b64}`;
+  }
+
   // ── Image Generation APIs ──
   async function generateWithNanoBanana(prompt, apiKey, options = {}) {
     // Nano Banana Pro -> gemini-3-pro-image
@@ -376,8 +433,10 @@ ${JSON.stringify(analysis)}`;
     const _imgCfgPro = { aspectRatio };
     if (imageSize) _imgCfgPro.imageSize = imageSize;
 
-    const generationConfig = { imageConfig: _imgCfgPro };
-    if (googleSearch) generationConfig.responseModalities = ['TEXT', 'IMAGE'];
+    const generationConfig = { 
+      imageConfig: _imgCfgPro,
+      responseModalities: googleSearch ? ['TEXT', 'IMAGE'] : ['IMAGE']
+    };
     if (thinkingLevel !== 'none') {
       const _apiThinkingLevel = thinkingLevel === 'low' ? 'minimal' : thinkingLevel;
       generationConfig.thinkingConfig = { thinkingLevel: _apiThinkingLevel };
@@ -389,22 +448,7 @@ ${JSON.stringify(analysis)}`;
       tools: googleSearch ? [{ google_search: {} }] : undefined,
     };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Nano Banana Pro API Error: HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-    if (!imagePart) throw new Error("No image data returned from Nano Banana Pro");
-    const { mime_type, data: b64 } = imagePart.inlineData;
-    return `data:${mime_type || 'image/png'};base64,${b64}`;
+    return await _executeGeminiRequest(url, payload, 'Nano Banana Pro');
   }
 
   async function generateWithNanoBanana2(prompt, apiKey, image = null, mask = null, options = {}) {
@@ -424,14 +468,38 @@ ${JSON.stringify(analysis)}`;
 
     const stripPrefix = (dataUrl) => dataUrl ? dataUrl.replace(/^data:[^;]+;base64,/, '') : null;
 
-    const parts = [{ text: prompt }];
-    if (image) {
-      const mimeMatch = image.match(/^data:([^;]+);/);
-      parts.push({ inline_data: { mime_type: mimeMatch ? mimeMatch[1] : 'image/jpeg', data: stripPrefix(image) } });
+    // Calculate width/height from imageSize and aspectRatio for the magic string
+    let baseDim = 1024;
+    if (imageSize === '512') baseDim = 512;
+    else if (imageSize === '2K') baseDim = 2048;
+    else if (imageSize === '4K') baseDim = 4096;
+    else if (imageSize === '1K') baseDim = 1024;
+
+    let w = baseDim, h = baseDim;
+    if (aspectRatio && aspectRatio.includes(':')) {
+      const partsArr = aspectRatio.split(':');
+      const rW = parseFloat(partsArr[0]);
+      const rH = parseFloat(partsArr[1]);
+      if (!isNaN(rW) && !isNaN(rH) && rH > 0) {
+        if (rW > rH) {
+          h = Math.round(baseDim * (rH / rW));
+        } else {
+          w = Math.round(baseDim * (rW / rH));
+        }
+      }
     }
-    if (mask) {
-      const mimeMask = mask.match(/^data:([^;]+);/);
-      parts.push({ inline_data: { mime_type: mimeMask ? mimeMask[1] : 'image/png', data: stripPrefix(mask) } });
+
+    const sizedPrompt = `[${w}x${h}] ${prompt}`;
+    const compressedImage = image ? await compressImage(image, 1024, 0.85, 'image/jpeg') : null;
+    const compressedMask  = mask  ? await compressImage(mask,  1024, 1.0,  'image/png')  : null;
+    const parts = [{ text: sizedPrompt }];
+    if (compressedImage) {
+      const mimeMatch = compressedImage.match(/^data:([^;]+);/);
+      parts.push({ inline_data: { mime_type: mimeMatch ? mimeMatch[1] : 'image/jpeg', data: stripPrefix(compressedImage) } });
+    }
+    if (compressedMask) {
+      const mimeMask = compressedMask.match(/^data:([^;]+);/);
+      parts.push({ inline_data: { mime_type: mimeMask ? mimeMask[1] : 'image/png', data: stripPrefix(compressedMask) } });
     }
 
     const _imgCfg2 = { aspectRatio };
@@ -443,8 +511,8 @@ ${JSON.stringify(analysis)}`;
       maxOutputTokens,
       stopSequences: stopSequences.length ? stopSequences : undefined,
       imageConfig: _imgCfg2,
+      responseModalities: googleSearch ? ['TEXT', 'IMAGE'] : ['IMAGE']
     };
-    if (googleSearch) generationConfig.responseModalities = ['TEXT', 'IMAGE'];
     if (thinkingLevel !== 'none') {
       const _apiThinkingLevel = thinkingLevel === 'low' ? 'minimal' : thinkingLevel;
       generationConfig.thinkingConfig = { thinkingLevel: _apiThinkingLevel };
@@ -456,22 +524,7 @@ ${JSON.stringify(analysis)}`;
       tools: googleSearch ? [{ google_search: {} }] : undefined,
     };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Nano Banana 2 API Error: HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-    if (!imagePart) throw new Error('No image data returned from Nano Banana 2');
-    const { mime_type, data: b64 } = imagePart.inlineData;
-    return `data:${mime_type || 'image/png'};base64,${b64}`;
+    return await _executeGeminiRequest(url, payload, 'Nano Banana 2');
   }
 
   async function generateWithGPTImage(prompt, apiKey, size="1024x1024", baseImage=null, options={}) {

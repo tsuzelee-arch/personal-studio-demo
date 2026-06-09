@@ -7,14 +7,19 @@ function getKey(req, envVar) {
   return req.headers['x-api-key'] || process.env[envVar] || null;
 }
 
-async function proxy(url, opts, res) {
+async function proxy(url, opts, res, timeoutMs = 120000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const upstream = await fetch(url, opts);
+    const upstream = await fetch(url, { ...opts, signal: controller.signal });
     const ct   = upstream.headers.get('content-type') || '';
     const body = ct.includes('application/json') ? await upstream.json() : await upstream.text();
     res.status(upstream.status).json(body);
   } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'Upstream request timed out (120s)' });
     res.status(502).json({ error: err.message });
+  } finally {
+    clearTimeout(timer);
   }
 }
 

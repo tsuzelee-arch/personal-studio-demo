@@ -7,7 +7,6 @@ const morgan  = require('morgan');
 const path    = require('path');
 const fs      = require('fs');
 
-const BUILD_TS = Date.now();
 
 const aiRouter  = require('./server/routes/ai');
 const n8nRouter = require('./server/routes/n8n');
@@ -42,11 +41,16 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // Serve index.html with build timestamp injected for automatic cache busting on restart
 const _indexPath = path.resolve(__dirname, 'index.html');
-const _indexTemplate = fs.readFileSync(_indexPath, 'utf8');
-const _indexHtml = _indexTemplate.replaceAll('__BUILD_TS__', BUILD_TS);
+let _indexTemplate = '';
+try { _indexTemplate = fs.readFileSync(_indexPath, 'utf8'); } catch (e) {}
+
 app.get('*', (_req, res) => {
+  if (process.env.NODE_ENV !== 'production') {
+    _indexTemplate = fs.readFileSync(_indexPath, 'utf8');
+  }
+  const dynamicHtml = _indexTemplate.replaceAll('__BUILD_TS__', Date.now());
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(_indexHtml);
+  res.send(dynamicHtml);
 });
 
 app.listen(PORT, () => {

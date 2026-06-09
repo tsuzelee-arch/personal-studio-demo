@@ -14,7 +14,8 @@ window.AssetsService = (function() {
   // ── Folder Management (localStorage) ──
   function getFolders() {
     const raw = localStorage.getItem(FOLDERS_KEY);
-    const saved = raw ? JSON.parse(raw) : [];
+    let saved = [];
+    try { if (raw) saved = JSON.parse(raw); } catch { saved = []; }
     const base = ['根目錄', '已完成'];
     base.forEach(f => { if (!saved.includes(f)) saved.unshift(f); });
     return saved;

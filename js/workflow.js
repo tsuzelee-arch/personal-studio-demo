@@ -156,6 +156,18 @@
         }
         cleanedPrompt = cleanedPrompt.replace(match[0], assetName);
       }
+
+      // Support direct image pasting into the prompt editor
+      const imgRegex = /<img[^>]+src="([^">]+)"[^>]*>/i;
+      const imgMatch = cleanedPrompt.match(imgRegex);
+      if (imgMatch) {
+        state.i2i_base = imgMatch[1];
+        cleanedPrompt = cleanedPrompt.replace(imgMatch[0], '');
+      }
+
+      // Clean HTML tags if it's a rich text editor output
+      cleanedPrompt = cleanedPrompt.replace(/<[^>]+>/g, '\n').replace(/\n+/g, '\n').trim();
+
       return cleanedPrompt;
     }
 
@@ -790,7 +802,7 @@
           const color = isSelected ? '#1783FF' : 'var(--node-edge-color, #a0a0a0)';
           
           // Thin visible path
-          pathHTML += `<path d="M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="${strokeWidth + (isSelected ? 1 : 0)}" stroke-linecap="round" style="pointer-events:none; ${isSelected ? 'filter: drop-shadow(0 0 5px rgba(23,131,255,0.8));' : ''}" />`;
+          pathHTML += `<path d="M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="${strokeWidth + (isSelected ? 1 : 0)}" stroke-linecap="round" style="pointer-events:none; ${isSelected ? 'filter: drop-shadow(0 0 5px var(--accent, rgba(23,131,255,0.8)));' : ''}" />`;
         }
       });
       
@@ -804,7 +816,7 @@
         const xDist = Math.abs(x2 - x1);
         const offset = Math.max(xDist * 0.5, 80 * zoom);
         const strokeWidth = Math.max(1, 3 * zoom);
-        pathHTML += `<path d="M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}" fill="none" stroke="#a0a0a0" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-dasharray="5,5" />`;
+        pathHTML += `<path d="M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}" fill="none" stroke="var(--node-edge-color, #a0a0a0)" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-dasharray="5,5" />`;
       }
       
       if (svgOverlay.innerHTML !== pathHTML) {
@@ -1504,8 +1516,14 @@
             const imgEl = el.querySelector('.wf-preview-img');
 
             placeholder.style.display = 'flex';
-            placeholder.textContent = 'Generating...';
+            placeholder.textContent = 'Generating... (0s)';
             imgEl.style.display = 'none';
+
+            let _genSecs = 0;
+            const _genTimer = setInterval(() => {
+              _genSecs++;
+              placeholder.textContent = `Generating... (${_genSecs}s)`;
+            }, 1000);
 
             try {
 
@@ -1561,6 +1579,8 @@
               console.error(err);
               placeholder.style.fontSize = '11px';
               placeholder.textContent = err.message || 'Unknown error';
+            } finally {
+              clearInterval(_genTimer);
             }
           }
         }
