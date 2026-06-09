@@ -67,6 +67,35 @@
   border-color: var(--border) !important;
 }
 
+[data-theme="dark"] .element-layer-badge {
+  background: rgba(255,255,255,0.1) !important;
+  color: #e0e0e0 !important;
+}
+
+[data-theme="dark"] .element-layer-badge.subject-badge {
+  background: rgba(213, 185, 132, 0.15) !important;
+  color: var(--warm) !important;
+}
+
+[data-theme="dark"] .subject-item {
+  background: rgba(255,255,255,0.05) !important;
+}
+
+[data-theme="dark"] .dash-card-body,
+[data-theme="dark"] .element-text,
+[data-theme="dark"] .subject-value,
+[data-theme="dark"] .lighting-fill-text,
+[data-theme="dark"] .material-desc,
+[data-theme="dark"] .negative-list li .negative-text,
+[data-theme="dark"] .negative-list li textarea.negative-text {
+  color: #e0e0e0 !important;
+}
+
+[data-theme="dark"] .negative-list li {
+  background: rgba(181, 92, 92, 0.1) !important;
+  color: #e0e0e0 !important;
+}
+
 [data-theme="dark"] .workflow-canvas,
 [data-theme="dark"] #workflowContainer {
   background-color: var(--paper) !important;
