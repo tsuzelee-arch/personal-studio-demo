@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Studio</title>
+<meta name="description" content="Personal Studio - 您的專屬 Creative AI 圖像編輯與提示詞工作流工作站">
 <link rel="stylesheet" href="css/style.css?v=__BUILD_TS__">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" integrity="sha384-6LFfkTKLRlzFtgx8xsWyBdKGpcMMQTkv+dB7rAbugeJAu1Ym2q1Aji1cjHBG12Xh" crossorigin="anonymous">
 <script>
@@ -17,9 +18,9 @@
 </head>
 <body>
 <div class="shell">
-  <nav class="sidebar">
+  <nav class="sidebar" id="main-nav">
     <div class="logo">
-      <div class="logo-mark">Personal Studio</div>
+      <h1 class="logo-mark">Personal Studio</h1>
       <div class="logo-sub">Creative AI Workspace</div>
     </div>
     <div class="nav-group">
@@ -40,7 +41,7 @@
     </div>
   </nav>
 
-  <main class="main">
+  <main class="main" id="main-content">
     <header class="topbar">
       <div class="page-title" id="pageTitle">圖像解構</div>
       <div class="topbar-actions" id="topbarActions"></div>
@@ -400,7 +401,6 @@
             <div style="width: 1px; background: var(--border); margin: 0 5px;"></div>
             <button class="btn-ghost btn-sm" data-add="model">➕ Model</button>
             <button class="btn-ghost btn-sm" data-add="prompt">➕ Prompt</button>
-            <button class="btn-ghost btn-sm" data-add="parameters">➕ Parameters</button>
             <button class="btn-ghost btn-sm" data-add="img2img">➕ Img2Img</button>
             <button class="btn-ghost btn-sm" data-add="mask">➕ Mask</button>
             <button class="btn-primary btn-sm" id="wfGenerateRunBtn" style="margin-left: 15px;">執行工作流 (Run)</button>

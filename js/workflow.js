@@ -148,7 +148,8 @@
           try {
             const asset = await window.AssetsService.getAsset(assetId);
             if (asset && asset.data) {
-              state.i2i_base = asset.data;
+              if (!Array.isArray(state.i2i_base)) state.i2i_base = state.i2i_base ? [state.i2i_base] : [];
+              state.i2i_base.push(asset.data);
             }
           } catch (e) {
             console.error('Failed to resolve asset in prompt:', e);
@@ -161,7 +162,8 @@
       const imgRegex = /<img[^>]+src="([^">]+)"[^>]*>/i;
       const imgMatch = cleanedPrompt.match(imgRegex);
       if (imgMatch) {
-        state.i2i_base = imgMatch[1];
+        if (!Array.isArray(state.i2i_base)) state.i2i_base = state.i2i_base ? [state.i2i_base] : [];
+        state.i2i_base.push(imgMatch[1]);
         cleanedPrompt = cleanedPrompt.replace(imgMatch[0], '');
       }
 
@@ -363,6 +365,7 @@
               </div>
             </details>
           </div>
+
         `;
       } else if (type === 'prompt') {
         headerText = '提示詞 (Prompt)';
@@ -1392,16 +1395,25 @@
           nodeStates[n.id] = {};
         });
 
-        // 4. Execute Nodes in topological order
+        // 4. Compute BFS levels so same-level nodes can run in parallel
+        const _nodeLevels = {};
         for (const id of sortedNodes) {
+          const _inE = edgeData.filter(e => e.target === id);
+          _nodeLevels[id] = _inE.length === 0 ? 0 :
+            Math.max(..._inE.map(e => _nodeLevels[e.source] ?? 0)) + 1;
+        }
+        const _maxLvl = sortedNodes.reduce((m, id) => Math.max(m, _nodeLevels[id] ?? 0), 0);
+
+        // Per-node execution (extracted so levels can run with Promise.all)
+        async function _execNode(id) {
           const n = nodeData.find(x => x.id === id);
           const el = nodeDOMCache[id];
-          if (!el) continue;
-          
+          if (!el) return;
+
           // Merge incoming states
           const incomingEdges = edgeData.filter(e => e.target === id);
           const incomingStates = incomingEdges.map(e => nodeStates[e.source]);
-          
+
           let state = nodeStates[id];
           if (incomingStates.length > 0) {
             incomingStates.forEach(inc => {
@@ -1412,7 +1424,11 @@
               }
               if (inc.mask !== undefined) state.mask = inc.mask;
               if (inc.resultImage !== undefined) state.resultImage = inc.resultImage;
-              if (inc.i2i_base !== undefined) state.i2i_base = inc.i2i_base;
+              if (inc.i2i_base) {
+                const _incoming = Array.isArray(inc.i2i_base) ? inc.i2i_base : [inc.i2i_base];
+                if (!Array.isArray(state.i2i_base)) state.i2i_base = state.i2i_base ? [state.i2i_base] : [];
+                state.i2i_base.push(..._incoming.filter(Boolean));
+              }
               if (inc.cfg !== undefined) state.cfg = inc.cfg;
               if (inc.upscale !== undefined) state.upscale = inc.upscale;
               if (inc.aspectRatio !== undefined) state.aspectRatio = inc.aspectRatio;
@@ -1425,14 +1441,14 @@
               if (inc.topP !== undefined) state.topP = inc.topP;
             });
           }
-          
+
           // Highlight current executing node
           const nodeWrapper = el.closest ? el.closest('[data-node-id]') || el.parentElement : el.parentElement;
           if (nodeWrapper) nodeWrapper.style.outline = '3px solid #4ade80';
           if (nodeWrapper) nodeWrapper.style.outlineOffset = '2px';
-          
+
           const type = n.data.type;
-          
+
           if (type === 'model') {
             state.model = el.querySelector('.wf-model-sel').value;
             const _runPe = el.querySelector('.wf-model-params');
@@ -1449,6 +1465,15 @@
               state.outputLength = parseInt(el.querySelector('.wf-output-length').value) || 65536;
               state.topP = parseFloat(el.querySelector('.wf-topp-slider').value);
             }
+            const _gptRunPe = el.querySelector('.wf-gpt-params');
+            if (_gptRunPe) {
+              state.quality       = el.querySelector('.wf-gpt-quality')?.value  || 'low';
+              state.gptImageSize  = el.querySelector('.wf-gpt-size')?.value     || '1024x1024';
+              state.gptBackground = el.querySelector('.wf-gpt-bg')?.value       || 'auto';
+              state.gptFidelity   = el.querySelector('.wf-gpt-fidelity')?.value || 'high';
+            }
+            // model 節點清空累積的 i2i_base（segment 隔離），保留 resultImage 讓下游 executor 讀到
+            state.i2i_base = null;
           } else if (type === 'parameters') {
             state.resolution = el.querySelector('.wf-res-sel').value;
             // CFG and upscale are hardcoded
@@ -1457,68 +1482,95 @@
           } else if (type === 'prompt') {
             const ta = el.querySelector('.wf-prompt-input');
             const rawPrompt = (window.EditorService ? window.EditorService.getContent(ta.id) : ta.value);
-            // Resolve `@` file references in prompt: extract image base64, replace tag with asset name
             state.prompt = await resolvePromptAndExtractImage(rawPrompt, state);
           } else if (type === 'mask') {
             state.mask = el.dataset.maskData || null;
           } else if (type === 'img2img') {
-            // Check upstream resultImage and copy to i2i_base if present
-            if (state.resultImage && !state.i2i_base) {
-              state.i2i_base = state.resultImage;
-            }
-
-            // Generator Node (Terminal or Intermediate)
             const uiBase = el.querySelector('.wf-i2i-base').value;
-            if (uiBase.trim()) {
-              if (uiBase.includes('[@') && uiBase.includes(']')) {
-                state.i2i_base = await resolveAssetTag(uiBase);
-              } else {
-                state.i2i_base = uiBase;
-              }
-            }
-            if (n.data.initialImage && !state.i2i_base) {
-              state.i2i_base = n.data.initialImage;
-            }
-            state.i2i_denoise = 0.7; // hardcoded default, UI removed
+            state.i2i_denoise = 0.7;
+            state.saveFolder = el.querySelector('.wf-i2i-folder')?.value || '';
 
             const finalPrompt = state.prompt || '';
-            if (!finalPrompt.trim()) {
-              if (window.showToast) window.showToast(`⚠️ 節點 [${id}] 提示詞不能為空`);
-              continue;
-            }
-
-            const finalModel = state.model || 'nanobanana2';
-            const finalRes = state.resolution || '1024x1024';
-
-            const genOptions = {
-              aspectRatio: state.aspectRatio || '1:1',
-              imageSize: state.imageSize || '',
-              temperature: state.temperature ?? 0.4,
-              topP: state.topP ?? 0.95,
-              maxOutputTokens: state.outputLength || 65536,
-            };
-            
-            const _modelNode = nodeData.find(x => x.data.type === 'model');
-
-            let apiKey = '';
-            if (finalModel === 'geminilite') apiKey = window.StudioSettings.getGeminiliteKey();
-            else if (finalModel === 'gptimage') apiKey = window.StudioSettings.getOpenAIKey();
-            else apiKey = window.StudioSettings.getNanobananaKey();
-
-            if (!apiKey) {
-                 if (window.showToast) window.showToast('⚠️ API Key 尚未設定 (' + finalModel + ')');
-                 throw new Error('API Key missing');
-            }
-
-            if (window.showToast) window.showToast(`🚀 節點 [${id}] 開始生成...`);
-
             const placeholder = el.querySelector('.wf-preview-placeholder');
             const imgEl = el.querySelector('.wf-preview-img');
+
+            if (!finalPrompt.trim()) {
+              // ── Relay 模式：無 prompt，累積自身圖片到 i2i_base ──
+              let _ownBase = null;
+              if (uiBase.trim()) {
+                _ownBase = (uiBase.includes('[@') && uiBase.includes(']'))
+                  ? await resolveAssetTag(uiBase) : uiBase;
+                if (_ownBase) {
+                  if (!state.i2i_base) state.i2i_base = [_ownBase];
+                  else {
+                    const _arr = Array.isArray(state.i2i_base) ? state.i2i_base : [state.i2i_base];
+                    if (!_arr.includes(_ownBase)) _arr.push(_ownBase);
+                    state.i2i_base = _arr;
+                  }
+                }
+              } else if (!state.i2i_base && n.data.initialImage) {
+                _ownBase = n.data.initialImage;
+                state.i2i_base = n.data.initialImage;
+              }
+              // 預覽顯示自己的圖，不是累積陣列的第一張
+              const _previewVal = _ownBase || (Array.isArray(state.i2i_base) ? state.i2i_base[0] : state.i2i_base);
+              if (_previewVal && imgEl) {
+                imgEl.src = _previewVal; imgEl.style.display = 'block';
+                if (placeholder) placeholder.style.display = 'none';
+              }
+              return;
+            }
+
+            // ── Executor 模式：有 prompt，呼叫 API ──
+            if (!state.model) {
+              if (window.showToast) window.showToast(`⚠️ 節點 [${id}] 需要先連接 Model 節點`);
+              return;
+            }
+
+            // 組合 reference：上游 executor 輸出排第一，再是 relay 累積 base，最後自身 UI base
+            const _refs = [];
+            // 上游 executor 輸出（model 節點之前的圖）優先排第一
+            if (state.resultImage) {
+              _refs.push(state.resultImage);
+            }
+            if (state.i2i_base) {
+              const _rb = Array.isArray(state.i2i_base) ? state.i2i_base : [state.i2i_base];
+              _refs.push(..._rb.filter(r => r && r !== state.resultImage));
+            }
+            if (uiBase.trim()) {
+              const _ub = (uiBase.includes('[@') && uiBase.includes(']')) ? await resolveAssetTag(uiBase) : uiBase;
+              if (_ub && !_refs.includes(_ub)) _refs.push(_ub);
+            } else if (n.data.initialImage && !_refs.includes(n.data.initialImage)) {
+              _refs.push(n.data.initialImage);
+            }
+
+            const finalModel = state.model;
+            const genOptions = {
+              aspectRatio:     state.aspectRatio   || '1:1',
+              imageSize:       state.imageSize     || '',
+              temperature:     state.temperature   ?? 0.4,
+              topP:            state.topP          ?? 0.95,
+              maxOutputTokens: state.outputLength  || 8192,
+              thinkingLevel:   state.thinkingLevel || 'none',
+              googleSearch:    state.googleSearch  || false,
+              stopSequences:   state.stopSequences || [],
+            };
+
+            let apiKey = '';
+            if (finalModel === 'geminilite')    apiKey = window.StudioSettings.getGeminiliteKey();
+            else if (finalModel === 'gptimage') apiKey = window.StudioSettings.getOpenAIKey();
+            else                                apiKey = window.StudioSettings.getNanobananaKey();
+
+            if (!apiKey) {
+              if (window.showToast) window.showToast('⚠️ API Key 尚未設定 (' + finalModel + ')');
+              if (placeholder) { placeholder.style.display = 'flex'; placeholder.textContent = '⚠️ API Key 未設定'; }
+              return;
+            }
+            if (window.showToast) window.showToast(`🚀 節點 [${id}] 開始生成...`);
 
             placeholder.style.display = 'flex';
             placeholder.textContent = 'Generating... (0s)';
             imgEl.style.display = 'none';
-
             let _genSecs = 0;
             const _genTimer = setInterval(() => {
               _genSecs++;
@@ -1526,53 +1578,41 @@
             }, 1000);
 
             try {
-
               let imageUrl = '';
               if (finalModel === 'gptimage') {
-                let gptSize = _modelNode?.data?.gptImageSize || '1024x1024';
-                if (!['1024x1024', '1536x1024', '1024x1536', 'auto'].includes(gptSize)) {
-                  gptSize = '1024x1024';
-                }
-                const gptBackground = _modelNode?.data?.gptBackground || 'auto';
-                const gptFidelity = _modelNode?.data?.gptFidelity || 'high';
-
-                imageUrl = await window.AIService.generateWithGPTImage(finalPrompt, apiKey, gptSize, state.i2i_base, {
-                  quality: _modelNode?.data?.quality || 'low',
-                  background: gptBackground,
-                  input_fidelity: gptFidelity
+                let gptSize = state.gptImageSize || '1024x1024';
+                if (!['1024x1024', '1536x1024', '1024x1536', 'auto'].includes(gptSize)) gptSize = '1024x1024';
+                const i2iBase = _refs[0] || null;
+                imageUrl = await window.AIService.generateWithGPTImage(finalPrompt, apiKey, gptSize, i2iBase, {
+                  quality:        state.quality       || 'low',
+                  background:     state.gptBackground || 'auto',
+                  input_fidelity: state.gptFidelity   || 'high'
                 });
               } else if (finalModel === 'nanobanana2') {
-                imageUrl = await window.AIService.generateWithNanoBanana2(finalPrompt, apiKey, state.i2i_base || null, state.mask || null, genOptions);
+                imageUrl = await window.AIService.generateWithNanoBanana2(
+                  finalPrompt, apiKey, _refs.length > 0 ? _refs : null, state.mask || null, genOptions);
               } else {
                 imageUrl = await window.AIService.generateWithNanoBanana(finalPrompt, apiKey, genOptions);
               }
-              
-              imgEl.src = imageUrl;
-              imgEl.style.display = 'block';
+
+              imgEl.src = imageUrl; imgEl.style.display = 'block';
               placeholder.style.display = 'none';
-              // Show download button
               const dlBtn = el.querySelector('.wf-preview-download');
               if (dlBtn) dlBtn.style.display = 'block';
-              
-              state.resultImage = imageUrl; // Ready for downstream nodes
-              state.prompt = '';             // Cut prompt leakage — only resultImage flows downstream
-              
-              // Save to Assets if successful
+
+              state.resultImage = imageUrl;
+              state.i2i_base = null;  // 清空：下游自己組合，不污染
+              state.prompt = '';
+
               if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) {
                 const ts = Date.now();
                 if (window.AssetsService) {
-                  let targetFolder = state.saveFolder;
-                  if (!targetFolder) targetFolder = window.AssetsService.getActiveFolder ? window.AssetsService.getActiveFolder() : '已完成';
-                  if (window.AssetsService.getFolders && !window.AssetsService.getFolders().includes(targetFolder)) {
-                    window.AssetsService.addFolder(targetFolder);
-                  }
-                  window.AssetsService.saveAsset('Workflow_Out_' + ts, imageUrl, targetFolder).then(() => {
-                    if (window.refreshAssetsGrid) window.refreshAssetsGrid();
-                  });
-                  
-                  if (window.localDirHandle && window.AssetsService.saveAssetToLocalDir) {
+                  let folder = state.saveFolder || window.AssetsService.getActiveFolder?.() || '已完成';
+                  if (!window.AssetsService.getFolders().includes(folder)) window.AssetsService.addFolder(folder);
+                  window.AssetsService.saveAsset('Workflow_Out_' + ts, imageUrl, folder)
+                    .then(() => { if (window.refreshAssetsGrid) window.refreshAssetsGrid(); });
+                  if (window.localDirHandle && window.AssetsService.saveAssetToLocalDir)
                     window.AssetsService.saveAssetToLocalDir(imageUrl, 'Workflow_Out_' + ts + '.png');
-                  }
                 }
               }
             } catch (err) {
@@ -1585,13 +1625,21 @@
           }
         }
 
-        // Clear all execution highlights
-        document.querySelectorAll('.wf-node').forEach(n => {
-          const w = n.closest ? n.closest('[data-node-id]') || n.parentElement : n.parentElement;
-          if (w) { w.style.outline = ''; w.style.outlineOffset = ''; }
-        });
-        runBtn.disabled = false;
-        runBtn.textContent = '執行工作流 (Run)';
+        // 5. Execute level by level — same level runs in parallel, levels are sequential
+        try {
+          for (let _lvl = 0; _lvl <= _maxLvl; _lvl++) {
+            const _lvlNodes = sortedNodes.filter(id => _nodeLevels[id] === _lvl);
+            await Promise.all(_lvlNodes.map(id => _execNode(id)));
+          }
+        } finally {
+          // Clear all execution highlights and re-enable run button
+          document.querySelectorAll('.wf-node').forEach(n => {
+            const w = n.closest ? n.closest('[data-node-id]') || n.parentElement : n.parentElement;
+            if (w) { w.style.outline = ''; w.style.outlineOffset = ''; }
+          });
+          runBtn.disabled = false;
+          runBtn.textContent = '執行工作流 (Run)';
+        }
       });
     }
 

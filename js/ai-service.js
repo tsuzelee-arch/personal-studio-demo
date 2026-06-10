@@ -26,6 +26,12 @@ window.AIService = (function() {
     });
   }
 
+  function fetchWithTimeout(url, opts = {}, timeoutMs = 60000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+  }
+
   const OPENAI_MODELS = {
     'openai':        'gpt-5.5',
     'openai-54':     'gpt-5.4',
@@ -123,7 +129,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
       ...(isLegacy && { temperature: 0.3, response_format: { type: "json_object" } })
     };
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -162,7 +168,7 @@ Analyze the user-provided image and reverse-engineer its visual components into 
       }
     };
 
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -206,7 +212,7 @@ ${structuredPrompt}`;
         messages: [{ role: 'user', content: rewritePrompt }],
         ...(openaiModelId === 'gpt-4o' && { temperature: 0.5 })
       };
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -225,7 +231,7 @@ ${structuredPrompt}`;
         contents: [{ role: "user", parts: [{ text: rewritePrompt }] }],
         generationConfig: { temperature: 0.5 }
       };
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -258,7 +264,7 @@ ${JSON.stringify(analysis)}`;
         max_completion_tokens: 16384,
         ...(isLegacy && { temperature: 0.1, response_format: { type: 'json_object' } })
       };
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify(body)
@@ -278,7 +284,7 @@ ${JSON.stringify(analysis)}`;
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.1, response_mime_type: 'application/json', maxOutputTokens: 8192 }
       };
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -346,9 +352,9 @@ ${JSON.stringify(analysis)}`;
 
   // ── Testing Functions ──
   async function testOpenAI(apiKey) {
-    const response = await fetch('https://api.openai.com/v1/models', {
+    const response = await fetchWithTimeout('https://api.openai.com/v1/models', {
       headers: { 'Authorization': `Bearer ${apiKey}` }
-    });
+    }, 15000);
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.error?.message || `HTTP ${response.status}`);
@@ -357,13 +363,13 @@ ${JSON.stringify(analysis)}`;
   }
 
   async function testGemini(apiKey) {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const res = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {}, 15000);
     if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
     return true;
   }
-  
+
   async function testGeminilite(apiKey) {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const res = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {}, 15000);
     if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
     return true;
   }
@@ -451,7 +457,7 @@ ${JSON.stringify(analysis)}`;
     return await _executeGeminiRequest(url, payload, 'Nano Banana Pro');
   }
 
-  async function generateWithNanoBanana2(prompt, apiKey, image = null, mask = null, options = {}) {
+  async function generateWithNanoBanana2(prompt, apiKey, images = null, mask = null, options = {}) {
     // Nano Banana 2 -> gemini-3.1-flash-image (supports img2img + mask + advanced params)
     const {
       aspectRatio = '1:1',
@@ -490,12 +496,15 @@ ${JSON.stringify(analysis)}`;
     }
 
     const sizedPrompt = `[${w}x${h}] ${prompt}`;
-    const compressedImage = image ? await compressImage(image, 1024, 0.85, 'image/jpeg') : null;
-    const compressedMask  = mask  ? await compressImage(mask,  1024, 1.0,  'image/png')  : null;
+    const compressedMask = mask ? await compressImage(mask, 1024, 1.0, 'image/png') : null;
     const parts = [{ text: sizedPrompt }];
-    if (compressedImage) {
-      const mimeMatch = compressedImage.match(/^data:([^;]+);/);
-      parts.push({ inline_data: { mime_type: mimeMatch ? mimeMatch[1] : 'image/jpeg', data: stripPrefix(compressedImage) } });
+    const imageArray = Array.isArray(images) ? images : (images ? [images] : []);
+    for (const img of imageArray) {
+      const compressed = img ? await compressImage(img, 1024, 0.85, 'image/jpeg') : null;
+      if (compressed) {
+        const mimeMatch = compressed.match(/^data:([^;]+);/);
+        parts.push({ inline_data: { mime_type: mimeMatch?.[1] || 'image/jpeg', data: stripPrefix(compressed) } });
+      }
     }
     if (compressedMask) {
       const mimeMask = compressedMask.match(/^data:([^;]+);/);
