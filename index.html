@@ -1,807 +1,839 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Personal Studio</title>
-<meta name="description" content="Personal Studio - 您的專屬 Creative AI 圖像編輯與提示詞工作流工作站">
-<link rel="stylesheet" href="css/style.css?v=__BUILD_TS__">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" integrity="sha384-6LFfkTKLRlzFtgx8xsWyBdKGpcMMQTkv+dB7rAbugeJAu1Ym2q1Aji1cjHBG12Xh" crossorigin="anonymous">
-<script>
-  (function() {
-    const savedTheme = localStorage.getItem('ps_theme') || 'light';
-    if (savedTheme === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
-  })();
-</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Studio</title>
+  <meta name="description" content="Personal Studio - 您的專屬 Creative AI 圖像編輯與提示詞工作流工作站">
+  <link rel="stylesheet" href="css/style.css?v=__BUILD_TS__">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"
+    integrity="sha384-6LFfkTKLRlzFtgx8xsWyBdKGpcMMQTkv+dB7rAbugeJAu1Ym2q1Aji1cjHBG12Xh" crossorigin="anonymous">
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('ps_theme') || 'light';
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
 </head>
+
 <body>
-<div class="shell">
-  <nav class="sidebar" id="main-nav">
-    <div class="logo">
-      <h1 class="logo-mark">Personal Studio</h1>
-      <div class="logo-sub">Creative AI Workspace</div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-cat">工作室</div>
-      <div class="nav-item" data-panel="simple-workflow">簡易工具流</div>
-      <div class="nav-item active" data-panel="decode">圖像解構</div>
-      <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
-      <div class="nav-item" data-panel="workflow">自定工作流(暫時廢棄）</div>
-      <div class="nav-item" data-panel="workflow-library">🗂 工作流庫（暫時</div>
-      <div class="nav-item" data-panel="assets">資產庫</div>
-      <div class="nav-cat" style="margin-top:12px">系統</div>
-      <div class="nav-item" data-panel="settings">⚙ API 設定</div>
-    </div>
-    <div class="sidebar-footer">
-      <div class="nav-item theme-toggle" id="themeToggleBtn" style="margin-bottom: 8px; justify-content: center;">
-        🌙 切換色彩模式
+  <div class="shell">
+    <nav class="sidebar" id="main-nav">
+      <div class="logo">
+        <h1 class="logo-mark">Personal Studio</h1>
+        <div class="logo-sub">Creative AI Workspace</div>
       </div>
-      <div class="sidebar-footer-text">Personal Studio v1.0</div>
-    </div>
-  </nav>
-
-  <main class="main" id="main-content">
-    <header class="topbar">
-      <div class="page-title" id="pageTitle">圖像解構</div>
-      <div class="topbar-actions" id="topbarActions"></div>
-    </header>
-    <div class="content">
-
-      <!-- Panel: 簡易工具流 -->
-      <section class="panel" id="panel-simple-workflow">
-        <div class="swf-header">
-          <div class="swf-title">簡易工具流 (Simple Workflow)</div>
-          <div class="swf-toolbar" id="swfToolbar">
-            <button class="btn-ghost btn-sm" id="swfAddT2I">➕ 文生圖</button>
-            <button class="btn-ghost btn-sm" id="swfAddI2I">➕ 圖生圖</button>
-            <button class="btn-ghost btn-sm" id="swfAddGroup">🗂 新增群組</button>
-            <div style="width:1px; background:var(--border); margin:0 5px;"></div>
-            <button class="btn-ghost btn-sm" id="swfSaveBtn" title="儲存當前畫布">💾 儲存</button>
-            <button class="btn-ghost btn-sm" id="swfLoadBtn" title="讀取已儲存畫布">📂 讀取</button>
-            <div style="width:1px; background:var(--border); margin:0 5px;"></div>
-            <button class="btn-ghost btn-sm" id="swfAssetToggle" title="資產瀏覽器">📂 資產</button>
-            <button class="btn-ghost btn-sm" id="swfPromptToggle" title="Prompt 列表">💡 Prompt</button>
-            <div style="width:1px; background:var(--border); margin:0 5px;"></div>
-            <div class="swf-zoom-controls">
-              <button class="btn-ghost btn-sm" id="swfZoomOut" title="縮小">−</button>
-              <span class="swf-zoom-label" id="swfZoomLabel">100%</span>
-              <button class="btn-ghost btn-sm" id="swfZoomIn" title="放大">+</button>
-              <button class="btn-ghost btn-sm" id="swfZoomReset" title="重置">⟳</button>
-            </div>
-            <div style="width:1px; background:var(--border); margin:0 5px;"></div>
-            <button class="btn-primary btn-sm" id="swfRunAll">▶ 執行全部</button>
-          </div>
+      <div class="nav-group">
+        <div class="nav-cat">工作室</div>
+        <div class="nav-item" data-panel="simple-workflow">簡易工具流</div>
+        <div class="nav-item active" data-panel="decode">圖像解構</div>
+        <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
+        <div class="nav-item" data-panel="workflow">自定工作流（暫時廢棄）</div>
+        <div class="nav-item" data-panel="workflow-library">🗂 工作流庫（暫時廢棄）</div>
+        <div class="nav-item" data-panel="assets">資產庫</div>
+        <div class="nav-cat" style="margin-top:12px">系統</div>
+        <div class="nav-item" data-panel="settings">⚙ API 設定</div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="nav-item theme-toggle" id="themeToggleBtn" style="margin-bottom: 8px; justify-content: center;">
+          🌙 切換色彩模式
         </div>
+        <div class="sidebar-footer-text">Personal Studio v1.0</div>
+      </div>
+    </nav>
 
-        <!-- IDE 3-Column Layout -->
-        <div class="swf-ide-layout">
-          <!-- Left Pane: Asset File Explorer -->
-          <div class="swf-left-assets" id="swfLeftAssets" style="display:none;">
-            <div class="swf-assets-header">
-              <span class="swf-pane-title">📂 資產瀏覽器</span>
-              <button class="swf-pane-close" id="swfAssetClose">✕</button>
-            </div>
-            <div class="swf-folder-list" id="swfFolderList"></div>
-            <div class="swf-assets-grid" id="swfAssetsGrid"></div>
-          </div>
+    <main class="main" id="main-content">
+      <header class="topbar">
+        <div class="page-title" id="pageTitle">圖像解構</div>
+        <div class="topbar-actions" id="topbarActions"></div>
+      </header>
+      <div class="content">
 
-          <!-- Center: Canvas -->
-          <div class="swf-canvas" id="swfCanvas">
-            <div class="swf-zoom-wrapper" id="swfZoomWrapper">
-              <svg class="swf-edges-svg" id="swfEdgesSvg"></svg>
-              <div class="swf-nodes-container" id="swfNodesContainer">
-                <!-- Groups & Nodes injected here dynamically -->
+        <!-- Panel: 簡易工具流 -->
+        <section class="panel" id="panel-simple-workflow">
+          <div class="swf-header">
+            <div class="swf-title">簡易工具流 (Simple Workflow)</div>
+            <div class="swf-toolbar" id="swfToolbar">
+              <button class="btn-ghost btn-sm" id="swfAddT2I">➕ 文生圖</button>
+              <button class="btn-ghost btn-sm" id="swfAddI2I">➕ 圖生圖</button>
+              <button class="btn-ghost btn-sm" id="swfAddGroup">🗂 新增群組</button>
+              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
+              <button class="btn-ghost btn-sm" id="swfSaveBtn" title="儲存當前畫布">💾 儲存</button>
+              <button class="btn-ghost btn-sm" id="swfLoadBtn" title="讀取已儲存畫布">📂 讀取</button>
+              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
+              <button class="btn-ghost btn-sm" id="swfAssetToggle" title="資產瀏覽器">📂 資產</button>
+              <button class="btn-ghost btn-sm" id="swfPromptToggle" title="Prompt 列表">💡 Prompt</button>
+              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
+              <div class="swf-zoom-controls">
+                <button class="btn-ghost btn-sm" id="swfZoomOut" title="縮小">−</button>
+                <span class="swf-zoom-label" id="swfZoomLabel">100%</span>
+                <button class="btn-ghost btn-sm" id="swfZoomIn" title="放大">+</button>
+                <button class="btn-ghost btn-sm" id="swfZoomReset" title="重置">⟳</button>
               </div>
+              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
+              <button class="btn-primary btn-sm" id="swfRunAll">▶ 執行全部</button>
             </div>
           </div>
 
-          <!-- Right Pane: Prompt Quick-Bar -->
-          <div class="swf-prompt-quickbar" id="swfPromptQuickBar" style="display:none;">
-            <div class="swf-prompt-qb-header">
-              <span>💡 Prompt 列表</span>
-              <button class="swf-pane-close" id="swfPromptClose">✕</button>
-            </div>
-            <div class="swf-prompt-qb-body" id="swfPromptQbBody"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Panel: 圖像解構 -->
-      <section class="panel active" id="panel-decode">
-        <div class="decode-layout">
-          <input type="file" id="imageInput" accept="image/*" hidden>
-          <!-- Model Selector -->
-          <div class="model-selector-bar" style="display: flex; align-items: center;">
-            <div class="control-group" style="display: flex; align-items: center;">
-              <label>分析模型：</label>
-              <select id="modelSelect" class="form-select form-select-sm">
-                <option value="gemini">Gemini 3.5 Flash</option>
-                <option value="geminilite">Gemini 2.5 Lite</option>
-                <option value="openai">GPT-5.5 (最新旗艦)</option>
-                <option value="openai-54">GPT-5.4 (均衡專業)</option>
-                <option value="openai-54mini">GPT-5.4 Mini (快速)</option>
-                <option value="openai-4o">GPT-4o (穩定)</option>
-              </select>
-              <span class="model-status" id="modelStatus"></span>
-            </div>
-            <div class="control-group" style="margin-left:15px; display: flex; align-items: center;">
-              <label>解構方式：</label>
-              <select id="decodeMethodSelect" class="form-select form-select-sm">
-                <option value="general">通用結構 (通用)</option>
-                <option value="character" disabled>角色結構 (開發中)</option>
-                <option value="scene" disabled>場景結構 (開發中)</option>
-              </select>
-            </div>
-            <div class="control-group" style="margin-left:15px; display: flex; align-items: center;">
-              <label>輸出語言：</label>
-              <select id="languageSelect" class="form-select form-select-sm">
-                <option value="繁體中文">繁體中文</option>
-                <option value="English">English</option>
-                <option value="简体中文">简体中文</option>
-                <option value="日本語">日本語</option>
-              </select>
-            </div>
-          </div>
-
-
-          <!-- Loading State -->
-          <div class="decode-loading hidden" id="decodeLoading">
-            <div class="spinner"></div>
-            <div class="loading-text">正在將圖像傳送至 AI 模型進行解構...</div>
-            <div class="loading-bar"><div class="loading-bar-fill" id="loadingBarFill"></div></div>
-          </div>
-
-          <!-- Full Dashboard Result -->
-          <div class="decode-result" id="decodeResult">
-            <!-- Dashboard Top Bar -->
-            <div class="decode-dashboard-bar">
-              <div class="dashboard-title">
-                <span class="dashboard-icon">◈</span> 視覺解構分析報告
+          <!-- IDE 3-Column Layout -->
+          <div class="swf-ide-layout">
+            <!-- Left Pane: Asset File Explorer -->
+            <div class="swf-left-assets" id="swfLeftAssets" style="display:none;">
+              <div class="swf-assets-header">
+                <span class="swf-pane-title">📂 資產瀏覽器</span>
+                <button class="swf-pane-close" id="swfAssetClose">✕</button>
               </div>
-              <div class="dashboard-actions">
-                <button class="btn-primary" id="copyPromptBtn">複製提示詞</button>
-                <button class="btn-ghost" id="sendToWorkflowBtn">送至工作流</button>
-                <button class="btn-ghost" id="exportJsonBtn">匯出 JSON</button>
-                <button class="btn-ghost" id="resetDecodeBtn">重新上傳</button>
+              <div class="swf-folder-list" id="swfFolderList"></div>
+              <div class="swf-assets-grid" id="swfAssetsGrid"></div>
+            </div>
+
+            <!-- Center: Canvas -->
+            <div class="swf-canvas" id="swfCanvas">
+              <div class="swf-zoom-wrapper" id="swfZoomWrapper">
+                <svg class="swf-edges-svg" id="swfEdgesSvg"></svg>
+                <div class="swf-nodes-container" id="swfNodesContainer">
+                  <!-- Groups & Nodes injected here dynamically -->
+                </div>
               </div>
             </div>
 
-            <!-- Dashboard Grid -->
-            <div class="decode-dashboard">
-              <!-- Left Column: Preview + Palette -->
-              <div class="dashboard-left">
-                <div class="dash-card dash-card-preview" id="cardPreview" style="position: relative; min-height: 250px;">
-                  <div class="decode-preview-wrap" id="previewWrap" style="height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-                    <label id="previewPlaceholder" for="imageInput" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; color: #888; text-align: center; padding: 20px; cursor: pointer; margin: 0;">
-                      <div style="font-size: 32px; margin-bottom: 10px;">&#9707;</div>
-                      <div style="font-size: 14px; margin-bottom: 8px;">點擊或拖曳上傳圖像</div>
-                      <div style="font-size: 12px; color: #555;">支援 JPG、PNG、WEBP</div>
-                    </label>
-                    <img id="previewImg" src="" alt="preview" style="display: none; max-width: 100%; max-height: 100%; border-radius: 8px;">
-                  </div>
-                </div>
+            <!-- Right Pane: Prompt Quick-Bar -->
+            <div class="workflow-prompt-quickbar" id="swfPromptQuickBar">
+              <!-- Dynamically populated by simple-workflow.js -->
+            </div>
+          </div>
+        </section>
 
-                <div class="dash-card" id="cardPalette">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">🎨</span>
-                    <span class="dash-card-title">色彩色盤 (Color Palette)</span>
-                  </div>
-                  <div class="palette-row" id="paletteRow"></div>
-                </div>
+        <!-- Panel: 圖像解構 -->
+        <section class="panel active" id="panel-decode">
+          <div class="decode-layout">
+            <input type="file" id="imageInput" accept="image/*" hidden>
+            <!-- Model Selector -->
+            <div class="model-selector-bar" style="display: flex; align-items: center;">
+              <div class="control-group" style="display: flex; align-items: center;">
+                <label>分析模型：</label>
+                <select id="modelSelect" class="form-select form-select-sm">
+                  <option value="gemini">Gemini 3.5 Flash</option>
+                  <option value="geminilite">Gemini 2.5 Lite</option>
+                  <option value="openai">GPT-5.5 (最新旗艦)</option>
+                  <option value="openai-54">GPT-5.4 (均衡專業)</option>
+                  <option value="openai-54mini">GPT-5.4 Mini (快速)</option>
+                  <option value="openai-4o">GPT-4o (穩定)</option>
+                </select>
+                <span class="model-status" id="modelStatus"></span>
+              </div>
+              <div class="control-group" style="margin-left:15px; display: flex; align-items: center;">
+                <label>解構方式：</label>
+                <select id="decodeMethodSelect" class="form-select form-select-sm">
+                  <option value="general">通用結構 (通用)</option>
+                  <option value="character" disabled>角色結構 (開發中)</option>
+                  <option value="scene" disabled>場景結構 (開發中)</option>
+                </select>
+              </div>
+              <div class="control-group" style="margin-left:15px; display: flex; align-items: center;">
+                <label>輸出語言：</label>
+                <select id="languageSelect" class="form-select form-select-sm">
+                  <option value="繁體中文">繁體中文</option>
+                  <option value="English">English</option>
+                  <option value="简体中文">简体中文</option>
+                  <option value="日本語">日本語</option>
+                </select>
+              </div>
+            </div>
 
-                <div class="dash-card" id="cardMood">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">🌫️</span>
-                    <span class="dash-card-title">氛圍與情緒 (Mood)</span>
-                  </div>
-                  <div class="dash-card-body">
-                    <textarea class="editable-field" id="moodText" rows="3"></textarea>
-                  </div>
-                </div>
 
-                <!-- Prompt Output Card (Moved here) -->
-                <div class="dash-card dash-card-prompt" id="cardPrompt">
-                  <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                      <span class="dash-card-icon">✨</span>
-                      <span class="dash-card-title">視覺解構提示詞 (Prompt)</span>
-                    </div>
-                    <button class="btn-primary btn-sm" id="toNaturalBtn" style="font-size: 12px; padding: 4px 10px;">轉換為自然語言</button>
-                  </div>
-                  <div class="dash-card-body">
-                    <textarea class="prompt-output" id="promptOutput" style="width: 100%; min-height: 150px; resize: vertical; border: none; outline: none; background: transparent; color: inherit; font-family: inherit; font-size: inherit;"></textarea>
-                  </div>
-                </div>
+            <!-- Loading State -->
+            <div class="decode-loading hidden" id="decodeLoading">
+              <div class="spinner"></div>
+              <div class="loading-text">正在將圖像傳送至 AI 模型進行解構...</div>
+              <div class="loading-bar">
+                <div class="loading-bar-fill" id="loadingBarFill"></div>
+              </div>
+            </div>
 
+            <!-- Full Dashboard Result -->
+            <div class="decode-result" id="decodeResult">
+              <!-- Dashboard Top Bar -->
+              <div class="decode-dashboard-bar">
+                <div class="dashboard-title">
+                  <span class="dashboard-icon">◈</span> 視覺解構分析報告
+                </div>
+                <div class="dashboard-actions">
+                  <button class="btn-primary" id="copyPromptBtn">複製提示詞</button>
+                  <button class="btn-ghost" id="sendToWorkflowBtn">送至工作流</button>
+                  <button class="btn-ghost" id="exportJsonBtn">匯出 JSON</button>
+                  <button class="btn-ghost" id="resetDecodeBtn">重新上傳</button>
+                </div>
               </div>
 
-              <!-- Right Column: Analysis Cards -->
-              <div class="dashboard-right">
-                <!-- Metadata Card -->
-                <div class="dash-card" id="cardMeta">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">📋</span>
-                    <span class="dash-card-title">推估風格與過程 (Style & Process)</span>
+              <!-- Dashboard Grid -->
+              <div class="decode-dashboard">
+                <!-- Left Column: Preview + Palette -->
+                <div class="dashboard-left">
+                  <div class="dash-card dash-card-preview" id="cardPreview"
+                    style="position: relative; min-height: 250px;">
+                    <div class="decode-preview-wrap" id="previewWrap"
+                      style="height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                      <label id="previewPlaceholder" for="imageInput"
+                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; color: #888; text-align: center; padding: 20px; cursor: pointer; margin: 0;">
+                        <div style="font-size: 32px; margin-bottom: 10px;">&#9707;</div>
+                        <div style="font-size: 14px; margin-bottom: 8px;">點擊或拖曳上傳圖像</div>
+                        <div style="font-size: 12px; color: #555;">支援 JPG、PNG、WEBP</div>
+                      </label>
+                      <img id="previewImg" src="" alt="preview"
+                        style="display: none; max-width: 100%; max-height: 100%; border-radius: 8px;">
+                    </div>
                   </div>
-                  <div class="dash-card-body">
-                    <textarea class="editable-field" id="metaStyle" rows="2" style="font-size:14px; font-weight:500;"></textarea>
+
+                  <div class="dash-card" id="cardPalette">
+                    <div class="dash-card-header">
+                      <span class="dash-card-icon">🎨</span>
+                      <span class="dash-card-title">色彩色盤 (Color Palette)</span>
+                    </div>
+                    <div class="palette-row" id="paletteRow"></div>
                   </div>
+
+                  <div class="dash-card" id="cardMood">
+                    <div class="dash-card-header">
+                      <span class="dash-card-icon">🌫️</span>
+                      <span class="dash-card-title">氛圍與情緒 (Mood)</span>
+                    </div>
+                    <div class="dash-card-body">
+                      <textarea class="editable-field" id="moodText" rows="3"></textarea>
+                    </div>
+                  </div>
+
+                  <!-- Prompt Output Card (Moved here) -->
+                  <div class="dash-card dash-card-prompt" id="cardPrompt">
+                    <div class="dash-card-header"
+                      style="display: flex; justify-content: space-between; align-items: center;">
+                      <div>
+                        <span class="dash-card-icon">✨</span>
+                        <span class="dash-card-title">視覺解構提示詞 (Prompt)</span>
+                      </div>
+                      <button class="btn-primary btn-sm" id="toNaturalBtn"
+                        style="font-size: 12px; padding: 4px 10px;">轉換為自然語言</button>
+                    </div>
+                    <div class="dash-card-body">
+                      <textarea class="prompt-output" id="promptOutput"
+                        style="width: 100%; min-height: 150px; resize: vertical; border: none; outline: none; background: transparent; color: inherit; font-family: inherit; font-size: inherit;"></textarea>
+                    </div>
+                  </div>
+
                 </div>
 
-                <!-- Dimensions Card -->
-                <div class="dash-card" id="cardDimensions">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">📏</span>
-                    <span class="dash-card-title">圖像尺寸與解析度 (Dimensions)</span>
+                <!-- Right Column: Analysis Cards -->
+                <div class="dashboard-right">
+                  <!-- Metadata Card -->
+                  <div class="dash-card" id="cardMeta">
+                    <div class="dash-card-header">
+                      <span class="dash-card-icon">📋</span>
+                      <span class="dash-card-title">推估風格與過程 (Style & Process)</span>
+                    </div>
+                    <div class="dash-card-body">
+                      <textarea class="editable-field" id="metaStyle" rows="2"
+                        style="font-size:14px; font-weight:500;"></textarea>
+                    </div>
                   </div>
-                  <div class="dash-card-body">
-                    <textarea class="editable-field" id="elDimensions" rows="1"></textarea>
-                  </div>
-                </div>
 
-                <!-- Elements Breakdown Card -->
-                <div class="dash-card" id="cardElements">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">🔍</span>
-                    <span class="dash-card-title">畫面元素拆解 (Layers)</span>
-                    <button class="dash-toggle" data-target="elementsBody">展開 ▾</button>
-                  </div>
-                  <div class="dash-card-body dash-collapsible" id="elementsBody">
-                    <div class="element-section">
-                      <div class="element-layer-badge">創作主題 (Creative Theme)</div>
-                      <textarea class="editable-field" id="elCreativeTheme" rows="2"></textarea>
+                  <!-- Dimensions Card -->
+                  <div class="dash-card" id="cardDimensions">
+                    <div class="dash-card-header">
+                      <span class="dash-card-icon">📏</span>
+                      <span class="dash-card-title">圖像尺寸與解析度 (Dimensions)</span>
                     </div>
-                    <div class="element-section">
-                      <div class="element-layer-badge">前景特效 (Foreground)</div>
-                      <textarea class="editable-field" id="elForeground" rows="2"></textarea>
-                    </div>
-                    <div class="element-section">
-                      <div class="element-layer-badge subject-badge" style="display: flex; align-items: center;">
-                        主體 (Subject)
-                        <button class="btn-primary btn-sm" id="saveSubjectBtn" style="font-size: 11px; padding: 2px 6px; margin-left: auto;">💾 保存角色</button>
-                      </div>
-                      <div class="subject-grid" id="elSubject">
-                        <div class="subject-item">
-                          <div class="subject-label">身分</div>
-                          <textarea class="editable-field" id="elSubjectIdentity" rows="2"></textarea>
-                        </div>
-                        <div class="subject-item">
-                          <div class="subject-label">角色出處</div>
-                          <textarea class="editable-field" id="elSubjectSource" rows="1"></textarea>
-                        </div>
-                        <div class="subject-item">
-                          <div class="subject-label">服裝 / 表面</div>
-                          <textarea class="editable-field" id="elSubjectClothing" rows="2"></textarea>
-                        </div>
-                        <div class="subject-item">
-                          <div class="subject-label">姿勢與動作</div>
-                          <textarea class="editable-field" id="elSubjectPose" rows="2"></textarea>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="element-section">
-                      <div class="element-layer-badge">中景物件 (Midground)</div>
-                      <textarea class="editable-field" id="elMidground" rows="2"></textarea>
-                    </div>
-                    <div class="element-section">
-                      <div class="element-layer-badge">背景環境 (Background)</div>
-                      <textarea class="editable-field" id="elBackground" rows="2"></textarea>
-                    </div>
-                    <div class="element-section">
-                      <div class="element-layer-badge">主視覺構圖 (Composition)</div>
-                      <textarea class="editable-field" id="elComposition" rows="2"></textarea>
-                    </div>
-                    <div class="element-section" id="elOtherSection">
-                      <div class="element-layer-badge other-badge">其他元素 (Other)</div>
-                      <textarea class="editable-field" id="elOther" rows="2"></textarea>
+                    <div class="dash-card-body">
+                      <textarea class="editable-field" id="elDimensions" rows="1"></textarea>
                     </div>
                   </div>
-                </div>
 
-                <!-- Lighting & Camera Card -->
-                <div class="dash-card" id="cardLighting">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">💡</span>
-                    <span class="dash-card-title">光影與攝影 (Lighting & Camera)</span>
-                    <button class="dash-toggle" data-target="lightingBody">展開 ▾</button>
-                  </div>
-                  <div class="dash-card-body dash-collapsible" id="lightingBody">
-                    <div class="lighting-grid">
-                      <div class="lighting-section">
-                        <div class="lighting-section-title">主光源 (Key Light)</div>
-                        <div class="lighting-detail">
-                          <span class="detail-label">方向</span>
-                          <input type="text" class="editable-field" id="lightDirection">
-                        </div>
-                        <div class="lighting-detail">
-                          <span class="detail-label">色溫</span>
-                          <input type="text" class="editable-field" id="lightColorTemp">
-                        </div>
-                        <div class="lighting-detail">
-                          <span class="detail-label">品質</span>
-                          <input type="text" class="editable-field" id="lightQuality">
-                        </div>
-                      </div>
-                      <div class="lighting-section">
-                        <div class="lighting-section-title">補光與邊緣光 (Fill/Rim)</div>
-                        <textarea class="editable-field" id="lightFill" rows="2"></textarea>
-                      </div>
+                  <!-- Elements Breakdown Card -->
+                  <div class="dash-card" id="cardElements">
+                    <div class="dash-card-header">
+                      <span class="dash-card-icon">🔍</span>
+                      <span class="dash-card-title">畫面元素拆解 (Layers)</span>
+                      <button class="dash-toggle" data-target="elementsBody">展開 ▾</button>
                     </div>
-                    <div class="camera-grid">
-                      <div class="camera-item">
-                        <div class="camera-label">推估鏡頭焦段</div>
-                        <input type="text" class="editable-field" id="cameraLens">
+                    <div class="dash-card-body dash-collapsible" id="elementsBody">
+                      <div class="element-section">
+                        <div class="element-layer-badge">創作主題 (Creative Theme)</div>
+                        <textarea class="editable-field" id="elCreativeTheme" rows="2"></textarea>
                       </div>
-                      <div class="camera-item">
-                        <div class="camera-label">景深 (DoF)</div>
-                        <input type="text" class="editable-field" id="cameraDof">
+                      <div class="element-section">
+                        <div class="element-layer-badge">前景特效 (Foreground)</div>
+                        <textarea class="editable-field" id="elForeground" rows="2"></textarea>
                       </div>
-                      <div class="camera-item">
-                        <div class="camera-label">攝影機角度</div>
-                        <input type="text" class="editable-field" id="cameraAngle">
+                      <div class="element-section">
+                        <div class="element-layer-badge subject-badge" style="display: flex; align-items: center;">
+                          主體 (Subject)
+                          <button class="btn-primary btn-sm" id="saveSubjectBtn"
+                            style="font-size: 11px; padding: 2px 6px; margin-left: auto;">💾 保存角色</button>
+                        </div>
+                        <div class="subject-grid" id="elSubject">
+                          <div class="subject-item">
+                            <div class="subject-label">身分</div>
+                            <textarea class="editable-field" id="elSubjectIdentity" rows="2"></textarea>
+                          </div>
+                          <div class="subject-item">
+                            <div class="subject-label">角色出處</div>
+                            <textarea class="editable-field" id="elSubjectSource" rows="1"></textarea>
+                          </div>
+                          <div class="subject-item">
+                            <div class="subject-label">服裝 / 表面</div>
+                            <textarea class="editable-field" id="elSubjectClothing" rows="2"></textarea>
+                          </div>
+                          <div class="subject-item">
+                            <div class="subject-label">姿勢與動作</div>
+                            <textarea class="editable-field" id="elSubjectPose" rows="2"></textarea>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="element-section">
+                        <div class="element-layer-badge">中景物件 (Midground)</div>
+                        <textarea class="editable-field" id="elMidground" rows="2"></textarea>
+                      </div>
+                      <div class="element-section">
+                        <div class="element-layer-badge">背景環境 (Background)</div>
+                        <textarea class="editable-field" id="elBackground" rows="2"></textarea>
+                      </div>
+                      <div class="element-section">
+                        <div class="element-layer-badge">主視覺構圖 (Composition)</div>
+                        <textarea class="editable-field" id="elComposition" rows="2"></textarea>
+                      </div>
+                      <div class="element-section" id="elOtherSection">
+                        <div class="element-layer-badge other-badge">其他元素 (Other)</div>
+                        <textarea class="editable-field" id="elOther" rows="2"></textarea>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Materials & Textures Card -->
-                <div class="dash-card" id="cardMaterials">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">🧱</span>
-                    <span class="dash-card-title">材質與微觀紋理 (Material & Texture)</span>
-                    <button class="dash-toggle" data-target="materialsBody">展開 ▾</button>
+                  <!-- Lighting & Camera Card -->
+                  <div class="dash-card" id="cardLighting">
+                    <div class="dash-card-header">
+                      <span class="dash-card-icon">💡</span>
+                      <span class="dash-card-title">光影與攝影 (Lighting & Camera)</span>
+                      <button class="dash-toggle" data-target="lightingBody">展開 ▾</button>
+                    </div>
+                    <div class="dash-card-body dash-collapsible" id="lightingBody">
+                      <div class="lighting-grid">
+                        <div class="lighting-section">
+                          <div class="lighting-section-title">主光源 (Key Light)</div>
+                          <div class="lighting-detail">
+                            <span class="detail-label">方向</span>
+                            <input type="text" class="editable-field" id="lightDirection">
+                          </div>
+                          <div class="lighting-detail">
+                            <span class="detail-label">色溫</span>
+                            <input type="text" class="editable-field" id="lightColorTemp">
+                          </div>
+                          <div class="lighting-detail">
+                            <span class="detail-label">品質</span>
+                            <input type="text" class="editable-field" id="lightQuality">
+                          </div>
+                        </div>
+                        <div class="lighting-section">
+                          <div class="lighting-section-title">補光與邊緣光 (Fill/Rim)</div>
+                          <textarea class="editable-field" id="lightFill" rows="2"></textarea>
+                        </div>
+                      </div>
+                      <div class="camera-grid">
+                        <div class="camera-item">
+                          <div class="camera-label">推估鏡頭焦段</div>
+                          <input type="text" class="editable-field" id="cameraLens">
+                        </div>
+                        <div class="camera-item">
+                          <div class="camera-label">景深 (DoF)</div>
+                          <input type="text" class="editable-field" id="cameraDof">
+                        </div>
+                        <div class="camera-item">
+                          <div class="camera-label">攝影機角度</div>
+                          <input type="text" class="editable-field" id="cameraAngle">
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="dash-card-body dash-collapsible" id="materialsBody">
-                    <div class="materials-list" id="materialsList"></div>
+
+                  <!-- Materials & Textures Card -->
+                  <div class="dash-card" id="cardMaterials">
+                    <div class="dash-card-header">
+                      <span class="dash-card-icon">🧱</span>
+                      <span class="dash-card-title">材質與微觀紋理 (Material & Texture)</span>
+                      <button class="dash-toggle" data-target="materialsBody">展開 ▾</button>
+                    </div>
+                    <div class="dash-card-body dash-collapsible" id="materialsBody">
+                      <div class="materials-list" id="materialsList"></div>
+                    </div>
+                  </div>
+
+                  <!-- Negative Constraints Card -->
+                  <div class="dash-card dash-card-negative" id="cardNegative">
+                    <div class="dash-card-header">
+                      <span class="dash-card-icon">🚫</span>
+                      <span class="dash-card-title">推論負面約束 (Negative Space/Constraints)</span>
+                    </div>
+                    <div class="dash-card-body">
+                      <ul class="negative-list" id="negativeList"></ul>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-prompts">
+          <div class="prompts-ide-layout">
+            <!-- Left Pane: Library -->
+            <div class="prompts-left-library">
+              <!-- Top toolbar -->
+              <div class="prompts-toolbar">
+                <input type="text" class="search-input" id="promptSearch" placeholder="搜尋提示詞...">
+                <button class="btn-primary" id="addPromptBtn">+ 新增提示詞</button>
+              </div>
+
+              <!-- Main body: sidebar + content -->
+              <div class="prompts-body">
+                <!-- Left: Vertical category sidebar -->
+                <div class="prompts-category-sidebar" id="categorySidebar"></div>
+
+                <!-- Right: Prompt rows grouped by category -->
+                <div class="prompts-content">
+                  <div class="prompts-rows" id="promptsRows"></div>
+                  <div class="empty-state hidden" id="promptsEmpty">
+                    <div class="empty-icon">&#9998;</div>
+                    <div class="empty-text">尚無提示詞，點擊右上角新增</div>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <!-- Negative Constraints Card -->
-                <div class="dash-card dash-card-negative" id="cardNegative">
-                  <div class="dash-card-header">
-                    <span class="dash-card-icon">🚫</span>
-                    <span class="dash-card-title">推論負面約束 (Negative Space/Constraints)</span>
+            <!-- Right Pane: Prompt Forge -->
+            <div class="prompts-right-forge" id="promptRightForge">
+              <div class="prompt-forge" id="promptForge">
+                <div class="forge-header">
+                  <span class="forge-icon">🔥</span>
+                  <span class="forge-title">提示詞熔爐</span>
+                </div>
+                <div class="forge-drop-zone" id="forgeDropZone">
+                  <textarea class="forge-textarea" id="forgeTextarea" placeholder="可將提示詞模塊拖拽于此處合成。"></textarea>
+                </div>
+                <div class="forge-actions">
+                  <div class="forge-actions-options">
+                    <select class="form-select form-select-sm" id="forgeModelSel" title="轉換使用的 AI 模型">
+                      <option value="gemini">Gemini 3.5 Flash</option>
+                      <option value="geminilite">Gemini 2.5 Lite</option>
+                      <option value="openai">GPT-5.5 (旗艦)</option>
+                      <option value="openai-54">GPT-5.4 (均衡)</option>
+                      <option value="openai-54mini">GPT-5.4 Mini</option>
+                      <option value="openai-4o">GPT-4o (穩定)</option>
+                    </select>
+                    <select class="form-select form-select-sm" id="forgeLangSel" title="輸出語言">
+                      <option value="繁體中文">繁體中文</option>
+                      <option value="English">English</option>
+                      <option value="简体中文">简体中文</option>
+                      <option value="日本語">日本語</option>
+                    </select>
+                    <button class="btn-primary btn-sm" id="saveForgeBtn"
+                      style="font-size: 12px; padding: 4px 10px; margin-left: 10px;">💾 保存為完整提示詞</button>
                   </div>
-                  <div class="dash-card-body">
-                    <ul class="negative-list" id="negativeList"></ul>
+                  <div class="forge-actions-top">
+                    <button class="btn-primary btn-sm" id="forgeToNaturalBtn">✨ 轉自然語言</button>
+                    <button class="btn-primary btn-sm" id="forgeToSdTagsBtn">🏷️ 轉 SD Tags</button>
+                  </div>
+                  <div class="forge-actions-bottom">
+                    <button class="btn-ghost btn-sm" id="forgeClearBtn">🗑️ 清空</button>
+                    <button class="btn-ghost btn-sm" id="forgeCopyBtn">📋 複製</button>
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="panel" id="panel-prompts">
-        <div class="prompts-ide-layout">
-          <!-- Left Pane: Library -->
-          <div class="prompts-left-library">
-            <!-- Top toolbar -->
-            <div class="prompts-toolbar">
-              <input type="text" class="search-input" id="promptSearch" placeholder="搜尋提示詞...">
-              <button class="btn-primary" id="addPromptBtn">+ 新增提示詞</button>
+        <!-- Panel: 自定工作流 -->
+        <section class="panel" id="panel-workflow">
+          <!-- Top Toolbar (for Node Workflow) -->
+          <div class="workflow-header"
+            style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+            <div class="workflow-desc" style="font-weight: 500;">自定工作流 (Node-based)</div>
+            <div class="workflow-toolbar" id="wfToolbar" style="display: flex; gap: 8px;">
+              <button class="btn-ghost btn-sm" id="wfSaveBtn"
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💾 儲存至列表</button>
+              <button class="btn-ghost btn-sm" id="wfSaveProgressBtn"
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🔄 保存進度</button>
+              <button class="btn-ghost btn-sm" id="wfOverwriteBtn"
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">↩
+                覆蓋workflow</button>
+              <button class="btn-ghost btn-sm" id="wfExportBtn"
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">📤 導出</button>
+              <label class="btn-ghost btn-sm"
+                style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin: 0;">
+                📥 導入<input type="file" id="wfImportInput" accept=".json" style="display: none;">
+              </label>
+              <button class="btn-ghost btn-sm" id="wfPromptToggleBtn"
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💡 Prompt
+                列表</button>
+              <button class="btn-ghost btn-sm" id="wfWorkflowListBtn"
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🗂
+                workflow列表</button>
+              <div style="width: 1px; background: var(--border); margin: 0 5px;"></div>
+              <button class="btn-ghost btn-sm" data-add="model">➕ Model</button>
+              <button class="btn-ghost btn-sm" data-add="prompt">➕ Prompt</button>
+              <button class="btn-ghost btn-sm" data-add="img2img">➕ Img2Img</button>
+              <button class="btn-ghost btn-sm" data-add="mask">➕ Mask</button>
+              <button class="btn-primary btn-sm" id="wfGenerateRunBtn" style="margin-left: 15px;">執行工作流 (Run)</button>
+            </div>
+          </div>
+
+          <!-- 2-Column IDE Layout + Right Prompt Quick-Bar -->
+          <div class="workflow-ide-layout">
+            <!-- Left Pane: Asset File Explorer -->
+            <div class="ide-left-assets">
+              <div class="ide-assets-header">
+                <span class="ide-pane-title">📂 資產瀏覽器</span>
+              </div>
+              <div class="ide-folder-list" id="ideFolderList"></div>
+              <div class="ide-assets-grid" id="ideAssetsGrid"></div>
             </div>
 
-            <!-- Main body: sidebar + content -->
-            <div class="prompts-body">
-              <!-- Left: Vertical category sidebar -->
-              <div class="prompts-category-sidebar" id="categorySidebar"></div>
+            <!-- Resizer Splitter -->
+            <div class="ide-assets-resizer" id="ideLeftResizer"></div>
 
-              <!-- Right: Prompt rows grouped by category -->
-              <div class="prompts-content">
-                <div class="prompts-rows" id="promptsRows"></div>
-                <div class="empty-state hidden" id="promptsEmpty">
-                  <div class="empty-icon">&#9998;</div>
-                  <div class="empty-text">尚無提示詞，點擊右上角新增</div>
+            <!-- Center Pane: Node Workflow Canvas -->
+            <div class="ide-center-workflow" style="flex: 1; position: relative;">
+              <div class="workflow-canvas" id="workflowCanvas">
+                <svg class="workflow-svg" id="workflowSvg"></svg>
+                <!-- Nodes will be injected here dynamically by workflow.js -->
+              </div>
+
+              <!-- Right Edge: Prompt Vault Quick-Bar -->
+              <div class="workflow-prompt-quickbar" id="wfPromptQuickBar">
+                <!-- Dynamically populated by workflow.js -->
+              </div>
+
+              <!-- Right Edge: Workflow List Quick-Bar -->
+              <div class="wf-list-quickbar" id="wfWorkflowQuickBar">
+                <div class="wf-list-qb-header">
+                  <span>🗂 workflow列表</span>
+                  <button class="wf-list-qb-close" id="wfWorkflowListClose">✕</button>
                 </div>
+                <input class="wf-list-qb-search" type="text" id="wfListQbSearch" placeholder="搜尋工作流...">
+                <div class="wf-list-qb-body" id="wfListQbBody"></div>
               </div>
             </div>
           </div>
+        </section>
 
-          <!-- Right Pane: Prompt Forge -->
-          <div class="prompts-right-forge" id="promptRightForge">
-            <div class="prompt-forge" id="promptForge">
-              <div class="forge-header">
-                <span class="forge-icon">🔥</span>
-                <span class="forge-title">提示詞熔爐</span>
+        <!-- Panel: 工作流庫 -->
+        <section class="panel" id="panel-workflow-library">
+          <div class="prompts-ide-layout">
+            <div class="prompts-left-library">
+              <div class="prompts-toolbar">
+                <input type="text" class="search-input" id="wlSearch" placeholder="搜尋工作流...">
+                <button class="btn-primary" id="wlSaveCurrentBtn">🗂 儲存目前工作流</button>
               </div>
-              <div class="forge-drop-zone" id="forgeDropZone">
-                <textarea class="forge-textarea" id="forgeTextarea" placeholder="可將提示詞模塊拖拽于此處合成。"></textarea>
+              <div class="prompts-body">
+                <div class="prompts-category-sidebar" id="wlCategorySidebar"></div>
+                <div class="prompts-content" id="wlContent"></div>
               </div>
-              <div class="forge-actions">
-                <div class="forge-actions-options">
-                  <select class="form-select form-select-sm" id="forgeModelSel" title="轉換使用的 AI 模型">
-                    <option value="gemini">Gemini 3.5 Flash</option>
-                    <option value="geminilite">Gemini 2.5 Lite</option>
-                    <option value="openai">GPT-5.5 (旗艦)</option>
-                    <option value="openai-54">GPT-5.4 (均衡)</option>
-                    <option value="openai-54mini">GPT-5.4 Mini</option>
-                    <option value="openai-4o">GPT-4o (穩定)</option>
-                  </select>
-                  <select class="form-select form-select-sm" id="forgeLangSel" title="輸出語言">
-                    <option value="繁體中文">繁體中文</option>
-                    <option value="English">English</option>
-                    <option value="简体中文">简体中文</option>
-                    <option value="日本語">日本語</option>
-                  </select>
-                  <button class="btn-primary btn-sm" id="saveForgeBtn" style="font-size: 12px; padding: 4px 10px; margin-left: 10px;">💾 保存為完整提示詞</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Panel: API 設定 -->
+        <section class="panel" id="panel-settings">
+          <div class="settings-layout">
+            <div class="settings-intro">
+              <p>在此設定您的 AI 模型 API 金鑰。金鑰僅儲存在您的瀏覽器本地端 (localStorage)，不會傳送至任何第三方伺服器。</p>
+            </div>
+
+            <!-- OpenAI Settings -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <span class="settings-card-icon">🤖</span>
+                <span class="settings-card-title">OpenAI (ChatGPT)</span>
+              </div>
+              <div class="settings-card-body">
+                <label class="form-label">API KEY</label>
+                <div class="key-input-row">
+                  <input type="password" class="form-input key-input" id="openaiKeyInput" placeholder="sk-...">
+                  <button class="btn-primary" id="saveOpenaiBtn">儲存</button>
+                  <button class="btn-ghost" id="testOpenaiBtn">測試連線</button>
                 </div>
-                <div class="forge-actions-top">
-                  <button class="btn-primary btn-sm" id="forgeToNaturalBtn">✨ 轉自然語言</button>
-                  <button class="btn-primary btn-sm" id="forgeToSdTagsBtn">🏷️ 轉 SD Tags</button>
+                <div class="conn-status" id="openaiStatus"></div>
+                <div class="settings-hint">模型：chatgpt-5.5 · 需要有 Vision 存取權限</div>
+              </div>
+            </div>
+
+            <!-- Gemini Settings -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <span class="settings-card-icon">✦</span>
+                <span class="settings-card-title">Google Gemini</span>
+              </div>
+              <div class="settings-card-body">
+                <label class="form-label">API KEY</label>
+                <div class="key-input-row">
+                  <input type="password" class="form-input key-input" id="geminiKeyInput" placeholder="AIza...">
+                  <button class="btn-primary" id="saveGeminiBtn">儲存</button>
+                  <button class="btn-ghost" id="testGeminiBtn">測試連線</button>
                 </div>
-                <div class="forge-actions-bottom">
-                  <button class="btn-ghost btn-sm" id="forgeClearBtn">🗑️ 清空</button>
-                  <button class="btn-ghost btn-sm" id="forgeCopyBtn">📋 複製</button>
+                <div class="conn-status" id="geminiStatus"></div>
+                <div class="settings-hint">模型：gemini-3.5-flash · 使用 Google AI Studio 金鑰</div>
+              </div>
+            </div>
+
+            <!-- Gemini 2.5 Lite Settings -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <span class="settings-card-icon">✧</span>
+                <span class="settings-card-title">Google Gemini 2.5 Lite</span>
+              </div>
+              <div class="settings-card-body">
+                <label class="form-label">API KEY</label>
+                <div class="key-input-row">
+                  <input type="password" class="form-input key-input" id="geminiliteKeyInput" placeholder="AIza...">
+                  <button class="btn-primary" id="saveGeminiliteBtn">儲存</button>
+                  <button class="btn-ghost" id="testGeminiliteBtn">測試連線</button>
                 </div>
+                <div class="conn-status" id="geminiliteStatus"></div>
+                <div class="settings-hint">模型：gemini-2.5-lite · 快速輕量版分析模型</div>
+              </div>
+            </div>
+
+
+
+            <!-- Nano Banana Pro Settings -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <span class="settings-card-icon">🍌</span>
+                <span class="settings-card-title">Nano Banana Pro</span>
+              </div>
+              <div class="settings-card-body">
+                <label class="form-label">API KEY</label>
+                <div class="key-input-row">
+                  <input type="password" class="form-input key-input" id="nanobananaKeyInput" placeholder="nb-...">
+                  <button class="btn-primary" id="saveNanobananaBtn">儲存</button>
+                </div>
+                <div class="conn-status" id="nanobananaStatus"></div>
+                <div class="settings-hint">模型：gemini-3-pro-image (Nano Banana Pro) · 用於工作流的高階圖像生成</div>
+              </div>
+            </div>
+
+
+          </div>
+        </section>
+
+        <!-- Panel: 資產庫 -->
+        <section class="panel" id="panel-assets">
+          <div class="prompts-toolbar"
+            style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 20px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-size: 16px; font-weight: 600;">本地資產庫 (IndexedDB)</div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-primary" id="assetAuthDirBtn" style="background: #28a745; border-color: #28a745;">📂
+                授權本機目錄</button>
+              <button class="btn-ghost hidden" id="assetDelSelectedBtn" style="color: #dc3545;">刪除選取</button>
+              <button class="btn-ghost hidden" id="assetClearFolderBtn" style="color: #dc3545;">清空資料夾</button>
+              <button class="btn-ghost" id="assetManageBtn">管理</button>
+              <input type="file" id="assetUploadInput" accept="image/*" hidden>
+              <button class="btn-primary" id="assetUploadBtn">上傳資產</button>
+            </div>
+          </div>
+          <div class="assets-body">
+            <div class="assets-folder-sidebar" id="assetsFolderList"></div>
+            <div class="assets-main">
+              <div class="assets-grid" id="assetsGrid"
+                style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px;"></div>
+              <div class="empty-state hidden" id="assetsEmpty">
+                <div class="empty-icon">🖼️</div>
+                <div class="empty-text">尚無儲存的影像資產</div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- Panel: 自定工作流 -->
-      <section class="panel" id="panel-workflow">
-        <!-- Top Toolbar (for Node Workflow) -->
-        <div class="workflow-header" style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-          <div class="workflow-desc" style="font-weight: 500;">自定工作流 (Node-based)</div>
-          <div class="workflow-toolbar" id="wfToolbar" style="display: flex; gap: 8px;">
-            <button class="btn-ghost btn-sm" id="wfSaveBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💾 儲存至列表</button>
-            <button class="btn-ghost btn-sm" id="wfSaveProgressBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🔄 保存進度</button>
-            <button class="btn-ghost btn-sm" id="wfOverwriteBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">↩ 覆蓋workflow</button>
-            <button class="btn-ghost btn-sm" id="wfExportBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">📤 導出</button>
-            <label class="btn-ghost btn-sm" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin: 0;">
-              📥 導入<input type="file" id="wfImportInput" accept=".json" style="display: none;">
-            </label>
-            <button class="btn-ghost btn-sm" id="wfPromptToggleBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💡 Prompt 列表</button>
-            <button class="btn-ghost btn-sm" id="wfWorkflowListBtn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🗂 workflow列表</button>
-            <div style="width: 1px; background: var(--border); margin: 0 5px;"></div>
-            <button class="btn-ghost btn-sm" data-add="model">➕ Model</button>
-            <button class="btn-ghost btn-sm" data-add="prompt">➕ Prompt</button>
-            <button class="btn-ghost btn-sm" data-add="img2img">➕ Img2Img</button>
-            <button class="btn-ghost btn-sm" data-add="mask">➕ Mask</button>
-            <button class="btn-primary btn-sm" id="wfGenerateRunBtn" style="margin-left: 15px;">執行工作流 (Run)</button>
-          </div>
-        </div>
-
-        <!-- 2-Column IDE Layout + Right Prompt Quick-Bar -->
-        <div class="workflow-ide-layout">
-          <!-- Left Pane: Asset File Explorer -->
-          <div class="ide-left-assets">
-            <div class="ide-assets-header">
-              <span class="ide-pane-title">📂 資產瀏覽器</span>
-            </div>
-            <div class="ide-folder-list" id="ideFolderList"></div>
-            <div class="ide-assets-grid" id="ideAssetsGrid"></div>
-          </div>
-
-          <!-- Resizer Splitter -->
-          <div class="ide-assets-resizer" id="ideLeftResizer"></div>
-
-          <!-- Center Pane: Node Workflow Canvas -->
-          <div class="ide-center-workflow" style="flex: 1; position: relative;">
-            <div class="workflow-canvas" id="workflowCanvas">
-              <svg class="workflow-svg" id="workflowSvg"></svg>
-              <!-- Nodes will be injected here dynamically by workflow.js -->
-            </div>
-            
-            <!-- Right Edge: Prompt Vault Quick-Bar -->
-            <div class="workflow-prompt-quickbar" id="wfPromptQuickBar">
-              <!-- Dynamically populated by workflow.js -->
-            </div>
-
-            <!-- Right Edge: Workflow List Quick-Bar -->
-            <div class="wf-list-quickbar" id="wfWorkflowQuickBar">
-              <div class="wf-list-qb-header">
-                <span>🗂 workflow列表</span>
-                <button class="wf-list-qb-close" id="wfWorkflowListClose">✕</button>
-              </div>
-              <input class="wf-list-qb-search" type="text" id="wfListQbSearch" placeholder="搜尋工作流...">
-              <div class="wf-list-qb-body" id="wfListQbBody"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Panel: 工作流庫 -->
-      <section class="panel" id="panel-workflow-library">
-        <div class="prompts-ide-layout">
-          <div class="prompts-left-library">
-            <div class="prompts-toolbar">
-              <input type="text" class="search-input" id="wlSearch" placeholder="搜尋工作流...">
-              <button class="btn-primary" id="wlSaveCurrentBtn">🗂 儲存目前工作流</button>
-            </div>
-            <div class="prompts-body">
-              <div class="prompts-category-sidebar" id="wlCategorySidebar"></div>
-              <div class="prompts-content" id="wlContent"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Panel: API 設定 -->
-      <section class="panel" id="panel-settings">
-        <div class="settings-layout">
-          <div class="settings-intro">
-            <p>在此設定您的 AI 模型 API 金鑰。金鑰僅儲存在您的瀏覽器本地端 (localStorage)，不會傳送至任何第三方伺服器。</p>
-          </div>
-
-          <!-- OpenAI Settings -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">🤖</span>
-              <span class="settings-card-title">OpenAI (ChatGPT)</span>
-            </div>
-            <div class="settings-card-body">
-              <label class="form-label">API KEY</label>
-              <div class="key-input-row">
-                <input type="password" class="form-input key-input" id="openaiKeyInput" placeholder="sk-...">
-                <button class="btn-primary" id="saveOpenaiBtn">儲存</button>
-                <button class="btn-ghost" id="testOpenaiBtn">測試連線</button>
-              </div>
-              <div class="conn-status" id="openaiStatus"></div>
-              <div class="settings-hint">模型：chatgpt-5.5 · 需要有 Vision 存取權限</div>
-            </div>
-          </div>
-
-          <!-- Gemini Settings -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">✦</span>
-              <span class="settings-card-title">Google Gemini</span>
-            </div>
-            <div class="settings-card-body">
-              <label class="form-label">API KEY</label>
-              <div class="key-input-row">
-                <input type="password" class="form-input key-input" id="geminiKeyInput" placeholder="AIza...">
-                <button class="btn-primary" id="saveGeminiBtn">儲存</button>
-                <button class="btn-ghost" id="testGeminiBtn">測試連線</button>
-              </div>
-              <div class="conn-status" id="geminiStatus"></div>
-              <div class="settings-hint">模型：gemini-3.5-flash · 使用 Google AI Studio 金鑰</div>
-            </div>
-          </div>
-
-          <!-- Gemini 2.5 Lite Settings -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">✧</span>
-              <span class="settings-card-title">Google Gemini 2.5 Lite</span>
-            </div>
-            <div class="settings-card-body">
-              <label class="form-label">API KEY</label>
-              <div class="key-input-row">
-                <input type="password" class="form-input key-input" id="geminiliteKeyInput" placeholder="AIza...">
-                <button class="btn-primary" id="saveGeminiliteBtn">儲存</button>
-                <button class="btn-ghost" id="testGeminiliteBtn">測試連線</button>
-              </div>
-              <div class="conn-status" id="geminiliteStatus"></div>
-              <div class="settings-hint">模型：gemini-2.5-lite · 快速輕量版分析模型</div>
-            </div>
-          </div>
-
-
-
-          <!-- Nano Banana Pro Settings -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">🍌</span>
-              <span class="settings-card-title">Nano Banana Pro</span>
-            </div>
-            <div class="settings-card-body">
-              <label class="form-label">API KEY</label>
-              <div class="key-input-row">
-                <input type="password" class="form-input key-input" id="nanobananaKeyInput" placeholder="nb-...">
-                <button class="btn-primary" id="saveNanobananaBtn">儲存</button>
-              </div>
-              <div class="conn-status" id="nanobananaStatus"></div>
-              <div class="settings-hint">模型：gemini-3-pro-image (Nano Banana Pro) · 用於工作流的高階圖像生成</div>
-            </div>
-          </div>
-
-
-        </div>
-      </section>
-
-      <!-- Panel: 資產庫 -->
-      <section class="panel" id="panel-assets">
-        <div class="prompts-toolbar" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 20px; display:flex; align-items:center; justify-content:space-between;">
-          <div style="font-size: 16px; font-weight: 600;">本地資產庫 (IndexedDB)</div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-primary" id="assetAuthDirBtn" style="background: #28a745; border-color: #28a745;">📂 授權本機目錄</button>
-            <button class="btn-ghost hidden" id="assetDelSelectedBtn" style="color: #dc3545;">刪除選取</button>
-            <button class="btn-ghost hidden" id="assetClearFolderBtn" style="color: #dc3545;">清空資料夾</button>
-            <button class="btn-ghost" id="assetManageBtn">管理</button>
-            <input type="file" id="assetUploadInput" accept="image/*" hidden>
-            <button class="btn-primary" id="assetUploadBtn">上傳資產</button>
-          </div>
-        </div>
-        <div class="assets-body">
-          <div class="assets-folder-sidebar" id="assetsFolderList"></div>
-          <div class="assets-main">
-            <div class="assets-grid" id="assetsGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px;"></div>
-            <div class="empty-state hidden" id="assetsEmpty">
-              <div class="empty-icon">🖼️</div>
-              <div class="empty-text">尚無儲存的影像資產</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-    </div>
-  </main>
-</div>
-
-<!-- Modal: 新增/編輯提示詞 -->
-<div class="modal-backdrop hidden" id="promptModal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="modalTitle">新增提示詞</div>
-      <button class="modal-close" id="modalClose">&#x2715;</button>
-    </div>
-    <div class="modal-body">
-      <label class="form-label">標題</label>
-      <input type="text" class="form-input" id="promptTitleInput" placeholder="提示詞名稱">
-      <label class="form-label">分類</label>
-      <select class="form-input" id="promptCategoryInput">
-        <!-- Categories are dynamically populated by prompts.js -->
-      </select>
-      <label class="form-label">語言 (Language)</label>
-      <select class="form-input" id="promptLanguageInput">
-        <option value="">不指定</option>
-        <option value="繁體中文">繁體中文</option>
-        <option value="English">English</option>
-        <option value="简体中文">简体中文</option>
-        <option value="日本語">日本語</option>
-      </select>
-      <label class="form-label">提示詞內容</label>
-      <textarea class="form-textarea" id="promptContentInput" placeholder="輸入提示詞..."></textarea>
-      <div id="promptThumbPreview" class="prompt-thumb-preview hidden"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-ghost" id="modalCancel">取消</button>
-      <button class="btn-primary" id="modalSave">儲存</button>
-    </div>
+      </div>
+    </main>
   </div>
-</div>
 
-<!-- Toast notification -->
-<div class="toast hidden" id="toast"></div>
-
-<!-- Workflow Library: Save Modal -->
-<div class="modal-backdrop hidden" id="wlOverwriteModal">
-  <div class="modal" style="max-width: 360px;">
-    <div class="modal-header">
-      <span class="modal-title">覆蓋 workflow</span>
-      <button class="modal-close" id="wlOverwriteClose">✕</button>
-    </div>
-    <div class="modal-body">
-      <label class="form-label">選擇要覆蓋的 workflow</label>
-      <select class="form-input" id="wlOverwriteSelect"></select>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-ghost" id="wlOverwriteCancel">取消</button>
-      <button class="btn-primary" id="wlOverwriteConfirm">確認覆蓋</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-backdrop hidden" id="wlSaveModal">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title" id="wlModalTitle">儲存工作流至庫</span>
-      <button class="modal-close" id="wlModalClose">✕</button>
-    </div>
-    <div class="modal-body">
-      <label class="form-label">名稱 *</label>
-      <input type="text" class="form-input" id="wlSaveName" placeholder="輸入工作流名稱...">
-      <label class="form-label">分類</label>
-      <select class="form-input" id="wlSaveCat"></select>
-      <label class="form-label">說明 (選填)</label>
-      <input type="text" class="form-input" id="wlSaveDesc" placeholder="輸入說明...">
-    </div>
-    <div class="modal-footer">
-      <button class="btn-ghost" id="wlModalCancel">取消</button>
-      <button class="btn-primary" id="wlSaveConfirmBtn">儲存</button>
-    </div>
-  </div>
-</div>
-
-<!-- Global Color Picker (Hidden) -->
-<input type="color" id="globalColorPicker" style="position:absolute; opacity:0; pointer-events:none; width:0; height:0;" tabindex="-1">
-
-<!-- Global Floating IDE Agent -->
-<button class="global-ide-agent-btn" id="globalIdeAgentBtn" title="開啟 IDE Agent">
-  ✨
-</button>
-<div class="global-ide-agent-panel hidden" id="globalIdeAgentPanel">
-  <div class="agent-archive-overlay" style="position:absolute; inset:0; z-index:999; background:rgba(0,0,0,0.55); display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:all; backdrop-filter:blur(4px); border-radius:12px;">
-    <div style="font-size:48px; margin-bottom:12px;">🚧</div>
-    <div style="font-size:18px; font-weight:700; color:#fff; letter-spacing:1px;">開發中</div>
-    <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:6px;">Under Development</div>
-  </div>
-  <div class="agent-header">
-    <span class="agent-header-title">✨ IDE Agent</span>
-    <select class="agent-model-select" id="agentModelSelect" disabled>
-      <option value="gpt-5.5">ChatGPT 5.5</option>
-      <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash</option>
-      <option value="gemini-3.1-pro">Gemini 3.1 Pro (High)</option>
-    </select>
-    <button class="agent-close-btn" id="agentCloseBtn">&#x2715;</button>
-  </div>
-  <div class="agent-messages" id="agentMessages">
-    <div class="agent-welcome">
-      <div class="agent-welcome-icon">✨</div>
-      <div class="agent-welcome-title">歡迎使用 IDE Agent</div>
-      <div class="agent-welcome-sub">此功能正在開發中，敬請期待。</div>
-    </div>
-  </div>
-  <div class="agent-input-area">
-    <div class="agent-input-container" id="agentInputContainer">
-      <textarea class="agent-textarea" id="agentTextarea" placeholder="功能開發中..." rows="1" disabled></textarea>
-      <button class="agent-send-btn" id="agentSendBtn" title="發送" disabled>⬆️</button>
-    </div>
-  </div>
-</div>
-
-<!-- Simple Workflow: Library Modal -->
-<div class="modal-backdrop hidden" id="swfLibraryModal">
-  <div class="modal" style="max-width: 450px;">
-    <div class="modal-header">
-      <h3 class="modal-title">📂 讀取工作流 (簡易版)</h3>
-      <button class="modal-close" id="swfLibModalCloseBtn">✕</button>
-    </div>
-    <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
-      <div id="swfLibList" style="display: flex; flex-direction: column; gap: 8px;">
-        <!-- Populated by JS -->
+  <!-- Modal: 新增/編輯提示詞 -->
+  <div class="modal-backdrop hidden" id="promptModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">新增提示詞</div>
+        <button class="modal-close" id="modalClose">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">標題</label>
+        <input type="text" class="form-input" id="promptTitleInput" placeholder="提示詞名稱">
+        <label class="form-label">分類</label>
+        <select class="form-input" id="promptCategoryInput">
+          <!-- Categories are dynamically populated by prompts.js -->
+        </select>
+        <label class="form-label">語言 (Language)</label>
+        <select class="form-input" id="promptLanguageInput">
+          <option value="">不指定</option>
+          <option value="繁體中文">繁體中文</option>
+          <option value="English">English</option>
+          <option value="简体中文">简体中文</option>
+          <option value="日本語">日本語</option>
+        </select>
+        <label class="form-label">提示詞內容</label>
+        <textarea class="form-textarea" id="promptContentInput" placeholder="輸入提示詞..."></textarea>
+        <div id="promptThumbPreview" class="prompt-thumb-preview hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="modalCancel">取消</button>
+        <button class="btn-primary" id="modalSave">儲存</button>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Simple Workflow: Sync Group Params Modal -->
-<div class="modal-backdrop hidden" id="swfSyncParamsModal">
-  <div class="modal" style="max-width: 360px;">
-    <div class="modal-header">
-      <h3 class="modal-title">統一群組參數</h3>
-      <button class="modal-close" id="swfSyncModalCloseBtn">✕</button>
-    </div>
-    <div class="modal-body">
-      <div style="margin-bottom: 12px; font-size: 13px; color: var(--muted);">
-        選擇要套用到群組內所有節點的參數：
+  <!-- Toast notification -->
+  <div class="toast hidden" id="toast"></div>
+
+  <!-- Workflow Library: Save Modal -->
+  <div class="modal-backdrop hidden" id="wlOverwriteModal">
+    <div class="modal" style="max-width: 360px;">
+      <div class="modal-header">
+        <span class="modal-title">覆蓋 workflow</span>
+        <button class="modal-close" id="wlOverwriteClose">✕</button>
       </div>
-      <label class="form-label">Model</label>
-      <select class="form-input" id="swfSyncModelSel">
-        <option value="nanobanana2">Nano Banana 2</option>
-        <option value="nanobanana">Nano Banana</option>
-        <option value="gptimage">GPT-Image</option>
-      </select>
-      
-      <!-- Params container populated by JS -->
-      <div id="swfSyncParamsContainer" style="margin-top: 12px;"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-ghost" id="swfSyncModalCancelBtn">取消</button>
-      <button class="btn-primary" id="swfSyncModalConfirmBtn">確認統一</button>
+      <div class="modal-body">
+        <label class="form-label">選擇要覆蓋的 workflow</label>
+        <select class="form-input" id="wlOverwriteSelect"></select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="wlOverwriteCancel">取消</button>
+        <button class="btn-primary" id="wlOverwriteConfirm">確認覆蓋</button>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" integrity="sha384-jrOgQzBlDeUNdmQn3rUt/PZD+pdcRBdWd/HWRqRo+n2OR2QtGyjSaJC0GiCeH+ir" crossorigin="anonymous" defer></script>
-<script src="https://unpkg.com/@antv/g6@5.1.1/dist/g6.min.js" integrity="sha384-UD8c5szelcdeclSWhUiFuz1tiZeIweaJygrWmWcSllSAfocHUyRyQZ5iiQ0J1MGm" crossorigin="anonymous" defer></script>
-<script src="js/app.js?v=__BUILD_TS__"></script>
-<script src="js/assets.js?v=__BUILD_TS__"></script>
-<script src="js/editor.js?v=__BUILD_TS__"></script>
-<script src="js/ai-service.js?v=__BUILD_TS__"></script>
-<script src="js/settings.js?v=__BUILD_TS__"></script>
-<script src="js/decode.js?v=__BUILD_TS__"></script>
-<script src="js/prompts.js?v=__BUILD_TS__"></script>
-<script src="js/workflow.js?v=__BUILD_TS__"></script>
-<script src="js/workflow-library.js?v=__BUILD_TS__"></script>
-<script src="js/simple-workflow.js?v=__BUILD_TS__"></script>
-<script src="js/ide-agent.js?v=__BUILD_TS__"></script>
+  <div class="modal-backdrop hidden" id="wlSaveModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="wlModalTitle">儲存工作流至庫</span>
+        <button class="modal-close" id="wlModalClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">名稱 *</label>
+        <input type="text" class="form-input" id="wlSaveName" placeholder="輸入工作流名稱...">
+        <label class="form-label">分類</label>
+        <select class="form-input" id="wlSaveCat"></select>
+        <label class="form-label">說明 (選填)</label>
+        <input type="text" class="form-input" id="wlSaveDesc" placeholder="輸入說明...">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="wlModalCancel">取消</button>
+        <button class="btn-primary" id="wlSaveConfirmBtn">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Color Picker (Hidden) -->
+  <input type="color" id="globalColorPicker"
+    style="position:absolute; opacity:0; pointer-events:none; width:0; height:0;" tabindex="-1">
+
+  <!-- Global Floating IDE Agent -->
+  <button class="global-ide-agent-btn" id="globalIdeAgentBtn" title="開啟 IDE Agent">
+    ✨
+  </button>
+  <div class="global-ide-agent-panel hidden" id="globalIdeAgentPanel">
+    <div class="agent-archive-overlay"
+      style="position:absolute; inset:0; z-index:999; background:rgba(0,0,0,0.55); display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:all; backdrop-filter:blur(4px); border-radius:12px;">
+      <div style="font-size:48px; margin-bottom:12px;">🚧</div>
+      <div style="font-size:18px; font-weight:700; color:#fff; letter-spacing:1px;">開發中</div>
+      <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:6px;">Under Development</div>
+    </div>
+    <div class="agent-header">
+      <span class="agent-header-title">✨ IDE Agent</span>
+      <select class="agent-model-select" id="agentModelSelect" disabled>
+        <option value="gpt-5.5">ChatGPT 5.5</option>
+        <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash</option>
+        <option value="gemini-3.1-pro">Gemini 3.1 Pro (High)</option>
+      </select>
+      <button class="agent-close-btn" id="agentCloseBtn">&#x2715;</button>
+    </div>
+    <div class="agent-messages" id="agentMessages">
+      <div class="agent-welcome">
+        <div class="agent-welcome-icon">✨</div>
+        <div class="agent-welcome-title">歡迎使用 IDE Agent</div>
+        <div class="agent-welcome-sub">此功能正在開發中，敬請期待。</div>
+      </div>
+    </div>
+    <div class="agent-input-area">
+      <div class="agent-input-container" id="agentInputContainer">
+        <textarea class="agent-textarea" id="agentTextarea" placeholder="功能開發中..." rows="1" disabled></textarea>
+        <button class="agent-send-btn" id="agentSendBtn" title="發送" disabled>⬆️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simple Workflow: Library Modal -->
+  <div class="modal-backdrop hidden" id="swfLibraryModal">
+    <div class="modal" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 class="modal-title">📂 讀取工作流 (簡易版)</h3>
+        <button class="modal-close" id="swfLibModalCloseBtn">✕</button>
+      </div>
+      <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+        <div id="swfLibList" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simple Workflow: Sync Group Params Modal -->
+  <div class="modal-backdrop hidden" id="swfSyncParamsModal">
+    <div class="modal" style="max-width: 360px;">
+      <div class="modal-header">
+        <h3 class="modal-title">統一群組參數</h3>
+        <button class="modal-close" id="swfSyncModalCloseBtn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 12px; font-size: 13px; color: var(--muted);">
+          選擇要套用到群組內所有節點的參數：
+        </div>
+        <label class="form-label">Model</label>
+        <select class="form-input" id="swfSyncModelSel">
+          <option value="nanobanana2">Nano Banana 2</option>
+          <option value="nanobanana">Nano Banana</option>
+          <option value="gptimage">GPT-Image</option>
+        </select>
+
+        <!-- Params container populated by JS -->
+        <div id="swfSyncParamsContainer" style="margin-top: 12px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="swfSyncModalCancelBtn">取消</button>
+        <button class="btn-primary" id="swfSyncModalConfirmBtn">確認統一</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"
+    integrity="sha384-jrOgQzBlDeUNdmQn3rUt/PZD+pdcRBdWd/HWRqRo+n2OR2QtGyjSaJC0GiCeH+ir" crossorigin="anonymous"
+    defer></script>
+  <script src="https://unpkg.com/@antv/g6@5.1.1/dist/g6.min.js"
+    integrity="sha384-UD8c5szelcdeclSWhUiFuz1tiZeIweaJygrWmWcSllSAfocHUyRyQZ5iiQ0J1MGm" crossorigin="anonymous"
+    defer></script>
+  <script src="js/app.js?v=__BUILD_TS__"></script>
+  <script src="js/assets.js?v=__BUILD_TS__"></script>
+  <script src="js/editor.js?v=__BUILD_TS__"></script>
+  <script src="js/ai-service.js?v=__BUILD_TS__"></script>
+  <script src="js/settings.js?v=__BUILD_TS__"></script>
+  <script src="js/decode.js?v=__BUILD_TS__"></script>
+  <script src="js/prompts.js?v=__BUILD_TS__"></script>
+  <script src="js/workflow.js?v=__BUILD_TS__"></script>
+  <script src="js/workflow-library.js?v=__BUILD_TS__"></script>
+  <script src="js/simple-workflow.js?v=__BUILD_TS__"></script>
+  <script src="js/ide-agent.js?v=__BUILD_TS__"></script>
 </body>
+
 </html>

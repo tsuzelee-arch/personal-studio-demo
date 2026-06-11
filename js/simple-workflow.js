@@ -23,6 +23,8 @@
   const groups = {};      // id → groupData
   const edges = [];       // { id, source, target }
   
+  let selectedEntityId = null;
+
   let zoomLevel = 1;
   const ZOOM_MIN = 0.2, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
   
@@ -48,6 +50,15 @@
     if (!ent) return null;
     if (isGroup(id)) return ent.el.querySelector(type === 'out' ? '.swf-group-port-out' : '.swf-group-port-in');
     return ent.el.querySelector(type === 'out' ? '.swf-port-out' : '.swf-port-in');
+  }
+
+  function selectEntity(id) {
+    selectedEntityId = id;
+    document.querySelectorAll('.swf-selected').forEach(el => el.classList.remove('swf-selected'));
+    if (id) {
+      const ent = getEntity(id);
+      if (ent && ent.el) ent.el.classList.add('swf-selected');
+    }
   }
 
   // ═══════════════════════════════════════════
@@ -77,6 +88,7 @@
   canvas.addEventListener('mousedown', (e) => {
     if (e.button === 1 || (e.button === 0 && (e.target === canvas || e.target === zoomWrapper || e.target === edgesSvg || e.target === nodesContainer))) {
       isPanning = true;
+      selectEntity(null);
       panStartX = e.clientX; panStartY = e.clientY;
       scrollStartX = panX; scrollStartY = panY;
       canvas.style.cursor = 'grabbing';
@@ -110,6 +122,23 @@
   });
   document.getElementById('swfZoomReset')?.addEventListener('click', () => {
     zoomLevel = 1; panX = 0; panY = 0; applyZoomAndPan(); scheduleEdgeRender();
+  });
+
+  // ═══════════════════════════════════════════
+  // ── KEYBOARD SHORTCUTS ──
+  // ═══════════════════════════════════════════
+  window.addEventListener('keydown', (e) => {
+    const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
+    if (!isInput && (e.key === 'Delete' || e.key === 'Backspace')) {
+      if (selectedEntityId) {
+        if (isGroup(selectedEntityId)) {
+          promptRemoveGroup(selectedEntityId);
+        } else {
+          removeNode(selectedEntityId);
+        }
+        selectedEntityId = null;
+      }
+    }
   });
 
   // ═══════════════════════════════════════════
@@ -218,6 +247,9 @@
     const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [] };
     groups[id] = groupData;
 
+    // Entity Selection
+    el.addEventListener('mousedown', () => selectEntity(id));
+
     // Events
     setupGroupDrag(groupData);
     setupGroupResize(groupData);
@@ -245,7 +277,7 @@
       el.querySelector('.swf-group-header').style.background = hexToRgba(group.color, 0.15);
     });
     el.querySelector('.swf-group-title').addEventListener('change', (e) => { group.title = e.target.value; });
-    el.querySelector('.swf-grp-del-btn').addEventListener('click', () => removeGroup(group.id));
+    el.querySelector('.swf-grp-del-btn').addEventListener('click', () => promptRemoveGroup(group.id));
     el.querySelector('.swf-grp-run-btn').addEventListener('click', () => executeGroup(group.id));
     el.querySelector('.swf-grp-dup-btn').addEventListener('click', () => duplicateGroup(group.id));
     el.querySelector('.swf-grp-sync-btn').addEventListener('click', () => syncGroupParams(group.id));
@@ -343,7 +375,19 @@
     for (let i = edges.length - 1; i >= 0; i--) {
       if (edges[i].source === id || edges[i].target === id) edges.splice(i, 1);
     }
+    if (selectedEntityId === id) selectEntity(null);
     scheduleEdgeRender();
+  }
+
+  function promptRemoveGroup(id) {
+    const g = groups[id]; if (!g) return;
+    const members = getGroupMembers(id);
+    if (members.length > 0) {
+      if (confirm(`群組「${g.title}」內包含 ${members.length} 個節點。\n是否要連同內部的節點一起刪除？\n\n[確定] 刪除群組與內部節點\n[取消] 僅刪除群組外框`)) {
+        members.forEach(m => removeNode(m.id));
+      }
+    }
+    removeGroup(id);
   }
 
   /** Feature 6: Duplicate entire group with all member nodes and internal edges */
@@ -509,6 +553,10 @@
     nodesContainer.appendChild(el);
     const nodeData = { id, type, el, x: pos.x, y: pos.y, data: { model: defaultModel, images: [], params: {} }, incomingImages: [], resultImages: [] };
     nodes[id] = nodeData;
+    
+    // Entity Selection
+    el.addEventListener('mousedown', () => selectEntity(id));
+    
     setupMacroEvents(nodeData);
     setupNodeDrag(nodeData);
     setupPortEvents(el, id);
@@ -880,6 +928,7 @@
     for (let i = edges.length - 1; i >= 0; i--) {
       if (edges[i].source === id || edges[i].target === id) edges.splice(i, 1);
     }
+    if (selectedEntityId === id) selectEntity(null);
     scheduleEdgeRender();
   }
 
@@ -1366,33 +1415,159 @@
   // ═══════════════════════════════════════════
   // ── PROMPT QUICK-BAR (Right Pane) ──
   // ═══════════════════════════════════════════
-  function renderSwfPromptQuickBar() {
-    const body = document.getElementById('swfPromptQbBody'); if (!body) return;
-    // Use PromptsService (correct API from prompts.js)
-    const prompts = window.PromptsService?.getPromptsByCategory?.('全部') || [];
-    body.innerHTML = '';
-    if (prompts.length === 0) {
-      body.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:11px;padding:20px;">尚無儲存的 Prompt<br>可至 Prompt 庫新增</div>';
-      return;
+  function initSwfPromptQuickBar() {
+    const quickBar = document.getElementById('swfPromptQuickBar');
+    if (!quickBar || !window.PromptsService) return;
+
+    quickBar.innerHTML = '';
+    
+    let popover = document.getElementById('swfQuickbarPopover');
+    if (!popover) {
+      popover = document.createElement('div');
+      popover.id = 'swfQuickbarPopover';
+      popover.className = 'quickbar-popover';
+      
+      const header = document.createElement('div');
+      header.className = 'quickbar-popover-header';
+      
+      const title = document.createElement('span');
+      title.id = 'swfQuickbarPopoverTitle';
+      header.appendChild(title);
+      
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'quickbar-popover-close';
+      closeBtn.innerHTML = '&#x2715;';
+      closeBtn.addEventListener('click', () => hidePopover(true));
+      header.appendChild(closeBtn);
+      
+      popover.appendChild(header);
+      
+      const body = document.createElement('div');
+      body.id = 'swfQuickbarPopoverBody';
+      body.className = 'quickbar-popover-body';
+      popover.appendChild(body);
+      
+      quickBar.appendChild(popover);
     }
-    prompts.forEach(item => {
-      const displayText = item.content || item.text || '';
-      const div = document.createElement('div');
-      div.className = 'swf-prompt-qb-item'; div.draggable = true;
-      div.innerHTML = `<div class="swf-prompt-tag">${item.category || 'General'}</div><div>${displayText.substring(0, 120)}</div>`;
-      div.title = displayText.substring(0, 300);
-      div.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/swf-prompt', displayText);
-        e.dataTransfer.effectAllowed = 'copy';
+
+    let activeCategory = null;
+    let isPinned = false;
+    let pinTimer = null;
+    
+    const categories = window.PromptsService.getAllCategories();
+    
+    categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'quickbar-cat-btn';
+      btn.innerHTML = `<span class="quickbar-cat-text">${cat}</span><div class="quickbar-timer-bar"></div>`;
+      
+      btn.addEventListener('mouseenter', () => {
+        if (isPinned && activeCategory === cat) return;
+        showPopover(cat, btn);
+        startPinTimer(cat, btn);
       });
-      div.addEventListener('click', () => {
-        navigator.clipboard.writeText(displayText).then(() => {
-          if (window.showToast) window.showToast('📋 已複製 Prompt');
-        });
+      
+      btn.addEventListener('mouseleave', () => {
+        cancelPinTimer();
+        if (!isPinned) hidePopover();
       });
-      body.appendChild(div);
+      
+      btn.addEventListener('click', () => {
+        if (isPinned && activeCategory === cat) hidePopover(true);
+        else {
+          cancelPinTimer();
+          isPinned = true;
+          showPopover(cat, btn);
+        }
+      });
+      
+      quickBar.appendChild(btn);
     });
+    
+    document.addEventListener('click', (e) => {
+      if (isPinned && !quickBar.contains(e.target) && !popover.contains(e.target)) {
+        hidePopover(true);
+      }
+    });
+    
+    function showPopover(category, btnEl) {
+      activeCategory = category;
+      const titleEl = document.getElementById('swfQuickbarPopoverTitle');
+      const bodyEl = document.getElementById('swfQuickbarPopoverBody');
+      
+      document.querySelectorAll('#swfPromptQuickBar .quickbar-cat-btn').forEach(b => {
+        b.classList.remove('active', 'pinned', 'timer-active');
+      });
+      if (btnEl) btnEl.classList.add('pinned');
+      
+      titleEl.textContent = category;
+      bodyEl.innerHTML = '';
+      
+      const prompts = window.PromptsService.getPromptsByCategory(category);
+      if (prompts.length === 0) {
+        bodyEl.innerHTML = '<div style="color:var(--text-light);font-size:12px;text-align:center;margin-top:20px;">無儲存的提示詞</div>';
+      } else {
+        prompts.forEach(p => {
+          const item = document.createElement('div');
+          item.className = 'quickbar-prompt-item';
+          item.draggable = true;
+          
+          const pTitle = document.createElement('div');
+          pTitle.className = 'quickbar-prompt-title';
+          pTitle.textContent = p.title || '未命名';
+          item.appendChild(pTitle);
+          
+          item.addEventListener('click', () => {
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(p.content);
+              if (window.showToast) window.showToast('✅ 已複製提示詞');
+            }
+            hidePopover(true);
+          });
+
+          item.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/swf-prompt', p.content);
+            e.dataTransfer.effectAllowed = 'copy';
+          });
+          
+          bodyEl.appendChild(item);
+        });
+      }
+      popover.classList.add('visible');
+    }
+    
+    function hidePopover(force = false) {
+      if (force || !isPinned) {
+        isPinned = false;
+        activeCategory = null;
+        popover.classList.remove('visible');
+        document.querySelectorAll('#swfPromptQuickBar .quickbar-cat-btn').forEach(b => {
+          b.classList.remove('active', 'pinned', 'timer-active');
+        });
+      }
+    }
+    
+    function startPinTimer(cat, btn) {
+      cancelPinTimer();
+      btn.classList.add('timer-active');
+      pinTimer = setTimeout(() => {
+        btn.classList.remove('timer-active');
+        isPinned = true;
+        if (activeCategory !== cat) showPopover(cat, btn);
+      }, 400);
+    }
+    
+    function cancelPinTimer() {
+      if (pinTimer) {
+        clearTimeout(pinTimer);
+        pinTimer = null;
+      }
+      document.querySelectorAll('#swfPromptQuickBar .quickbar-cat-btn').forEach(b => b.classList.remove('timer-active'));
+    }
   }
+
+  // Initialize the quick bar when the panel loads
+  setTimeout(initSwfPromptQuickBar, 300);
 
   // ═══════════════════════════════════════════
   // ── TOOLBAR BINDINGS ──
@@ -1416,12 +1591,7 @@
   });
   document.getElementById('swfPromptToggle')?.addEventListener('click', () => {
     const panel = document.getElementById('swfPromptQuickBar');
-    const isHidden = panel.style.display === 'none';
-    panel.style.display = isHidden ? 'flex' : 'none';
-    if (isHidden) renderSwfPromptQuickBar();
-  });
-  document.getElementById('swfPromptClose')?.addEventListener('click', () => {
-    document.getElementById('swfPromptQuickBar').style.display = 'none';
+    if (panel) panel.classList.toggle('active');
   });
 
   // Sync Modal Bindings
@@ -1452,7 +1622,7 @@
     duplicateGroup, syncGroupParams,
     saveWorkflow, loadWorkflow,
     getNodes: () => nodes, getGroups: () => groups, getEdges: () => edges,
-    renderSwfAssets, renderSwfPromptQuickBar
+    renderSwfAssets, initSwfPromptQuickBar
   };
 
 })();

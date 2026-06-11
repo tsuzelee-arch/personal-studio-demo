@@ -342,6 +342,18 @@
 .swf-group-port-in  { left: -14px; top: 50%; transform: translateY(-50%); }
 .swf-group-port-out { right: -14px; top: 50%; transform: translateY(-50%); }
 
+/* ── SELECTION ── */
+.swf-selected {
+  outline: 3px solid var(--warm);
+  outline-offset: 3px;
+  box-shadow: 0 0 16px rgba(200, 169, 110, 0.4);
+}
+.swf-macro.swf-selected {
+  z-index: 5 !important;
+}
+
+/* ── ANIMATIONS ── */
+
 /* Group Resize Handle */
 .swf-group-resize {
   position: absolute;
