@@ -6,9 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Personal Studio</title>
   <meta name="description" content="Personal Studio - 您的專屬 Creative AI 圖像編輯與提示詞工作流工作站">
-  <link rel="stylesheet" href="css/style.css?v=20260611_1345">
+  <link rel="stylesheet" href="css/style.css?v=20260612_0900">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"
     integrity="sha384-6LFfkTKLRlzFtgx8xsWyBdKGpcMMQTkv+dB7rAbugeJAu1Ym2q1Aji1cjHBG12Xh" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/nano.min.css" />
   <script>
     (function () {
       const savedTheme = localStorage.getItem('ps_theme') || 'light';
@@ -735,9 +736,8 @@
     </div>
   </div>
 
-  <!-- Global Color Picker (Hidden) -->
-  <input type="color" id="globalColorPicker"
-    style="position:absolute; opacity:0; pointer-events:none; width:0; height:0;" tabindex="-1">
+  <!-- 全域 Pickr 錨點 -->
+  <div id="pickr-anchor" style="position: fixed; width: 0; height: 0; opacity: 0; pointer-events: none; z-index: 99999;"></div>
 
   <!-- Global Floating IDE Agent -->
   <button class="global-ide-agent-btn" id="globalIdeAgentBtn" title="開啟 IDE Agent">
@@ -823,17 +823,19 @@
   <script src="https://unpkg.com/@antv/g6@5.1.1/dist/g6.min.js"
     integrity="sha384-UD8c5szelcdeclSWhUiFuz1tiZeIweaJygrWmWcSllSAfocHUyRyQZ5iiQ0J1MGm" crossorigin="anonymous"
     defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
   <script src="js/app.js?v=20260611_1345"></script>
   <script src="js/assets.js?v=20260611_1345"></script>
-  <script src="js/editor.js?v=20260611_1345"></script>
+  <script src="js/richtextarea.js?v=20260612_0900"></script>
+  <script src="js/editor.js?v=20260612_0900"></script>
   <script src="js/ai-service.js?v=20260611_1345"></script>
   <script src="js/settings.js?v=20260611_1345"></script>
-  <script src="js/decode.js?v=20260611_1345"></script>
+  <script src="js/decode.js?v=20260612_0900"></script>
   <script src="js/prompts.js?v=20260611_1345"></script>
   <script src="js/workflow.js?v=20260611_1345"></script>
   <script src="js/workflow-library.js?v=20260611_1345"></script>
-  <script src="js/simple-workflow.js?v=20260611_1345"></script>
-  <script src="js/ide-agent.js?v=20260611_1345"></script>
+  <script src="js/simple-workflow.js?v=20260612_0900"></script>
+  <script src="js/ide-agent.js?v=20260612_0900"></script>
 </body>
 
 </html>

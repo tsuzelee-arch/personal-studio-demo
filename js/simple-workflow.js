@@ -348,7 +348,7 @@
           <label class="swf-gs-checkbox-label"><input type="checkbox" class="swf-gs-receive-cb" checked> 接收上游圖片</label>
           <div style="margin-top: 6px; display: flex; gap: 4px; justify-content: space-between;">
             <button class="swf-gs-select-all" style="font-size: 10px; cursor: pointer; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface);">全選</button>
-            <button class="swf-gs-apply-btn" style="font-size: 10px; cursor: pointer; background: var(--accent, #1783FF); color: #fff; border: none; border-radius: 4px; padding: 2px 6px;">📥 套用至內部圖生圖</button>
+            <button class="swf-gs-apply-btn" style="font-size: 10px; cursor: pointer; background: var(--accent, #1783FF); color: #fff; border: none; border-radius: 4px; padding: 2px 6px;">📥 全部套用</button>
           </div>
         </div>
         <div class="swf-gs-images"></div>
@@ -799,7 +799,7 @@
         <div class="swf-model-section"><label>Model</label><select class="swf-model-sel">${modelOptionsHTML}</select></div>
         <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
         ${isI2I ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
-        <div><div class="swf-section-label">提示詞 (Prompt)</div><div class="swf-prompt-editor" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
+        <div><div class="swf-section-label swf-prompt-label">提示詞 (Prompt)</div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">📥</button></div>
         <button class="swf-run-btn" data-node="${id}">▶ 生成</button>
       </div>
@@ -1016,8 +1016,13 @@
       setupImageSorting(node);
     }
 
-    // Prompt editor
+    // Prompt editor — enhance：placeholder (data-empty) 維護 + 貼上強制純文字
     const promptEditor = el.querySelector('.swf-prompt-editor');
+    if (window.EditorService && window.EditorService.enhanceRichEditor) {
+      window.EditorService.enhanceRichEditor(promptEditor);
+    } else if (window.RichTextService) {
+      window.RichTextService.enhance(promptEditor);
+    }
     promptEditor.addEventListener('dragover', (e) => {
       if (e.dataTransfer.types.includes('text/swf-image-src') || e.dataTransfer.types.includes('text/swf-prompt')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }
     });
@@ -1029,10 +1034,15 @@
         const sel = window.getSelection();
         if (sel.rangeCount > 0) {
           const range = sel.getRangeAt(0); range.collapse(false);
-          const img = document.createElement('img');
-          img.src = imgSrc; img.className = 'inline-prompt-thumb'; img.draggable = false;
-          range.insertNode(img); range.setStartAfter(img); range.collapse(true);
+          const tagSpan = document.createElement('span');
+          tagSpan.className = 'editor-img-tag';
+          tagSpan.contentEditable = 'false';
+          const assetName = imgSrc.split('/').pop().split('.')[0] || 'img';
+          tagSpan.innerHTML = `<img src="${imgSrc}" class="inline-prompt-thumb" alt="${assetName}"><span class="tag-name">${assetName}</span>`;
+          range.insertNode(tagSpan); range.setStartAfter(tagSpan); range.collapse(true);
           sel.removeAllRanges(); sel.addRange(range);
+          // Range 插入不會觸發 input 事件，手動更新 placeholder 狀態
+          if (window.RichTextService) window.RichTextService.updatePlaceholder(promptEditor);
         }
       } else if (promptText) {
         e.preventDefault(); promptEditor.focus();
@@ -1381,8 +1391,42 @@
     newNode.el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(srcNode.data.model, srcNode.data.params);
     wireParamInputs(newNode);
     const sp = srcNode.el.querySelector('.swf-prompt-editor'), tp = newNode.el.querySelector('.swf-prompt-editor');
-    if (sp && tp) tp.innerHTML = sp.innerHTML;
+    if (sp && tp) {
+      tp.innerHTML = '';
+      sp.childNodes.forEach(child => {
+        const safe = sanitizePromptNode(child);
+        if (safe) tp.appendChild(safe);
+      });
+      if (window.RichTextService) window.RichTextService.updatePlaceholder(tp);
+    }
     renderImageThumbs(newNode);
+  }
+
+  // 複製提示詞內容時的白名單消毒：只保留文字、<br>、行容器與 inline 縮圖，
+  // 其餘元素攤平成純文字，防止任意 HTML 被複製進新節點。
+  function sanitizePromptNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    if (node.tagName === 'BR') return document.createElement('br');
+    if (node.tagName === 'IMG' && node.classList.contains('inline-prompt-thumb')) {
+      const img = document.createElement('img');
+      img.src = node.src;
+      img.className = 'inline-prompt-thumb';
+      img.draggable = false;
+      return img;
+    }
+    if (node.tagName === 'SPAN' && (node.classList.contains('editor-img-tag') || node.classList.contains('editor-color-tag'))) {
+      return node.cloneNode(true);
+    }
+    if (node.tagName === 'DIV' || node.tagName === 'P' || node.tagName === 'SPAN') {
+      const wrap = document.createElement(node.tagName === 'SPAN' ? 'span' : 'div');
+      node.childNodes.forEach(c => {
+        const safe = sanitizePromptNode(c);
+        if (safe) wrap.appendChild(safe);
+      });
+      return wrap;
+    }
+    return document.createTextNode(node.textContent || '');
   }
 
   // ═══════════════════════════════════════════
@@ -1392,14 +1436,26 @@
     const editor = node.el.querySelector('.swf-prompt-editor');
     if (!editor) return { text: '', inlineImages: [] };
     let text = ''; const inlineImages = [];
-    editor.childNodes.forEach(child => {
-      if (child.nodeType === Node.TEXT_NODE) text += child.textContent;
-      else if (child.nodeType === Node.ELEMENT_NODE) {
-        if (child.tagName === 'IMG' && child.classList.contains('inline-prompt-thumb')) inlineImages.push(child.src);
-        else if (child.tagName === 'BR') text += '\n';
-        else text += child.textContent || '';
-      }
-    });
+    
+    function traverse(el) {
+      el.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) text += child.textContent;
+        else if (child.nodeType === Node.ELEMENT_NODE) {
+          if (child.tagName === 'IMG' && child.classList.contains('inline-prompt-thumb')) {
+            inlineImages.push(child.src);
+          } else if (child.classList.contains('editor-img-tag')) {
+            const img = child.querySelector('img');
+            if (img) inlineImages.push(img.src);
+          } else if (child.tagName === 'BR') {
+            text += '\n';
+          } else {
+            traverse(child);
+          }
+        }
+      });
+    }
+    traverse(editor);
+    
     return { text: text.trim(), inlineImages };
   }
 
@@ -1757,7 +1813,11 @@
             n.el.querySelector('.swf-model-sel').value = n.data.model;
             n.el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(n.data.model, n.data.params);
             wireParamInputs(n);
-            if (nd.promptHTML) n.el.querySelector('.swf-prompt-editor').innerHTML = nd.promptHTML;
+            if (nd.promptHTML) {
+              const pEl = n.el.querySelector('.swf-prompt-editor');
+              pEl.innerHTML = nd.promptHTML;
+              if (window.RichTextService) window.RichTextService.updatePlaceholder(pEl);
+            }
           } catch (e) { console.warn('Failed to restore node:', savedId, e); }
         }
       }

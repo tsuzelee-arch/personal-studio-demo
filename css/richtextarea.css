@@ -1,0 +1,51 @@
+/* ── RichTextarea 統一樣式（核心：js/richtextarea.js）── */
+.rich-editor {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  min-height: 80px;
+  /* 自適應高度上限：長內容出現內部滾動條，防止撐爆版面 */
+  max-height: 400px;
+  overflow-y: auto;
+  cursor: text;
+}
+.rich-editor:focus {
+  outline: none;
+  border-color: var(--accent, #1783FF);
+  box-shadow: 0 0 0 2px rgba(23, 131, 255, 0.15);
+}
+
+/* Placeholder：data-empty 由 JS 維護（:empty 在殘留 <br> 時會失效）。
+   保留 :not([data-empty]):empty 作為 JS 尚未接管前的後備。 */
+.rich-editor[data-placeholder][data-empty="true"]::before,
+.rich-editor[data-placeholder]:not([data-empty]):empty::before {
+  content: attr(data-placeholder);
+  color: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  display: block;
+}
+
+/* 行內資產標籤 */
+.editor-img-tag {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2px 6px;
+  margin: 0 4px;
+  vertical-align: middle;
+  font-size: 12px;
+  user-select: none;
+}
+.editor-img-tag img {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  margin-right: 4px;
+  object-fit: cover;
+}
+
+[data-theme="dark"] .rich-editor[data-placeholder][data-empty="true"]::before,
+[data-theme="dark"] .rich-editor[data-placeholder]:not([data-empty]):empty::before {
+  color: rgba(255, 255, 255, 0.35);
+}

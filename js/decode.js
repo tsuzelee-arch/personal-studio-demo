@@ -245,11 +245,13 @@
     });
   }
 
-  // Auto-resize a textarea to fit its content, and sync to rich editor if available
+  // Auto-resize a textarea to fit its content, and sync to rich editor if available.
+  // RichTextService 內建防重入 guard 與內容相等短路（值沒變不重寫 innerHTML），
+  // 修掉舊版「打字 → input → setContent 重寫 → 游標被毀」的迴圈。
   function autoResize(el) {
     if (el && el.tagName === 'TEXTAREA') {
-      if (window.EditorService) {
-        window.EditorService.setContent(el, el.value);
+      if (window.RichTextService) {
+        window.RichTextService.autoResize(el);
       } else {
         el.style.height = 'auto';
         el.style.height = el.scrollHeight + 'px';
@@ -721,8 +723,8 @@
     });
   }
 
-  // Initialize Rich Editor
-  setTimeout(() => {
-    if (window.EditorService) window.EditorService.setupRichPromptEditor('promptOutput');
-  }, 500);
+  // Initialize Rich Editor — editor.js 先於本檔載入且 promptOutput 已在 DOM，
+  // 直接同步初始化（setupRichPromptEditor 具冪等檢查），不再用 500ms 延遲
+  // 避免使用者先聚焦 textarea 後編輯器才插入造成游標跳失。
+  if (window.EditorService) window.EditorService.setupRichPromptEditor('promptOutput');
 })();

@@ -712,7 +712,10 @@
   border-color: var(--accent, #1783FF);
   box-shadow: 0 0 0 2px rgba(23, 131, 255, 0.15);
 }
-.swf-prompt-editor:empty::before {
+/* data-empty 由 RichTextService 維護（:empty 在殘留 <br> 時失效）；
+   :not([data-empty]):empty 為 JS 接管前的後備 */
+.swf-prompt-editor[data-empty="true"]::before,
+.swf-prompt-editor:not([data-empty]):empty::before {
   content: attr(data-placeholder);
   color: var(--muted, #aaa);
   pointer-events: none;

@@ -1,20 +1,21 @@
 /**
- * editor.js — Rich Text Prompt Editor & Autosuggest (/, @)
+ * editor.js — Autosuggest (/, @) 層
+ * 編輯器的建立／同步／resize／placeholder 由 RichTextService (richtextarea.js) 負責。
  */
 window.EditorService = (function() {
-  
+
   // Create autosuggest UI container
   const suggestMenu = document.createElement('div');
   suggestMenu.className = 'autosuggest-menu hidden';
   document.body.appendChild(suggestMenu);
-  
+
   let currentEditor = null;
   let currentMode = null; // '/' or '@'
   let query = '';
   let suggestionItems = [];
   let selectedIndex = -1;
   let selectionRange = null;
-  
+
   // Close menu
   function closeSuggestMenu() {
     suggestMenu.classList.add('hidden');
@@ -176,40 +177,13 @@ window.EditorService = (function() {
     }
   }
   
-  // Handle input in editor
+  // Handle input in editor — autosuggest only.
+  // (div→textarea 同步與 autoResize 由 RichTextService.wireSync 處理)
   async function onEditorInput(e) {
     const editor = e.target;
     currentEditor = editor;
-    
-    // Sync to hidden textarea
     const textarea = editor.previousElementSibling;
-    if (textarea && textarea.tagName === 'TEXTAREA') {
-      // Create a simplified text representation
-      let rawText = '';
-      editor.childNodes.forEach(node => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          rawText += node.textContent;
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          if (node.classList.contains('editor-img-tag')) {
-            const assetId = node.dataset.assetId;
-            const assetName = node.querySelector('.tag-name').textContent;
-            rawText += `[@${assetName}:${assetId}]`;
-          } else if (node.classList.contains('editor-color-tag')) {
-            rawText += node.innerText;
-          } else {
-            rawText += node.innerText;
-          }
-        }
-      });
-      textarea.value = rawText;
-      // Dispatch change event for other listeners
-      textarea.dispatchEvent(new Event('input'));
-    }
-    
-    // AutoResize behavior
-    editor.style.height = 'auto';
-    editor.style.height = editor.scrollHeight + 'px';
-    
+
     // Autosuggest logic
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
@@ -223,8 +197,8 @@ window.EditorService = (function() {
       const lastAt = text.lastIndexOf('@');
       const lastTrigger = Math.max(lastSlash, lastAt);
       
-      // Ensure trigger is valid (not part of a word)
-      if (lastTrigger !== -1 && (lastTrigger === 0 || /\s/.test(text[lastTrigger - 1]))) {
+      // Ensure trigger is valid (not part of a word, zero-width space is allowed)
+      if (lastTrigger !== -1 && (lastTrigger === 0 || /[\s\u200B]/.test(text[lastTrigger - 1]))) {
         const word = text.substring(lastTrigger);
         // Only trigger if no space after the trigger symbol
         if (!/\s/.test(word)) {
@@ -248,18 +222,17 @@ window.EditorService = (function() {
       
       // Color picker logic for #
       if (text.endsWith('#') && e.data === '#') {
-         const colorPicker = document.getElementById('globalColorPicker');
-         if (colorPicker) {
-           const rect = range.getBoundingClientRect();
-           colorPicker.style.left = rect.left + 'px';
-           colorPicker.style.top = rect.bottom + 'px';
+         if (window.openGlobalPickr) {
+           const tempRange = document.createRange();
+           tempRange.setStart(textNode, range.startOffset - 1);
+           tempRange.setEnd(textNode, range.startOffset);
+           const rect = tempRange.getBoundingClientRect();
            
-           // Keep track of where to insert the color
-           colorPicker.dataset.targetEditorId = textarea.id;
            // We will store the range so we can replace the #
            window.currentEditorColorRange = range.cloneRange();
            
-           colorPicker.click();
+           const targetEditorId = editor.id || (textarea ? textarea.id : '');
+           window.openGlobalPickr(rect.left, rect.bottom, '#000000', targetEditorId);
          }
       }
     }
@@ -267,62 +240,38 @@ window.EditorService = (function() {
     closeSuggestMenu();
   }
   
-  // Setup editor
+  // Setup editor — RichTextService 建立編輯器，這裡加掛 autosuggest 行為
   function setupRichPromptEditor(textareaOrId) {
     const textarea = typeof textareaOrId === 'string' ? document.getElementById(textareaOrId) : textareaOrId;
-    if (!textarea || textarea.tagName !== 'TEXTAREA') return;
+    if (!textarea || textarea.tagName !== 'TEXTAREA' || !window.RichTextService) return;
     if (textarea.nextElementSibling && textarea.nextElementSibling.classList.contains('rich-editor')) return;
-    
-    const editor = document.createElement('div');
-    editor.className = 'rich-editor ' + textarea.className;
-    editor.contentEditable = true;
-    
-    // Copy initial value
-    editor.textContent = textarea.value;
-    
+
+    const editor = window.RichTextService.init(textarea);
+    if (!editor) return;
     editor.addEventListener('keydown', onEditorKeyDown);
     editor.addEventListener('input', onEditorInput);
-    editor.addEventListener('dragover', e => e.preventDefault());
-    editor.addEventListener('drop', e => e.preventDefault());
-    
-    // Hide textarea and insert editor
-    textarea.style.display = 'none';
-    textarea.parentNode.insertBefore(editor, textarea.nextSibling);
-    
-    // Initial resize
-    editor.style.height = 'auto';
-    editor.style.height = editor.scrollHeight + 'px';
-    
     return editor;
   }
-  
-  // Set content programmatically
-  function setContent(textareaOrId, content) {
-    const textarea = typeof textareaOrId === 'string' ? document.getElementById(textareaOrId) : textareaOrId;
-    if (textarea) {
-      textarea.value = content;
-      const editor = textarea.nextElementSibling;
-      if (editor && editor.classList.contains('rich-editor')) {
-        let html = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-        
-        // Render hex color tags
-        html = html.replace(/(#[0-9A-Fa-f]{6})\b/gi, '<span class="editor-color-tag" style="color: $1; font-weight: bold; background: rgba(0,0,0,0.05); padding: 0 2px; border-radius: 3px;">$1</span>');
-        
-        // Render asset tags (if any were embedded previously)
-        html = html.replace(/\[@([^:]+):([^\]]+)\]/g, '<span class="editor-img-tag" contenteditable="false" data-asset-id="$2"><img src="assets/$2.jpg" alt="$1"><span class="tag-name">$1</span></span>');
-        
-        editor.innerHTML = html;
-        editor.style.height = 'auto';
-        editor.style.height = editor.scrollHeight + 'px';
-      }
+
+  // Setup an arbitrary contenteditable div with autosuggest and rich formatting
+  function enhanceRichEditor(editorDiv) {
+    if (!editorDiv || (!editorDiv.isContentEditable && editorDiv.getAttribute('contenteditable') !== 'true')) return;
+    editorDiv.addEventListener('keydown', onEditorKeyDown);
+    editorDiv.addEventListener('input', onEditorInput);
+    if (window.RichTextService) {
+      window.RichTextService.enhance(editorDiv);
     }
+    return editorDiv;
   }
 
-  // Get raw content
+  // Set content programmatically
+  function setContent(textareaOrId, content) {
+    if (window.RichTextService) window.RichTextService.setContent(textareaOrId, content);
+  }
+
+  // Get raw content — 從 editor DOM 即時序列化，不會拿到未同步的舊值
   function getContent(textareaOrId) {
-    const textarea = typeof textareaOrId === 'string' ? document.getElementById(textareaOrId) : textareaOrId;
-    if (textarea) return textarea.value;
-    return '';
+    return window.RichTextService ? window.RichTextService.getContent(textareaOrId) : '';
   }
   
   // Auto-upgrade all textareas
@@ -355,6 +304,7 @@ window.EditorService = (function() {
   // Expose API
   return {
     setupRichPromptEditor,
+    enhanceRichEditor,
     closeSuggestMenu,
     setContent,
     getContent

@@ -668,10 +668,14 @@ window.IDEAgent = (function() {
       }
     });
 
-    // Auto-expand textarea
+    // Auto-expand textarea (cap 120px)
     textarea.addEventListener('input', () => {
-      textarea.style.height = 'auto';
-      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      if (window.RichTextService) {
+        window.RichTextService.autoResize(textarea, 120);
+      } else {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      }
     });
 
     // Image mode toggle

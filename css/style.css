@@ -1,6 +1,7 @@
 @import "variables.css";
 @import "base.css";
 @import "decode.css";
+@import "richtextarea.css";
 @import "editor.css";
 @import "prompts.css";
 @import "workflow.css";
