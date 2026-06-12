@@ -31,8 +31,8 @@
         <div class="nav-item" data-panel="simple-workflow">簡易工具流</div>
         <div class="nav-item active" data-panel="decode">圖像解構</div>
         <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
-        <div class="nav-item" data-panel="workflow">自定工作流（暫時廢棄）</div>
-        <div class="nav-item" data-panel="workflow-library">🗂 工作流庫（暫時廢棄）</div>
+        <div class="nav-item" data-panel="workflow" style="display: none;">自定工作流（暫時廢棄）</div>
+        <div class="nav-item" data-panel="workflow-library" style="display: none;">🗂 工作流庫（暫時廢棄）</div>
         <div class="nav-item" data-panel="assets">資產庫</div>
         <div class="nav-cat" style="margin-top:12px">系統</div>
         <div class="nav-item" data-panel="settings">⚙ API 設定</div>
@@ -163,7 +163,7 @@
                 </div>
                 <div class="dashboard-actions">
                   <button class="btn-primary" id="copyPromptBtn">複製提示詞</button>
-                  <button class="btn-ghost" id="sendToWorkflowBtn">送至工作流</button>
+                  <button class="btn-ghost" id="sendToWorkflowBtn" style="display: none;">送至工作流</button>
                   <button class="btn-ghost" id="exportJsonBtn">匯出 JSON</button>
                   <button class="btn-ghost" id="resetDecodeBtn">重新上傳</button>
                 </div>

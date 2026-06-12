@@ -34,8 +34,53 @@
   let scrollStartX = 0, scrollStartY = 0;
   let panX = 0, panY = 0;
 
+  // Space panning state
+  let isSpaceHeld = false;
+
   // Connection state
   let activeOutPort = null;
+
+  // ── Undo / Redo ──
+  const undoStack = [];
+  const redoStack = [];
+  const UNDO_MAX = 30;
+  let undoLock = false; // prevent saving state during undo/redo restoration
+
+  function saveUndoState() {
+    if (undoLock) return;
+    try {
+      const snap = JSON.stringify(serializeState());
+      undoStack.push(snap);
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+      redoStack.length = 0; // clear redo on new action
+    } catch(e) { console.warn('Undo save failed:', e); }
+  }
+
+  function undo() {
+    if (undoStack.length === 0) { if (window.showToast) window.showToast('⚠️ 沒有可復原的操作'); return; }
+    try {
+      const currentSnap = JSON.stringify(serializeState());
+      redoStack.push(currentSnap);
+      const prev = undoStack.pop();
+      undoLock = true;
+      loadWorkflowData(prev, true);
+      undoLock = false;
+      if (window.showToast) window.showToast('↩ 已復原');
+    } catch(e) { undoLock = false; console.warn('Undo failed:', e); }
+  }
+
+  function redo() {
+    if (redoStack.length === 0) { if (window.showToast) window.showToast('⚠️ 沒有可重做的操作'); return; }
+    try {
+      const currentSnap = JSON.stringify(serializeState());
+      undoStack.push(currentSnap);
+      const next = redoStack.pop();
+      undoLock = true;
+      loadWorkflowData(next, true);
+      undoLock = false;
+      if (window.showToast) window.showToast('↪ 已重做');
+    } catch(e) { undoLock = false; console.warn('Redo failed:', e); }
+  }
 
   // ── Helpers ──
   function uid(prefix) { return (prefix || 'swf') + '_' + Date.now() + '_' + (++idCounter); }
@@ -86,7 +131,8 @@
   }, { passive: false });
 
   canvas.addEventListener('mousedown', (e) => {
-    if (e.button === 1 || (e.button === 0 && (e.target === canvas || e.target === zoomWrapper || e.target === edgesSvg || e.target === nodesContainer))) {
+    // Middle mouse button always pans; Left click pans on empty area or when Space is held
+    if (e.button === 1 || (e.button === 0 && (isSpaceHeld || e.target === canvas || e.target === zoomWrapper || e.target === edgesSvg || e.target === nodesContainer))) {
       isPanning = true;
       selectEntity(null);
       panStartX = e.clientX; panStartY = e.clientY;
@@ -128,9 +174,24 @@
   // ── KEYBOARD SHORTCUTS ──
   // ═══════════════════════════════════════════
   window.addEventListener('keydown', (e) => {
-    const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
+    const panel = document.getElementById('panel-simple-workflow');
+    if (!panel || !panel.classList.contains('active')) return; // Only active on SWF panel
+
+    const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
+
+    // Space key: enable pan mode
+    if (e.code === 'Space' && !isInput) {
+      e.preventDefault();
+      if (!isSpaceHeld) {
+        isSpaceHeld = true;
+        canvas.style.cursor = 'grab';
+      }
+    }
+
+    // Delete / Backspace: remove selected entity
     if (!isInput && (e.key === 'Delete' || e.key === 'Backspace')) {
       if (selectedEntityId) {
+        saveUndoState();
         if (isGroup(selectedEntityId)) {
           promptRemoveGroup(selectedEntityId);
         } else {
@@ -138,6 +199,54 @@
         }
         selectedEntityId = null;
       }
+    }
+
+    // Ctrl+Z: Undo
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      undo();
+    }
+    // Ctrl+Y or Ctrl+Shift+Z: Redo
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      if (e.key === 'y' || e.shiftKey) {
+        e.preventDefault();
+        redo();
+      }
+    }
+
+    // Ctrl+C: Copy selected node/group
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInput) {
+      e.preventDefault();
+      if (selectedEntityId) {
+        window.__swfClipboard = { id: selectedEntityId, isGroup: isGroup(selectedEntityId) };
+        if (window.showToast) window.showToast('📋 已複製');
+      }
+    }
+    // Ctrl+V: Paste copied node/group
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isInput) {
+      e.preventDefault();
+      if (window.__swfClipboard) {
+        saveUndoState();
+        if (window.__swfClipboard.isGroup) {
+          duplicateGroup(window.__swfClipboard.id);
+        } else {
+          const srcNode = nodes[window.__swfClipboard.id];
+          if (srcNode) duplicateNode(srcNode);
+        }
+      }
+    }
+
+    // Ctrl+Enter: Execute All
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      executeAll();
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') {
+      isSpaceHeld = false;
+      if (!isPanning) canvas.style.cursor = 'grab';
     }
   });
 
@@ -229,6 +338,21 @@
     el.innerHTML = `
       <div class="swf-group-port swf-group-port-in" data-port="in" data-node="${id}" title="群組接收端"></div>
       <div class="swf-group-port swf-group-port-out" data-port="out" data-node="${id}" title="群組輸出端"></div>
+      <button class="swf-group-sidebar-toggle" title="上游圖片管理">📁</button>
+      <div class="swf-group-sidebar">
+        <div class="swf-gs-header">
+          <span>📁 上游圖片</span>
+          <button class="swf-gs-close">✕</button>
+        </div>
+        <div class="swf-gs-controls">
+          <label class="swf-gs-checkbox-label"><input type="checkbox" class="swf-gs-receive-cb" checked> 接收上游圖片</label>
+          <div style="margin-top: 6px; display: flex; gap: 4px; justify-content: space-between;">
+            <button class="swf-gs-select-all" style="font-size: 10px; cursor: pointer; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface);">全選</button>
+            <button class="swf-gs-apply-btn" style="font-size: 10px; cursor: pointer; background: var(--accent, #1783FF); color: #fff; border: none; border-radius: 4px; padding: 2px 6px;">📥 套用至內部圖生圖</button>
+          </div>
+        </div>
+        <div class="swf-gs-images"></div>
+      </div>
       <div class="swf-group-header" style="background:${hexToRgba(gc, 0.15)};">
         <input class="swf-group-title" value="${gt}" spellcheck="false">
         <input type="color" class="swf-group-color-picker" value="${gc}" title="群組顏色">
@@ -244,7 +368,7 @@
 
     nodesContainer.appendChild(el);
 
-    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [] };
+    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false };
     groups[id] = groupData;
 
     // Entity Selection
@@ -277,10 +401,140 @@
       el.querySelector('.swf-group-header').style.background = hexToRgba(group.color, 0.15);
     });
     el.querySelector('.swf-group-title').addEventListener('change', (e) => { group.title = e.target.value; });
-    el.querySelector('.swf-grp-del-btn').addEventListener('click', () => promptRemoveGroup(group.id));
+    el.querySelector('.swf-grp-del-btn').addEventListener('click', () => { saveUndoState(); promptRemoveGroup(group.id); });
     el.querySelector('.swf-grp-run-btn').addEventListener('click', () => executeGroup(group.id));
-    el.querySelector('.swf-grp-dup-btn').addEventListener('click', () => duplicateGroup(group.id));
+    el.querySelector('.swf-grp-dup-btn').addEventListener('click', () => { saveUndoState(); duplicateGroup(group.id); });
     el.querySelector('.swf-grp-sync-btn').addEventListener('click', () => syncGroupParams(group.id));
+
+    // Sidebar toggle
+    el.querySelector('.swf-group-sidebar-toggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      group.sidebarOpen = !group.sidebarOpen;
+      el.classList.toggle('sidebar-open', group.sidebarOpen);
+      if (group.sidebarOpen) renderGroupSidebar(group);
+    });
+    el.querySelector('.swf-gs-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      group.sidebarOpen = false;
+      el.classList.remove('sidebar-open');
+    });
+    el.querySelector('.swf-gs-receive-cb').addEventListener('change', (e) => {
+      group.receiveUpstream = e.target.checked;
+      propagateVisualImages();
+      renderGroupSidebar(group);
+    });
+
+    // Select All
+    el.querySelector('.swf-gs-select-all').addEventListener('click', () => {
+      const checkboxes = el.querySelectorAll('.swf-gs-img-cb');
+      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+      checkboxes.forEach(cb => cb.checked = !allChecked);
+    });
+
+    // Apply to I2I
+    el.querySelector('.swf-gs-apply-btn').addEventListener('click', () => {
+      const checkboxes = el.querySelectorAll('.swf-gs-img-cb:checked');
+      if (checkboxes.length === 0) {
+        if (window.showToast) window.showToast('⚠️ 請先勾選要套用的圖片');
+        return;
+      }
+      const selectedSrcs = Array.from(checkboxes).map(cb => cb.dataset.src);
+      
+      const members = getGroupMembers(group.id).filter(n => n.type === 'i2i');
+      if (members.length === 0) {
+        if (window.showToast) window.showToast('⚠️ 群組內沒有圖生圖(I2I)節點');
+        return;
+      }
+
+      saveUndoState(); // Single undo history entry for batch update
+      let appliedCount = 0;
+
+      members.forEach(node => {
+        let changed = false;
+        selectedSrcs.forEach(src => {
+          if (node.data.images.length < 16 && !node.data.images.includes(src)) {
+            node.data.images.push(src);
+            node.data.uploadedImages.push(src); // Treat as uploaded to persist it in this node
+            changed = true;
+          }
+        });
+        if (changed) {
+          renderImageThumbs(node);
+          appliedCount++;
+        }
+      });
+
+      if (window.showToast) {
+        if (appliedCount > 0) window.showToast(`✅ 已將圖片套用至 ${appliedCount} 個節點`);
+        else window.showToast(`⚠️ 圖片皆已存在或達到 16 張上限`);
+      }
+    });
+  }
+
+  /** Render the group sidebar with upstream images */
+  function renderGroupSidebar(group) {
+    const container = group.el.querySelector('.swf-gs-images');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Collect all upstream images flowing into this group
+    const upstreamImages = [];
+    edges.filter(e => e.target === group.id).forEach(e => {
+      const src = getEntity(e.source);
+      if (src && src.resultImages && src.resultImages.length > 0) {
+        src.resultImages.forEach(img => upstreamImages.push(img));
+      }
+    });
+
+    // Filter out excluded images
+    const visibleImages = upstreamImages.filter(img => !group.excludedImages.includes(img));
+
+    if (!group.receiveUpstream) {
+      container.innerHTML = '<div class="swf-gs-empty">已關閉接收上游圖片</div>';
+      return;
+    }
+
+    if (visibleImages.length === 0) {
+      container.innerHTML = '<div class="swf-gs-empty">無上游圖片</div>';
+      return;
+    }
+
+    visibleImages.forEach(imgSrc => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'swf-gs-img-wrapper';
+      const img = document.createElement('img');
+      img.src = imgSrc;
+      img.className = 'swf-gs-img';
+      img.draggable = true;
+      img.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/swf-image-src', imgSrc);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+      img.addEventListener('click', () => {
+        if (window.AssetsService && window.AssetsService.openLightBox) window.AssetsService.openLightBox(imgSrc, '上游圖片', false);
+      });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'swf-gs-img-del';
+      delBtn.textContent = '✕';
+      delBtn.title = '排除此圖片';
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        group.excludedImages.push(imgSrc);
+        propagateVisualImages();
+        renderGroupSidebar(group);
+      });
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'swf-gs-img-cb';
+      cb.dataset.src = imgSrc;
+      cb.style.cssText = 'position: absolute; top: 0; left: 0; z-index: 3; cursor: pointer; width: 14px; height: 14px; margin: 2px;';
+      cb.addEventListener('click', e => e.stopPropagation());
+
+      wrapper.appendChild(img);
+      wrapper.appendChild(cb);
+      wrapper.appendChild(delBtn);
+      container.appendChild(wrapper);
+    });
   }
 
   function setupGroupDrag(group) {
@@ -536,6 +790,7 @@
       <div class="swf-macro-header">
         <span>${headerTitle}</span>
         <div class="swf-macro-actions">
+          <button class="swf-collapse-btn" title="摺疊/展開">🔽</button>
           <button class="swf-dup-btn" title="複製">📋</button>
           <button class="swf-del-btn" title="刪除">&times;</button>
         </div>
@@ -548,10 +803,16 @@
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">📥</button></div>
         <button class="swf-run-btn" data-node="${id}">▶ 生成</button>
       </div>
+      <div class="swf-node-resize" title="調整大小"></div>
     `;
 
     nodesContainer.appendChild(el);
-    const nodeData = { id, type, el, x: pos.x, y: pos.y, data: { model: defaultModel, images: [], params: {} }, incomingImages: [], resultImages: [] };
+    const nodeData = { 
+      id, type, el, x: pos.x, y: pos.y, 
+      width: 320, isCollapsed: false,
+      data: { model: defaultModel, images: [], uploadedImages: [], excludedIncomingImages: [], params: {}, promptHeight: 0 }, 
+      resultImages: [] 
+    };
     nodes[id] = nodeData;
     
     // Entity Selection
@@ -559,7 +820,15 @@
     
     setupMacroEvents(nodeData);
     setupNodeDrag(nodeData);
+    setupNodeResize(nodeData);
     setupPortEvents(el, id);
+    
+    // Setup ResizeObserver to update edges when node size changes (e.g. prompt editor vertical resize)
+    const ro = new ResizeObserver(() => {
+      if (nodeData.el.isConnected) scheduleEdgeRender();
+    });
+    ro.observe(nodeData.el);
+
     scheduleEdgeRender();
     return nodeData;
   }
@@ -599,12 +868,72 @@
   }
 
   // ═══════════════════════════════════════════
+  // ── NODE RESIZE ──
+  // ═══════════════════════════════════════════
+  function setupNodeResize(node) {
+    const handle = node.el.querySelector('.swf-node-resize');
+    if (!handle) return;
+    let isResizing = false, startX = 0, startW = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startW = node.width || 320;
+      e.stopPropagation(); e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      let newW = startW + (e.clientX - startX) / zoomLevel;
+      node.width = Math.max(260, newW);
+      node.el.style.width = node.width + 'px';
+      // ResizeObserver handles scheduleEdgeRender automatically
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        saveUndoState(); // Save state after resize completes
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════
   // ── MACRO NODE EVENTS ──
   // ═══════════════════════════════════════════
   function setupMacroEvents(node) {
     const el = node.el, id = node.id;
-    el.querySelector('.swf-del-btn').addEventListener('click', () => removeNode(id));
-    el.querySelector('.swf-dup-btn').addEventListener('click', () => duplicateNode(node));
+    el.querySelector('.swf-del-btn').addEventListener('click', () => { saveUndoState(); removeNode(id); });
+    el.querySelector('.swf-dup-btn').addEventListener('click', () => { saveUndoState(); duplicateNode(node); });
+
+    const collapseBtn = el.querySelector('.swf-collapse-btn');
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', () => {
+        node.isCollapsed = !node.isCollapsed;
+        if (node.isCollapsed) {
+          el.classList.add('swf-collapsed');
+          collapseBtn.textContent = '▶';
+        } else {
+          el.classList.remove('swf-collapsed');
+          collapseBtn.textContent = '🔽';
+        }
+        // Save state immediately for auto-save, if auto-save hooks into these changes. 
+        // We will just call scheduleEdgeRender which is enough.
+        scheduleEdgeRender();
+      });
+      if (node.isCollapsed) {
+        el.classList.add('swf-collapsed');
+        collapseBtn.textContent = '▶';
+      }
+    }
+
+    el.querySelectorAll('.swf-section-label').forEach(label => {
+      label.addEventListener('click', (e) => {
+        const parent = e.target.parentElement;
+        parent.classList.toggle('swf-section-collapsed');
+        scheduleEdgeRender();
+      });
+    });
 
     const modelSel = el.querySelector('.swf-model-sel');
     modelSel.addEventListener('change', (e) => {
@@ -621,10 +950,16 @@
       const uploadBtn = imagesArea.querySelector('.swf-upload-btn');
       uploadBtn.addEventListener('click', () => fileInput.click());
       fileInput.addEventListener('change', (e) => {
+        saveUndoState();
         Array.from(e.target.files).forEach(file => {
           if (node.data.images.length >= 16) return;
           const reader = new FileReader();
-          reader.onload = (ev) => { node.data.images.push(ev.target.result); renderImageThumbs(node); };
+          reader.onload = (ev) => {
+            const dataUrl = ev.target.result;
+            node.data.images.push(dataUrl);
+            node.data.uploadedImages.push(dataUrl);
+            renderImageThumbs(node);
+          };
           reader.readAsDataURL(file);
         }); fileInput.value = '';
       });
@@ -632,22 +967,48 @@
       imagesArea.addEventListener('dragleave', () => imagesArea.classList.remove('drag-over'));
       imagesArea.addEventListener('drop', (e) => {
         e.preventDefault(); imagesArea.classList.remove('drag-over');
+
+        // Check if this is an internal reorder (same node)
+        const sourceNode = e.dataTransfer.getData('text/swf-source-node');
+        if (sourceNode === node.id && e.dataTransfer.getData('text/swf-image-index')) {
+          return; // Let setupImageSorting handle it
+        }
+
+        // External drop: from sidebar, asset browser, or file system
+        const imgSrc = e.dataTransfer.getData('text/swf-image-src');
+        if (imgSrc && node.data.images.length < 16) {
+          saveUndoState();
+          node.data.images.push(imgSrc);
+          node.data.uploadedImages.push(imgSrc);
+          renderImageThumbs(node);
+          return;
+        }
+
         // Handle asset drops
         const assetJson = e.dataTransfer.getData('text/ide-asset') || e.dataTransfer.getData('text/swf-asset');
         if (assetJson) {
           try {
             const asset = JSON.parse(assetJson);
             if (asset.data && node.data.images.length < 16) {
-              node.data.images.push(asset.data); renderImageThumbs(node);
+              saveUndoState();
+              node.data.images.push(asset.data);
+              node.data.uploadedImages.push(asset.data);
+              renderImageThumbs(node);
             }
           } catch (err) { /* ignore */ }
           return;
         }
         if (e.dataTransfer.files.length > 0) {
+          saveUndoState();
           Array.from(e.dataTransfer.files).forEach(file => {
             if (!file.type.startsWith('image/') || node.data.images.length >= 16) return;
             const reader = new FileReader();
-            reader.onload = (ev) => { node.data.images.push(ev.target.result); renderImageThumbs(node); };
+            reader.onload = (ev) => {
+              const dataUrl = ev.target.result;
+              node.data.images.push(dataUrl);
+              node.data.uploadedImages.push(dataUrl);
+              renderImageThumbs(node);
+            };
             reader.readAsDataURL(file);
           });
         }
@@ -710,23 +1071,71 @@
   function renderImageThumbs(node) {
     const area = node.el.querySelector('.swf-images-area'); if (!area) return;
     const uploadBtn = area.querySelector('.swf-upload-btn');
-    area.querySelectorAll('.swf-img-thumb, .swf-empty-hint').forEach(t => t.remove());
-    const allImages = [...node.incomingImages, ...node.data.images];
-    if (allImages.length === 0) {
+    area.querySelectorAll('.swf-img-thumb-wrapper, .swf-empty-hint').forEach(t => t.remove());
+
+    if (node.data.images.length === 0) {
       const hint = document.createElement('div');
       hint.className = 'swf-empty-hint'; hint.textContent = '上傳或從上游接收圖片';
       area.insertBefore(hint, uploadBtn);
     } else {
-      allImages.forEach((src, idx) => {
+      node.data.images.forEach((src, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'swf-img-thumb-wrapper';
+        wrapper.draggable = true;
+        wrapper.dataset.imgIndex = idx;
+
         const img = document.createElement('img');
-        img.className = 'swf-img-thumb'; img.src = src; img.draggable = true; img.dataset.imgIndex = idx;
-        img.addEventListener('dragstart', (e) => {
+        img.className = 'swf-img-thumb'; img.src = src; img.draggable = false;
+
+        // Determine if this is an uploaded image or upstream image
+        const isUploaded = node.data.uploadedImages.includes(src);
+
+        // Delete button
+        const delBtn = document.createElement('button');
+        delBtn.className = 'swf-img-thumb-del';
+        delBtn.textContent = '✕';
+        delBtn.title = isUploaded ? '刪除此圖片' : '排除此上游圖片';
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          saveUndoState();
+          // Remove from main array
+          node.data.images.splice(idx, 1);
+          if (isUploaded) {
+            // Remove from uploadedImages
+            const uIdx = node.data.uploadedImages.indexOf(src);
+            if (uIdx >= 0) node.data.uploadedImages.splice(uIdx, 1);
+          } else {
+            // Add to excluded incoming so it won't be re-added on propagation
+            if (!node.data.excludedIncomingImages.includes(src)) {
+              node.data.excludedIncomingImages.push(src);
+            }
+          }
+          renderImageThumbs(node);
+          propagateVisualImages();
+        });
+
+        // Source indicator
+        if (!isUploaded) {
+          const badge = document.createElement('span');
+          badge.className = 'swf-img-upstream-badge';
+          badge.textContent = '⬆';
+          badge.title = '上游圖片';
+          wrapper.appendChild(badge);
+        }
+
+        wrapper.appendChild(img);
+        wrapper.appendChild(delBtn);
+
+        // Drag events for reordering
+        wrapper.addEventListener('dragstart', (e) => {
           e.dataTransfer.setData('text/swf-image-index', String(idx));
           e.dataTransfer.setData('text/swf-image-src', src);
-          img.classList.add('dragging');
+          e.dataTransfer.setData('text/swf-source-node', node.id);
+          wrapper.classList.add('dragging');
         });
-        img.addEventListener('dragend', () => img.classList.remove('dragging'));
-        area.insertBefore(img, uploadBtn);
+        wrapper.addEventListener('dragend', () => wrapper.classList.remove('dragging'));
+
+        area.insertBefore(wrapper, uploadBtn);
       });
     }
     uploadBtn.style.display = node.data.images.length >= 16 ? 'none' : 'flex';
@@ -737,16 +1146,19 @@
     let dragIdx = null;
     area.addEventListener('dragover', (e) => {
       e.preventDefault();
-      const target = e.target.closest('.swf-img-thumb');
+      const target = e.target.closest('.swf-img-thumb-wrapper');
       if (target && dragIdx !== null) {
         const ti = parseInt(target.dataset.imgIndex);
-        if (ti !== dragIdx) {
+        if (!isNaN(ti) && ti !== dragIdx && ti >= 0 && ti < node.data.images.length) {
           const tmp = node.data.images[dragIdx]; node.data.images[dragIdx] = node.data.images[ti]; node.data.images[ti] = tmp;
           dragIdx = ti; renderImageThumbs(node);
         }
       }
     });
-    area.addEventListener('dragstart', (e) => { if (e.target.classList.contains('swf-img-thumb')) dragIdx = parseInt(e.target.dataset.imgIndex); });
+    area.addEventListener('dragstart', (e) => {
+      const wrapper = e.target.closest('.swf-img-thumb-wrapper');
+      if (wrapper) dragIdx = parseInt(wrapper.dataset.imgIndex);
+    });
     area.addEventListener('dragend', () => { dragIdx = null; });
   }
 
@@ -839,7 +1251,6 @@
 
     for (const nid in nodes) {
       const n = nodes[nid];
-      n.incomingImages = [];
 
       let groupIdIfAny = null;
       for (const gid in groupMemberSets) {
@@ -848,24 +1259,52 @@
       
       const memberIds = groupIdIfAny ? groupMemberSets[groupIdIfAny] : new Set();
       
-      // Gather images specifically pointing to this node
+      // Collect raw upstream images for this node
+      let rawUpstream = [];
+
+      // Direct edges to this node (from outside group or standalone)
       edges.filter(e => e.target === nid).forEach(e => {
         const src = getEntity(e.source);
-        if (src && src.resultImages?.length > 0) n.incomingImages.push(...src.resultImages);
+        if (src && src.resultImages && src.resultImages.length > 0) rawUpstream.push(...src.resultImages);
       });
 
-      // If it's an entry node inside a group, also grab the group's general incoming images
+      // If it's an entry node inside a group, also grab the group's incoming images
       if (groupIdIfAny) {
+        const g = groups[groupIdIfAny];
         const isEntry = !edges.some(e => e.target === nid && memberIds.has(e.source));
-        if (isEntry) {
+        if (isEntry && g && g.receiveUpstream) {
+          const groupUpstream = [];
           edges.filter(e => e.target === groupIdIfAny).forEach(e => {
             const src = getEntity(e.source);
-            if (src && src.resultImages?.length > 0) n.incomingImages.push(...src.resultImages);
+            if (src && src.resultImages && src.resultImages.length > 0) groupUpstream.push(...src.resultImages);
           });
+          // Apply group-level exclusion
+          const filtered = groupUpstream.filter(img => !g.excludedImages.includes(img));
+          rawUpstream.push(...filtered);
         }
       }
+
+      // Apply node-level exclusion
+      const activeUpstream = rawUpstream.filter(img => !n.data.excludedIncomingImages.includes(img));
+
+      // Merge into unified images array while preserving user order:
+      // 1. Keep existing items in images that are still valid (uploaded or active upstream)
+      const validSet = new Set([...n.data.uploadedImages, ...activeUpstream]);
+      const preservedImages = n.data.images.filter(img => validSet.has(img));
+      
+      // 2. Find new upstream images not already in preserved list
+      const preservedSet = new Set(preservedImages);
+      const newUpstream = activeUpstream.filter(img => !preservedSet.has(img));
+
+      // 3. Final merged array: preserved order + new upstream appended
+      n.data.images = [...preservedImages, ...newUpstream];
       
       renderImageThumbs(n);
+    }
+
+    // Also refresh any open group sidebars
+    for (const gid in groups) {
+      if (groups[gid].sidebarOpen) renderGroupSidebar(groups[gid]);
     }
   }
 
@@ -965,8 +1404,9 @@
   }
 
   /**
-   * @param {object} node
-   * @param {boolean} skipImageReset - When true (called from executeGroup), don't reset incomingImages
+   * Execute a single node
+   * @param {Object} node - The node to execute
+   * @param {boolean} skipImageReset - When true (called from executeGroup), don't reset node images
    */
   async function executeSingleNode(node, skipImageReset) {
     const runBtn = node.el.querySelector('.swf-run-btn');
@@ -984,11 +1424,19 @@
 
     // Propagate upstream images (skip if called from group execution where images are pre-set)
     if (!skipImageReset) {
-      node.incomingImages = [];
+      // Collect upstream images for standalone node execution
+      let rawUpstream = [];
       edges.filter(e => e.target === node.id).forEach(e => {
         const src = getEntity(e.source);
-        if (src?.resultImages?.length > 0) node.incomingImages.push(...src.resultImages);
+        if (src && src.resultImages && src.resultImages.length > 0) rawUpstream.push(...src.resultImages);
       });
+      const activeUpstream = rawUpstream.filter(img => !node.data.excludedIncomingImages.includes(img));
+      // Merge preserving order
+      const validSet = new Set([...node.data.uploadedImages, ...activeUpstream]);
+      const preserved = node.data.images.filter(img => validSet.has(img));
+      const preservedSet = new Set(preserved);
+      const newUp = activeUpstream.filter(img => !preservedSet.has(img));
+      node.data.images = [...preserved, ...newUp];
     }
     renderImageThumbs(node);
 
@@ -1003,7 +1451,8 @@
       else apiKey = window.StudioSettings?.getNanobananaKey?.();
       if (!apiKey) throw new Error('API Key 尚未設定 (' + model + ')');
 
-      const allRefs = [...node.incomingImages, ...node.data.images, ...inlineImages];
+      // Use unified images array directly — order is exactly what user sees
+      const allRefs = [...node.data.images, ...inlineImages];
       let imageUrl = '';
       if (model === 'gptimage') {
         imageUrl = await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', allRefs[0] || null, {
@@ -1046,12 +1495,16 @@
 
     group.el.classList.add('swf-group-executing');
 
-    // Get images sent to the group's own input port (Group-to-Group edges)
-    const groupIncomingImages = [];
-    edges.filter(e => e.target === groupId).forEach(e => {
-      const src = getEntity(e.source);
-      if (src?.resultImages?.length > 0) groupIncomingImages.push(...src.resultImages);
-    });
+    // Get images sent to the group's own input port, filtered by group settings
+    let groupIncomingImages = [];
+    if (group.receiveUpstream) {
+      edges.filter(e => e.target === groupId).forEach(e => {
+        const src = getEntity(e.source);
+        if (src && src.resultImages && src.resultImages.length > 0) groupIncomingImages.push(...src.resultImages);
+      });
+      // Apply group-level exclusion
+      groupIncomingImages = groupIncomingImages.filter(img => !group.excludedImages.includes(img));
+    }
 
     const memberIds = new Set(members.map(m => m.id));
 
@@ -1066,24 +1519,34 @@
         const isEntry = !edges.some(e => e.target === n.id && memberIds.has(e.source));
 
         // Gather upstream images for this specific node execution
-        n.incomingImages = [];
+        let rawUpstream = [];
         
         // 1. Direct external edges (Node outside -> Node inside)
         edges.filter(e => e.target === n.id && !memberIds.has(e.source)).forEach(e => {
           const src = getEntity(e.source);
-          if (src?.resultImages?.length > 0) n.incomingImages.push(...src.resultImages);
+          if (src && src.resultImages && src.resultImages.length > 0) rawUpstream.push(...src.resultImages);
         });
 
-        // 2. If it's an entry node, it also receives the group's general incoming images
+        // 2. If it's an entry node, it also receives the group's filtered incoming images
         if (isEntry) {
-          n.incomingImages.push(...groupIncomingImages);
+          rawUpstream.push(...groupIncomingImages);
         }
 
         // 3. Direct internal edges (Node inside -> Node inside)
         edges.filter(e => e.target === n.id && memberIds.has(e.source)).forEach(e => {
           const src = nodes[e.source];
-          if (src?.resultImages?.length > 0) n.incomingImages.push(...src.resultImages);
+          if (src && src.resultImages && src.resultImages.length > 0) rawUpstream.push(...src.resultImages);
         });
+
+        // Apply node-level exclusion
+        const activeUpstream = rawUpstream.filter(img => !n.data.excludedIncomingImages.includes(img));
+
+        // Merge into unified images array preserving user order
+        const validSet = new Set([...n.data.uploadedImages, ...activeUpstream]);
+        const preserved = n.data.images.filter(img => validSet.has(img));
+        const preservedSet = new Set(preserved);
+        const newUp = activeUpstream.filter(img => !preservedSet.has(img));
+        n.data.images = [...preserved, ...newUp];
 
         // Execute passing true for skipImageReset so it doesn't clear our carefully gathered images
         return executeSingleNode(n, true);
@@ -1093,7 +1556,7 @@
     // Aggregate exit node results
     const exitNodes = members.filter(m => !edges.some(e => e.source === m.id && memberIds.has(e.target)));
     group.resultImages = [];
-    exitNodes.forEach(n => { if (n.resultImages?.length > 0) group.resultImages.push(...n.resultImages); });
+    exitNodes.forEach(n => { if (n.resultImages && n.resultImages.length > 0) group.resultImages.push(...n.resultImages); });
 
     group.el.classList.remove('swf-group-executing');
     if (window.showToast) window.showToast(`✅ 群組 "${group.title}" 執行完畢 (${group.resultImages.length} 張圖片)`);
@@ -1173,7 +1636,10 @@
       const promptEl = n.el.querySelector('.swf-prompt-editor');
       nodesData[id] = {
         id: n.id, type: n.type, x: n.x, y: n.y,
+        width: n.width, isCollapsed: n.isCollapsed, promptHeight: promptEl ? promptEl.offsetHeight : 0,
         model: n.data.model, params: { ...n.data.params },
+        uploadedImages: [...n.data.uploadedImages],
+        excludedIncomingImages: [...n.data.excludedIncomingImages],
         // Don't save images (base64) to avoid localStorage quota
         promptHTML: promptEl ? promptEl.innerHTML : ''
       };
@@ -1181,9 +1647,12 @@
     const groupsData = {};
     for (const id in groups) {
       const g = groups[id];
-      groupsData[id] = { id: g.id, x: g.x, y: g.y, width: g.width, height: g.height, color: g.color, title: g.title };
+      groupsData[id] = {
+        id: g.id, x: g.x, y: g.y, width: g.width, height: g.height, color: g.color, title: g.title,
+        receiveUpstream: g.receiveUpstream, excludedImages: [...g.excludedImages]
+      };
     }
-    return { nodes: nodesData, groups: groupsData, edges: edges.map(e => ({ ...e })), panX, panY, zoomLevel, version: 2 };
+    return { nodes: nodesData, groups: groupsData, edges: edges.map(e => ({ ...e })), panX, panY, zoomLevel, version: 3 };
   }
 
   function saveWorkflow() {
@@ -1218,7 +1687,7 @@
     }
   }
 
-  function loadWorkflowData(raw) {
+  function loadWorkflowData(raw, isUndoRestore) {
     try {
       let state;
       try { state = JSON.parse(raw); } catch (parseErr) {
@@ -1250,6 +1719,12 @@
           try {
             const g = createGroup(gd.x, gd.y, gd.width, gd.height, gd.color, gd.title);
             idRemap[savedId] = g.id;
+            // Restore v3 fields with backward compatibility
+            g.receiveUpstream = gd.receiveUpstream !== undefined ? gd.receiveUpstream : true;
+            g.excludedImages = Array.isArray(gd.excludedImages) ? [...gd.excludedImages] : [];
+            // Sync checkbox state
+            const cb = g.el.querySelector('.swf-gs-receive-cb');
+            if (cb) cb.checked = g.receiveUpstream;
           } catch (e) { console.warn('Failed to restore group:', savedId, e); }
         }
       }
@@ -1261,8 +1736,24 @@
           try {
             const n = createMacroNode(nd.type || 't2i', nd.x, nd.y);
             idRemap[savedId] = n.id;
+            
+            // Restore dimensions and collapse state
+            n.width = nd.width || 320;
+            n.el.style.width = n.width + 'px';
+            n.isCollapsed = !!nd.isCollapsed;
+            if (n.isCollapsed) {
+              n.el.classList.add('swf-collapsed');
+              const collapseBtn = n.el.querySelector('.swf-collapse-btn');
+              if (collapseBtn) collapseBtn.textContent = '▶';
+            }
+            const promptEl = n.el.querySelector('.swf-prompt-editor');
+            if (promptEl && nd.promptHeight) promptEl.style.height = nd.promptHeight + 'px';
+            
             n.data.model = nd.model || 'nanobanana2';
             n.data.params = nd.params || {};
+            // Restore v3 fields with backward compatibility
+            n.data.uploadedImages = Array.isArray(nd.uploadedImages) ? [...nd.uploadedImages] : [];
+            n.data.excludedIncomingImages = Array.isArray(nd.excludedIncomingImages) ? [...nd.excludedIncomingImages] : [];
             n.el.querySelector('.swf-model-sel').value = n.data.model;
             n.el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(n.data.model, n.data.params);
             wireParamInputs(n);
@@ -1284,7 +1775,7 @@
       }
 
       requestAnimationFrame(scheduleEdgeRender);
-      if (window.showToast) window.showToast('✅ 已讀取儲存的工作流');
+      if (!isUndoRestore && window.showToast) window.showToast('✅ 已讀取儲存的工作流');
 
       // Visually propagate
       propagateVisualImages();
@@ -1613,8 +2104,42 @@
     }
   });
 
-  // Init default node
-  setTimeout(() => createMacroNode('t2i', 40, 40), 100);
+  // ═══════════════════════════════════════════
+  // ── AUTO-SAVE & INIT ──
+  // ═══════════════════════════════════════════
+  let lastSavedStateStr = '';
+
+  function triggerAutoSave() {
+    try {
+      const stateStr = JSON.stringify(serializeState());
+      if (stateStr !== lastSavedStateStr) {
+        localStorage.setItem('swf_autosave_state', stateStr);
+        lastSavedStateStr = stateStr;
+      }
+    } catch (e) {
+      console.warn('Auto-save failed:', e);
+    }
+  }
+
+  setInterval(triggerAutoSave, 3000);
+
+  // Init
+  setTimeout(() => {
+    try {
+      const autosaveStr = localStorage.getItem('swf_autosave_state');
+      if (autosaveStr) {
+        console.log('Loading auto-saved state...');
+        loadWorkflowData(autosaveStr, false);
+        lastSavedStateStr = autosaveStr;
+      } else {
+        createMacroNode('t2i', 40, 40);
+      }
+    } catch (err) {
+      console.error('Failed to load autosave, clearing it:', err);
+      localStorage.removeItem('swf_autosave_state');
+      createMacroNode('t2i', 40, 40);
+    }
+  }, 100);
 
   // Expose API
   window.SimpleWorkflow = {
