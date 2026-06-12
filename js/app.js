@@ -109,13 +109,35 @@ window.switchPanel = function(panelId) {
 
   pickr.on('change', () => {
     pickrColorChanged = true;
+    const color = pickr.getColor().toHEXA().toString().toUpperCase();
+    const activeTag = document.getElementById('active-pickr-target');
+    if (activeTag) {
+        activeTag.textContent = color;
+        activeTag.style.color = color;
+        if (pickrAnchor.dataset.targetEditorId) {
+           const ed = document.getElementById(pickrAnchor.dataset.targetEditorId);
+           if (ed) ed.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
   });
 
   // Expose global open API
-  window.openGlobalPickr = function(x, y, color = '#000000', targetEditorId = '') {
+  window.openGlobalPickr = function(x, y, color = '#000000', targetEditorId = '', range = null) {
     pickrAnchor.style.left = x + 'px';
     pickrAnchor.style.top = y + 'px';
     pickrAnchor.dataset.targetEditorId = targetEditorId;
+    
+    // If opened via '#', immediately create the tag for live preview
+    if (range) {
+       const editor = range.startContainer.parentElement?.closest('.rich-editor, .swf-prompt-editor');
+       if (editor) editor.focus();
+       const sel = window.getSelection();
+       sel.removeAllRanges();
+       sel.addRange(range);
+       const html = `<span class="editor-color-tag" id="active-pickr-target" style="color: ${color}; font-weight: bold; background: rgba(0,0,0,0.05); padding: 0 2px; border-radius: 3px;">${color}</span><span class="editor-reset-style" style="color: var(--node-text, #e0e0e0); font-weight: normal; background: transparent;">&#8203;</span>`;
+       document.execCommand('insertHTML', false, html);
+    }
+    
     pickr.setColor(color);
     pickr.show();
   };
@@ -140,10 +162,7 @@ window.switchPanel = function(panelId) {
     if (e.target.classList && e.target.classList.contains('editor-color-tag')) {
       const color = e.target.textContent;
       if (/^#[0-9A-Fa-f]{6}$/i.test(color)) {
-        const range = document.createRange();
-        range.selectNode(e.target);
-        window.currentEditorColorRange = range;
-        
+        e.target.id = 'active-pickr-target'; // Set ID for live preview
         let editor = e.target.closest('.rich-editor, .swf-prompt-editor');
         window.openGlobalPickr(e.clientX, e.clientY, color, editor ? editor.id : '');
       }
@@ -210,10 +229,34 @@ window.switchPanel = function(panelId) {
   pickr.on('hide', () => {
     isPickrOpen = false;
     const finalColor = pickr.getColor().toHEXA().toString().toUpperCase();
+    const activeTag = document.getElementById('active-pickr-target');
     
-    // Only apply if color was changed or Enter was explicitly pressed
-    if (finalColor !== pickrInitialColor || pickrColorChanged || pickrEnterPressed) {
-        applyColor(finalColor);
+    if (activeTag) {
+        // It was a live preview tag. Just remove the ID to finalize it.
+        activeTag.removeAttribute('id');
+        const targetEditorId = pickrAnchor.dataset.targetEditorId;
+        if (targetEditorId) {
+            const editor = document.getElementById(targetEditorId);
+            if (editor) {
+                editor.focus();
+                // Move cursor to the end of the newly inserted element
+                const sel = window.getSelection();
+                const range = document.createRange();
+                range.setStartAfter(activeTag.nextSibling || activeTag);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                editor.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+        if (window.PromptsService && window.PromptsService.setModalPaletteColor) {
+           window.PromptsService.setModalPaletteColor(finalColor);
+        }
+    } else {
+        // Standard Textarea Path (No active tag)
+        if (finalColor !== pickrInitialColor || pickrColorChanged || pickrEnterPressed) {
+            applyColor(finalColor);
+        }
     }
 
     // Cleanup state

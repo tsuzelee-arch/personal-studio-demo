@@ -228,11 +228,9 @@ window.EditorService = (function() {
            tempRange.setEnd(textNode, range.startOffset);
            const rect = tempRange.getBoundingClientRect();
            
-           // We will store the range so we can replace the #
-           window.currentEditorColorRange = range.cloneRange();
-           
+           // We don't need to store it anymore, pass it directly for live preview
            const targetEditorId = editor.id || (textarea ? textarea.id : '');
-           window.openGlobalPickr(rect.left, rect.bottom, '#000000', targetEditorId);
+           window.openGlobalPickr(rect.left, rect.bottom, '#000000', targetEditorId, tempRange);
          }
       }
     }

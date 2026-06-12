@@ -1,0 +1,22 @@
+<html><body>
+<div id="editor" contenteditable="true">hello # world</div>
+<button id="btn">Click me (steals focus)</button>
+<script>
+let savedRange;
+const editor = document.getElementById('editor');
+editor.addEventListener('input', (e) => {
+  if (e.data === '#') {
+    const sel = window.getSelection();
+    savedRange = sel.getRangeAt(0).cloneRange();
+    console.log("Range saved:", savedRange.startOffset);
+  }
+});
+document.getElementById('btn').addEventListener('click', () => {
+  editor.focus();
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(savedRange);
+  document.execCommand('insertHTML', false, '<span style="color:red">RED</span>');
+});
+</script>
+</body></html>
