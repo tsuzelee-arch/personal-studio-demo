@@ -286,67 +286,14 @@ window.IDEAgent = (function() {
   }
 
   // ── GPT Image 2.0 Core ──
+  // Delegates to the shared AIService implementation (identical gpt-image-2 params,
+  // single reference image for edits, plus a 90s request timeout). The agent's chat
+  // layer only ever needs the first reference image when editing.
   async function generateWithGPTImage2(apiKey, prompt, refImages, size, quality) {
-    const isEdit = refImages && refImages.length > 0;
-    const url = isEdit ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations';
-    
-    let body;
-    let headers = {
-      'Authorization': `Bearer ${apiKey}`
-    };
-
-    if (isEdit) {
-      const formData = new FormData();
-      formData.append('model', 'gpt-image-2');
-      formData.append('prompt', prompt);
-      formData.append('size', size || '1024x1024');
-      formData.append('quality', quality || 'high');
-      formData.append('n', '1');
-      formData.append('background', 'auto');
-      formData.append('output_format', 'webp');
-      formData.append('output_compression', '80');
-      formData.append('moderation', 'auto');
-      formData.append('input_fidelity', 'high');
-
-      // Attach reference images if available
-      for (let i = 0; i < Math.min(refImages.length, 4); i++) {
-        const blob = dataURLtoBlob(refImages[i]);
-        if (i === 0) formData.append('image', blob, `ref_0.png`);
-      }
-      body = formData;
-    } else {
-      headers['Content-Type'] = 'application/json';
-      body = JSON.stringify({
-        model: "gpt-image-2",
-        prompt: prompt,
-        n: 1,
-        size: size || '1024x1024',
-        quality: quality || 'high',
-        background: 'auto',
-        output_format: 'webp',
-        output_compression: 80,
-        moderation: 'auto'
-      });
-    }
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: headers,
-      body: body
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `GPT Image 2.0 API 錯誤 (${res.status})`);
-    }
-
-    const data = await res.json();
-    if (data.data?.[0]?.b64_json) {
-      return `data:image/png;base64,${data.data[0].b64_json}`;
-    } else if (data.data?.[0]?.url) {
-      return data.data[0].url;
-    }
-    throw new Error('未收到生成的圖片');
+    const baseImage = (refImages && refImages.length > 0) ? refImages[0] : null;
+    return window.AIService.generateWithGPTImage(
+      prompt, apiKey, size || '1024x1024', baseImage, { quality: quality || 'high' }
+    );
   }
 
   // ════════════════════════════════════════════════════════
@@ -598,15 +545,6 @@ window.IDEAgent = (function() {
   //  Utilities
   // ════════════════════════════════════════════════════════
 
-  function dataURLtoBlob(dataURL) {
-    const parts = dataURL.split(',');
-    const mime = parts[0].match(/:(.*?);/)[1];
-    const raw = atob(parts[1]);
-    const arr = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-    return new Blob([arr], { type: mime });
-  }
-
   // ════════════════════════════════════════════════════════
   //  Attachments
   // ════════════════════════════════════════════════════════
@@ -695,9 +633,7 @@ window.IDEAgent = (function() {
       fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => addAttachment(ev.target.result);
-        reader.readAsDataURL(file);
+        window.StudioUtils.fileToDataURL(file).then(addAttachment).catch(() => {});
         fileInput.value = '';
       });
     }
@@ -735,9 +671,7 @@ window.IDEAgent = (function() {
         if (files.length > 0) {
           Array.from(files).forEach(file => {
             if (!file.type.startsWith('image/')) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => addAttachment(ev.target.result);
-            reader.readAsDataURL(file);
+            window.StudioUtils.fileToDataURL(file).then(addAttachment).catch(() => {});
           });
         }
       });

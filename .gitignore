@@ -15,3 +15,10 @@ implementation-plan-*.md
 
 # Scripts
 *.bat
+
+# Local config with absolute paths — machine-specific, must not be committed
+server-config.json
+
+# Scratch / temp files
+step704*.txt
+test_insert.html

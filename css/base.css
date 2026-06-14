@@ -90,6 +90,24 @@
   min-height: 0;
   overflow: hidden;
 }
+#panel-assets-v2.active {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 105px);
+  min-height: 0;
+  overflow: hidden;
+  margin: -24px -28px;
+}
+.content:has(#panel-prompts.active) {
+  padding: 0;
+}
+#panel-prompts.active {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 57px);
+  min-height: 0;
+  overflow: hidden;
+}
 
 /* ── Buttons ── */
 .btn-primary {
@@ -140,4 +158,53 @@
   border-radius: 6px;
   box-shadow: var(--card-shadow);
   padding: 16px;
+}
+/* ── IDE Agent Floating UI ── */
+.global-ide-agent-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent, #1783FF);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9999;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.global-ide-agent-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+.global-ide-agent-panel {
+  position: fixed;
+  bottom: 96px;
+  right: 24px;
+  width: 360px;
+  height: 500px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 9998;
+  overflow: hidden;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom right;
+}
+.global-ide-agent-panel.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.9) translateY(20px);
+}
+[data-theme="dark"] .global-ide-agent-panel {
+  background: var(--surface, #2a2a2a);
 }

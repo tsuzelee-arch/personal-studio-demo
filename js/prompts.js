@@ -734,40 +734,8 @@ RULES:
 Text to convert:
 ${text}`;
 
-    const OPENAI_MODELS = { 'openai': 'gpt-5.5', 'openai-54': 'gpt-5.4', 'openai-54mini': 'gpt-5.4-mini', 'openai-4o': 'gpt-4o' };
-    const openaiModelId = OPENAI_MODELS[model];
-
-    if (openaiModelId) {
-      const url = 'https://api.openai.com/v1/chat/completions';
-      const body = {
-        model: openaiModelId,
-        messages: [{ role: 'user', content: sdPrompt }],
-        ...(openaiModelId === 'gpt-4o' && { temperature: 0.3 })
-      };
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) throw new Error('API Error');
-      const data = await res.json();
-      return data.choices[0].message.content.trim();
-    } else {
-      const modelName = model === 'geminilite' ? 'gemini-2.5-flash-lite' : 'gemini-3.5-flash';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-      const payload = {
-        contents: [{ role: 'user', parts: [{ text: sdPrompt }] }],
-        generationConfig: { temperature: 0.3 }
-      };
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) throw new Error('API Error');
-      const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text.trim() || '';
-    }
+    // Unified text generation across OpenAI / Gemini — see AIService.generateText.
+    return window.AIService.generateText(sdPrompt, apiKey, model, { temperature: 0.3 });
   }
 
   // ── Event bindings ──

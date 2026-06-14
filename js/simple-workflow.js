@@ -11,6 +11,8 @@
 (function () {
   'use strict';
 
+  const SWF_DEBUG = localStorage.getItem('ps_debug') === '1';
+
   const canvas = document.getElementById('swfCanvas');
   const zoomWrapper = document.getElementById('swfZoomWrapper');
   const nodesContainer = document.getElementById('swfNodesContainer');
@@ -354,7 +356,10 @@
         <div class="swf-gs-images"></div>
       </div>
       <div class="swf-group-header" style="background:${hexToRgba(gc, 0.15)};">
-        <input class="swf-group-title" value="${gt}" spellcheck="false">
+        <input class="swf-group-title" value="${gt}" spellcheck="false" style="flex:1;">
+        <select class="swf-group-folder" title="群組儲存路徑 (若無選項請先至資產庫載入目錄)" style="width: 120px; margin-right: 6px; font-size: 11px; padding: 2px 4px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 4px;">
+          <option value="">存至根目錄 (已完成)</option>
+        </select>
         <input type="color" class="swf-group-color-picker" value="${gc}" title="群組顏色">
         <div class="swf-group-actions">
           <button class="swf-grp-sync-btn" title="統一內部節點參數">🔄</button>
@@ -380,6 +385,7 @@
     setupGroupEvents(groupData);
     setupPortEvents(el, id);
     scheduleEdgeRender();
+    updateSwfFolderSelects();
     return groupData;
   }
 
@@ -511,7 +517,7 @@
         e.dataTransfer.effectAllowed = 'copy';
       });
       img.addEventListener('click', () => {
-        if (window.AssetsService && window.AssetsService.openLightBox) window.AssetsService.openLightBox(imgSrc, '上游圖片', false);
+        if (window.AssetManager && window.AssetManager.openLightBox) window.AssetManager.openLightBox(imgSrc, '上游圖片', false);
       });
       const delBtn = document.createElement('button');
       delBtn.className = 'swf-gs-img-del';
@@ -796,7 +802,10 @@
         </div>
       </div>
       <div class="swf-macro-body">
-        <div class="swf-model-section"><label>Model</label><select class="swf-model-sel">${modelOptionsHTML}</select></div>
+        <div style="display:flex; gap: 8px; margin-bottom: 8px;">
+          <div class="swf-model-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">模型</label><select class="swf-model-sel" style="width:100%; box-sizing:border-box;">${modelOptionsHTML}</select></div>
+          <div class="swf-folder-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">儲存資料夾</label><select class="swf-node-folder" title="選擇儲存資料夾" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 4px; font-size: 12px; height: 26px;"><option value="">預設 (繼承群組)</option></select></div>
+        </div>
         <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
         ${isI2I ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
         <div><div class="swf-section-label swf-prompt-label">提示詞 (Prompt)</div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
@@ -810,7 +819,7 @@
     const nodeData = { 
       id, type, el, x: pos.x, y: pos.y, 
       width: 320, isCollapsed: false,
-      data: { model: defaultModel, images: [], uploadedImages: [], excludedIncomingImages: [], params: {}, promptHeight: 0 }, 
+      data: { model: defaultModel, images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {}, promptHeight: 0 }, 
       resultImages: [] 
     };
     nodes[id] = nodeData;
@@ -830,6 +839,7 @@
     ro.observe(nodeData.el);
 
     scheduleEdgeRender();
+    updateSwfFolderSelects();
     return nodeData;
   }
 
@@ -953,14 +963,7 @@
         saveUndoState();
         Array.from(e.target.files).forEach(file => {
           if (node.data.images.length >= 16) return;
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            const dataUrl = ev.target.result;
-            node.data.images.push(dataUrl);
-            node.data.uploadedImages.push(dataUrl);
-            renderImageThumbs(node);
-          };
-          reader.readAsDataURL(file);
+          window.StudioUtils.fileToDataURL(file).then(dataUrl => addNodeImage(node, dataUrl)).catch(() => {});
         }); fileInput.value = '';
       });
       imagesArea.addEventListener('dragover', (e) => { e.preventDefault(); imagesArea.classList.add('drag-over'); });
@@ -978,9 +981,7 @@
         const imgSrc = e.dataTransfer.getData('text/swf-image-src');
         if (imgSrc && node.data.images.length < 16) {
           saveUndoState();
-          node.data.images.push(imgSrc);
-          node.data.uploadedImages.push(imgSrc);
-          renderImageThumbs(node);
+          blobUrlToDataUrl(imgSrc).then(dataUrl => addNodeImage(node, dataUrl));
           return;
         }
 
@@ -989,11 +990,18 @@
         if (assetJson) {
           try {
             const asset = JSON.parse(assetJson);
-            if (asset.data && node.data.images.length < 16) {
+            if (asset.type === 'fsa' && asset.path && node.data.images.length < 16) {
+              // Normally unreachable: Asset Manager drags also set text/swf-image-src,
+              // which is handled (with blob→dataURL conversion) by the earlier branch.
+              // Kept as a defensive fallback for asset payloads without an image src.
+              const blobUrl = e.dataTransfer.getData('text/swf-image-src');
+              if (blobUrl) {
+                saveUndoState();
+                blobUrlToDataUrl(blobUrl).then(dataUrl => addNodeImage(node, dataUrl));
+              }
+            } else if (asset.data && node.data.images.length < 16) {
               saveUndoState();
-              node.data.images.push(asset.data);
-              node.data.uploadedImages.push(asset.data);
-              renderImageThumbs(node);
+              addNodeImage(node, asset.data);
             }
           } catch (err) { /* ignore */ }
           return;
@@ -1002,14 +1010,7 @@
           saveUndoState();
           Array.from(e.dataTransfer.files).forEach(file => {
             if (!file.type.startsWith('image/') || node.data.images.length >= 16) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-              const dataUrl = ev.target.result;
-              node.data.images.push(dataUrl);
-              node.data.uploadedImages.push(dataUrl);
-              renderImageThumbs(node);
-            };
-            reader.readAsDataURL(file);
+            window.StudioUtils.fileToDataURL(file).then(dataUrl => addNodeImage(node, dataUrl)).catch(() => {});
           });
         }
       });
@@ -1034,15 +1035,19 @@
         const sel = window.getSelection();
         if (sel.rangeCount > 0) {
           const range = sel.getRangeAt(0); range.collapse(false);
-          const tagSpan = document.createElement('span');
-          tagSpan.className = 'editor-img-tag';
-          tagSpan.contentEditable = 'false';
           const assetName = imgSrc.split('/').pop().split('.')[0] || 'img';
-          tagSpan.innerHTML = `<img src="${imgSrc}" class="inline-prompt-thumb" alt="${assetName}"><span class="tag-name">${assetName}</span>`;
-          range.insertNode(tagSpan); range.setStartAfter(tagSpan); range.collapse(true);
-          sel.removeAllRanges(); sel.addRange(range);
-          // Range 插入不會觸發 input 事件，手動更新 placeholder 狀態
-          if (window.RichTextService) window.RichTextService.updatePlaceholder(promptEditor);
+          // 轉成 dataURL（並壓縮）後再插入，避免 blob: URL 被 Asset Manager 重繪 revoke 而破圖，
+          // 同時壓縮以免內嵌圖撐爆 promptHTML 的 localStorage 配額
+          blobUrlToDataUrl(imgSrc).then(compressForStore).then(dataUrl => {
+            const tagSpan = document.createElement('span');
+            tagSpan.className = 'editor-img-tag';
+            tagSpan.contentEditable = 'false';
+            tagSpan.innerHTML = `<img src="${dataUrl}" class="inline-prompt-thumb" alt="${assetName}"><span class="tag-name">${assetName}</span>`;
+            range.insertNode(tagSpan); range.setStartAfter(tagSpan); range.collapse(true);
+            sel.removeAllRanges(); sel.addRange(range);
+            // Range 插入不會觸發 input 事件，手動更新 placeholder 狀態
+            if (window.RichTextService) window.RichTextService.updatePlaceholder(promptEditor);
+          });
         }
       } else if (promptText) {
         e.preventDefault(); promptEditor.focus();
@@ -1057,9 +1062,17 @@
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
     });
     el.querySelector('.swf-preview-img').addEventListener('click', function () {
-      if (this.src && window.AssetsService?.openLightBox) window.AssetsService.openLightBox(this.src, 'Generated', false);
+      if (this.src && window.AssetManager?.openLightBox) window.AssetManager.openLightBox(this.src, 'Generated', false);
     });
     el.querySelector('.swf-run-btn').addEventListener('click', async () => await executeSingleNode(node));
+  }
+
+  // blob: URL 是暫時性的，Asset Manager grid 重繪（如 saveAsset 後）會 revokeObjectURL，
+  // 因此不可存進 node 狀態。一律轉成持久的 base64 dataURL。
+  // Thin alias over the shared util; kept so existing call sites read cleanly.
+  // (Failure preserves the original src — ai-service still has a defensive guard.)
+  function blobUrlToDataUrl(src) {
+    return window.StudioUtils.blobUrlToDataURL(src);
   }
 
   function wireParamInputs(node) {
@@ -1076,6 +1089,23 @@
       });
       node.data.params[slider.dataset.param] = parseFloat(slider.value);
     });
+  }
+
+  // Shrink an image dataURL for storage (<=1024px, JPEG) so saved workflows stay
+  // under the localStorage quota. Falls back to the original on any failure.
+  function compressForStore(dataUrl) {
+    if (!window.AIService || !window.AIService.compressImage) return Promise.resolve(dataUrl);
+    return window.AIService.compressImage(dataUrl, 1024, 0.82, 'image/jpeg').catch(() => dataUrl);
+  }
+
+  // Add a reference image to a node: compress, store, re-render. Single entry point
+  // for all I2I image intake (upload / drop / asset) so nothing stores raw full-size
+  // base64 (the cause of the swf_library quota error).
+  async function addNodeImage(node, dataUrl) {
+    const img = await compressForStore(dataUrl);
+    node.data.images.push(img);
+    node.data.uploadedImages.push(img);
+    renderImageThumbs(node);
   }
 
   function renderImageThumbs(node) {
@@ -1333,9 +1363,13 @@
       const isGroupEdge = isGroup(edge.source) || isGroup(edge.target);
       const color = isGroupEdge ? '#22d3ee' : 'var(--node-edge-color, #a0a0a0)';
       const sw = isGroupEdge ? 4 / zoomLevel : 3 / zoomLevel;
-      html += `<path d="M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}"
-        fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"
+      const d = `M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}`;
+      // Wide transparent hit area (easy to double-click) + thin visible line on top.
+      const hitSw = Math.max(22 / zoomLevel, sw);
+      html += `<path d="${d}" fill="none" stroke="transparent" stroke-width="${hitSw}" stroke-linecap="round"
         data-edge-id="${edge.id}" style="pointer-events:stroke; cursor:pointer;" />`;
+      html += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"
+        style="pointer-events:none;" />`;
     });
 
     // Temp drag edge
@@ -1527,7 +1561,30 @@
       imgEl.src = imageUrl; imgEl.style.display = 'block';
       placeholder.style.display = 'none'; dlBtn.style.display = 'block';
       node.resultImages = [imageUrl];
-      if (window.AssetsService) window.AssetsService.saveAsset('SWF_' + Date.now(), imageUrl, '已完成');
+
+      let targetFolder = '';
+      const nodeInput = node.el.querySelector('.swf-node-folder');
+      if (nodeInput && nodeInput.value.trim()) {
+        targetFolder = nodeInput.value.trim();
+      } else {
+        // Inherit from parent group if exists
+        let parentGroup = null;
+        for (const gid in groups) {
+          const g = groups[gid];
+          if (node.x >= g.x && node.y >= g.y && node.x + node.width <= g.x + g.width && node.y + node.el.offsetHeight <= g.y + g.height) {
+            parentGroup = g; break;
+          }
+        }
+        if (parentGroup) {
+          const groupInput = parentGroup.el.querySelector('.swf-group-folder');
+          if (groupInput && groupInput.value.trim()) {
+            targetFolder = groupInput.value.trim();
+          }
+        }
+      }
+      if (!targetFolder || targetFolder === '已完成') targetFolder = '根目錄';
+
+      if (window.AssetManager) window.AssetManager.saveAsset('SWF_' + Date.now(), imageUrl, targetFolder);
       if (window.showToast) window.showToast('✅ 生成完成');
     } catch (err) {
       console.error(err);
@@ -1650,6 +1707,14 @@
 
   /** Execute all: topological sort across all entities */
   async function executeAll() {
+    if (false) {
+      // old directory permission check removed
+      if (!ok) {
+        if (window.showToast) window.showToast('❌ 本機資料夾權限遭拒，無法執行');
+        return;
+      }
+    }
+
     const runAllBtn = document.getElementById('swfRunAll');
     runAllBtn.disabled = true; runAllBtn.textContent = '執行中...';
 
@@ -1685,27 +1750,44 @@
   // ═══════════════════════════════════════════
   // ── SAVE / LOAD ──
   // ═══════════════════════════════════════════
-  function serializeState() {
+  // Replace heavy inline base64 image srcs with a 1x1 transparent placeholder, so
+  // saved prompt HTML carries no image payload (keeps the tag wrapper + label intact).
+  const BLANK_INLINE_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  function stripInlineImageData(html) {
+    return html.replace(/(<img\b[^>]*\bsrc=")data:[^"]*(")/gi, '$1' + BLANK_INLINE_IMG + '$2');
+  }
+
+  // forStorage=true drops all base64 image payloads so the serialized JSON stays
+  // tiny for localStorage (saveWorkflow / autosave) — sidesteps the swf_library
+  // quota error. In-memory undo/redo snapshots call with false to keep images.
+  function serializeState(forStorage = false) {
     const nodesData = {};
     for (const id in nodes) {
       const n = nodes[id];
       const promptEl = n.el.querySelector('.swf-prompt-editor');
+      const folderInput = n.el.querySelector('.swf-node-folder');
+      const promptHTML = promptEl ? promptEl.innerHTML : '';
       nodesData[id] = {
         id: n.id, type: n.type, x: n.x, y: n.y,
         width: n.width, isCollapsed: n.isCollapsed, promptHeight: promptEl ? promptEl.offsetHeight : 0,
         model: n.data.model, params: { ...n.data.params },
-        uploadedImages: [...n.data.uploadedImages],
-        excludedIncomingImages: [...n.data.excludedIncomingImages],
-        // Don't save images (base64) to avoid localStorage quota
-        promptHTML: promptEl ? promptEl.innerHTML : ''
+        // For localStorage we drop every base64 image payload to dodge the quota
+        // error: reference images, excluded-image lists, and inline prompt thumbs.
+        uploadedImages: forStorage ? [] : [...n.data.uploadedImages],
+        fsaPaths: { ...n.data.fsaPaths },
+        excludedIncomingImages: forStorage ? [] : [...n.data.excludedIncomingImages],
+        folder: folderInput ? folderInput.value : '',
+        promptHTML: forStorage ? stripInlineImageData(promptHTML) : promptHTML
       };
     }
     const groupsData = {};
     for (const id in groups) {
       const g = groups[id];
+      const folderInput = g.el.querySelector('.swf-group-folder');
       groupsData[id] = {
         id: g.id, x: g.x, y: g.y, width: g.width, height: g.height, color: g.color, title: g.title,
-        receiveUpstream: g.receiveUpstream, excludedImages: [...g.excludedImages]
+        receiveUpstream: g.receiveUpstream, excludedImages: forStorage ? [] : [...g.excludedImages],
+        folder: folderInput ? folderInput.value : ''
       };
     }
     return { nodes: nodesData, groups: groupsData, edges: edges.map(e => ({ ...e })), panX, panY, zoomLevel, version: 3 };
@@ -1717,7 +1799,7 @@
     const cleanName = name.trim();
 
     try {
-      const dataStr = JSON.stringify(serializeState());
+      const dataStr = JSON.stringify(serializeState(true));
       const sizeKB = (new Blob([dataStr]).size / 1024).toFixed(1);
       if (sizeKB > 4096) {
         if (window.showToast) window.showToast('⚠️ 資料過大 (' + sizeKB + 'KB)，可能無法完整儲存', 3000);
@@ -1778,6 +1860,8 @@
             // Restore v3 fields with backward compatibility
             g.receiveUpstream = gd.receiveUpstream !== undefined ? gd.receiveUpstream : true;
             g.excludedImages = Array.isArray(gd.excludedImages) ? [...gd.excludedImages] : [];
+            const folderInput = g.el.querySelector('.swf-group-folder');
+            if (folderInput) folderInput.value = gd.folder || '';
             // Sync checkbox state
             const cb = g.el.querySelector('.swf-gs-receive-cb');
             if (cb) cb.checked = g.receiveUpstream;
@@ -1809,8 +1893,42 @@
             n.data.params = nd.params || {};
             // Restore v3 fields with backward compatibility
             n.data.uploadedImages = Array.isArray(nd.uploadedImages) ? [...nd.uploadedImages] : [];
+            n.data.fsaPaths = nd.fsaPaths || {};
             n.data.excludedIncomingImages = Array.isArray(nd.excludedIncomingImages) ? [...nd.excludedIncomingImages] : [];
+            
+            // Re-populate initial images from uploadedImages
+            n.data.images = [...n.data.uploadedImages];
+            
+            // Dynamic FSA Path resolution for blob URLs
+            let fsaNeedsConnection = false;
+            for (let i = 0; i < n.data.uploadedImages.length; i++) {
+               const img = n.data.uploadedImages[i];
+               if (img.startsWith('blob:') && n.data.fsaPaths[img]) {
+                  const path = n.data.fsaPaths[img];
+                  if (window.AssetManager && window.AssetManager.isConnected()) {
+                     window.AssetManager.getFileBlobUrlByPath(path).then(newUrl => {
+                        if (newUrl) {
+                           const imgIdx = n.data.images.indexOf(n.data.uploadedImages[i]);
+                           if (imgIdx !== -1) n.data.images[imgIdx] = newUrl;
+                           n.data.uploadedImages[i] = newUrl;
+                           delete n.data.fsaPaths[img];
+                           n.data.fsaPaths[newUrl] = path;
+                           renderImageThumbs(n);
+                        }
+                     }).catch(err => {
+                        console.warn('FSA Path resolution failed', err);
+                     });
+                  } else {
+                     fsaNeedsConnection = true;
+                  }
+               }
+            }
+            if (fsaNeedsConnection && window.showToast) {
+               window.showToast('⚠️ 工具流包含本機影像，請先在資產庫「恢復連線」', 4000);
+            }
             n.el.querySelector('.swf-model-sel').value = n.data.model;
+            const folderInput = n.el.querySelector('.swf-node-folder');
+            if (folderInput) folderInput.value = nd.folder || '';
             n.el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(n.data.model, n.data.params);
             wireParamInputs(n);
             if (nd.promptHTML) {
@@ -1839,11 +1957,115 @@
 
       // Visually propagate
       propagateVisualImages();
+
+      // Background sync for blob URLs (fixes broken localdir images on reload)
+      (async () => {
+        let changed = false;
+        for (const id in nodes) {
+           const n = nodes[id];
+           for (let i = 0; i < n.data.uploadedImages.length; i++) {
+              const img = n.data.uploadedImages[i];
+              if (img && img.data && img.data.startsWith('blob:')) {
+                 const newAsset = await window.AssetManager?.getAsset?.(img.id);
+                 if (newAsset && newAsset.data) {
+                    img.data = newAsset.data;
+                    changed = true;
+                 }
+              }
+           }
+        }
+        if (changed) propagateVisualImages();
+      })();
     } catch (err) {
       console.error('Load failed:', err);
       if (window.showToast) window.showToast('❌ 讀取失敗：' + err.message);
     }
   }
+
+  // ==========================================
+  // IDE Asset Left Panel V2 Integration
+  // ==========================================
+  
+  // Expose this for other parts to refresh the dropdowns if needed
+  window.renderSwfFoldersV2 = async function() {
+    let paths = [];
+    try {
+      paths = await window.AssetManager?.getAllPaths?.() || ['根目錄', '已完成'];
+    } catch(e) {
+      paths = ['根目錄', '已完成'];
+    }
+    
+    // Update all target dropdowns in nodes
+    document.querySelectorAll('.swf-group-folder').forEach(sel => {
+      const currentVal = sel.value;
+      sel.innerHTML = '';
+      paths.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        sel.appendChild(opt);
+      });
+      if (paths.includes(currentVal)) {
+        sel.value = currentVal;
+      }
+    });
+  };
+
+  function setupSwfAssetPanel() {
+    const btn = document.getElementById('swfAssetToggle');
+    const panel = document.getElementById('swfLeftAssets');
+    const closeBtn = document.getElementById('swfAssetClose');
+
+    if (btn && panel) {
+      btn.addEventListener('click', () => {
+        const isHidden = panel.style.display === 'none';
+        if (isHidden) {
+          panel.style.display = 'flex';
+          btn.classList.add('active');
+          if (window.AssetManager) {
+             window.AssetManager.refreshUI();
+          }
+        } else {
+          panel.style.display = 'none';
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    if (closeBtn && panel) {
+      closeBtn.addEventListener('click', () => {
+        panel.style.display = 'none';
+        if (btn) btn.classList.remove('active');
+      });
+    }
+  }
+
+  // Setup asset panel on load
+  setupSwfAssetPanel();
+
+  // Resizer: drag to resize left asset pane
+  (function setupAssetPaneResizer() {
+    const resizer = document.getElementById('swfAssetResizer');
+    const pane = document.getElementById('swfLeftAssets');
+    if (!resizer || !pane) return;
+    let startX, startW;
+    resizer.addEventListener('mousedown', e => {
+      startX = e.clientX;
+      startW = pane.offsetWidth;
+      resizer.classList.add('dragging');
+      const onMove = e => {
+        const w = Math.min(360, Math.max(160, startW + e.clientX - startX));
+        pane.style.width = w + 'px';
+      };
+      const onUp = () => {
+        resizer.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  })();
 
   function loadWorkflow() {
     let library = [];
@@ -1917,51 +2139,8 @@
 
   // ═══════════════════════════════════════════
   // ── ASSET BROWSER (Left Pane) ──
+  // (Now handled by AssetManager V2 injected above)
   // ═══════════════════════════════════════════
-  let swfActiveFolder = '已完成';
-
-  async function renderSwfFolders() {
-    const folderList = document.getElementById('swfFolderList'); if (!folderList) return;
-    const folders = window.AssetsService?.getFolders?.() || ['已完成'];
-    folderList.innerHTML = '';
-    folders.forEach(name => {
-      const btn = document.createElement('button');
-      btn.className = 'swf-folder-item' + (name === swfActiveFolder ? ' active' : '');
-      btn.textContent = name;
-      btn.addEventListener('click', () => { swfActiveFolder = name; renderSwfFolders(); renderSwfAssets(); });
-      folderList.appendChild(btn);
-    });
-  }
-
-  async function renderSwfAssets() {
-    const grid = document.getElementById('swfAssetsGrid'); if (!grid) return;
-    try {
-      const all = await window.AssetsService?.getAllAssets?.() || [];
-      const assets = all.filter(a => a.folder === swfActiveFolder);
-      grid.innerHTML = '';
-      if (assets.length === 0) {
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:11px;padding:20px;">此資料夾目前沒有資產</div>';
-        return;
-      }
-      assets.forEach(asset => {
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'display:flex;flex-direction:column;';
-        const thumb = document.createElement('div');
-        thumb.className = 'swf-asset-thumb'; thumb.draggable = true;
-        thumb.innerHTML = `<img src="${asset.data}" alt="${asset.name}" loading="lazy">`;
-        thumb.addEventListener('dragstart', (e) => {
-          e.dataTransfer.setData('text/swf-asset', JSON.stringify({ id: asset.id, data: asset.data, name: asset.name }));
-          e.dataTransfer.setData('text/swf-image-src', asset.data);
-          e.dataTransfer.effectAllowed = 'copy';
-        });
-        thumb.addEventListener('click', () => { window.AssetsService?.openLightBox?.(asset.data, asset.name, false); });
-        const label = document.createElement('div');
-        label.className = 'swf-asset-name'; label.textContent = asset.name;
-        wrapper.appendChild(thumb); wrapper.appendChild(label);
-        grid.appendChild(wrapper);
-      });
-    } catch (e) { console.error('SWF Assets render error:', e); }
-  }
 
   // ═══════════════════════════════════════════
   // ── PROMPT QUICK-BAR (Right Pane) ──
@@ -2045,11 +2224,16 @@
       activeCategory = category;
       const titleEl = document.getElementById('swfQuickbarPopoverTitle');
       const bodyEl = document.getElementById('swfQuickbarPopoverBody');
-      
+
       document.querySelectorAll('#swfPromptQuickBar .quickbar-cat-btn').forEach(b => {
         b.classList.remove('active', 'pinned', 'timer-active');
       });
-      if (btnEl) btnEl.classList.add('pinned');
+      if (btnEl) {
+        btnEl.classList.add('pinned');
+        // Align popover with the clicked button
+        const btnTop = btnEl.offsetTop;
+        popover.style.top = btnTop + 'px';
+      }
       
       titleEl.textContent = category;
       bodyEl.innerHTML = '';
@@ -2130,25 +2314,31 @@
   document.getElementById('swfSaveBtn')?.addEventListener('click', saveWorkflow);
   document.getElementById('swfLoadBtn')?.addEventListener('click', loadWorkflow);
 
-  // Toggle side panels
-  document.getElementById('swfAssetToggle')?.addEventListener('click', () => {
-    const panel = document.getElementById('swfLeftAssets');
-    const isHidden = panel.style.display === 'none';
-    panel.style.display = isHidden ? 'flex' : 'none';
-    if (isHidden) { renderSwfFolders(); renderSwfAssets(); }
-  });
-  document.getElementById('swfAssetClose')?.addEventListener('click', () => {
-    document.getElementById('swfLeftAssets').style.display = 'none';
-  });
+  // Toggle side panels (Left handled by setupSwfAssetPanel)
+  // (Asset close handled by setupSwfAssetPanel)
   document.getElementById('swfPromptToggle')?.addEventListener('click', () => {
     const panel = document.getElementById('swfPromptQuickBar');
     if (panel) panel.classList.toggle('active');
+  });
+
+  // Clicking the canvas closes the prompt quickbar
+  document.getElementById('swfCanvas')?.addEventListener('click', () => {
+    document.getElementById('swfPromptQuickBar')?.classList.remove('active');
   });
 
   // Sync Modal Bindings
   document.getElementById('swfSyncModalCloseBtn')?.addEventListener('click', closeSyncModal);
   document.getElementById('swfSyncModalCancelBtn')?.addEventListener('click', closeSyncModal);
   document.getElementById('swfSyncModalConfirmBtn')?.addEventListener('click', applySyncParams);
+
+  // Library (Load Workflow) Modal — close via ✕ or backdrop click (bound once here;
+  // loadWorkflow() only wires the dynamic load/delete buttons).
+  document.getElementById('swfLibModalCloseBtn')?.addEventListener('click', () => {
+    document.getElementById('swfLibraryModal')?.classList.add('hidden');
+  });
+  document.getElementById('swfLibraryModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
+  });
   
   document.getElementById('swfSyncModelSel')?.addEventListener('change', (e) => {
     const container = document.getElementById('swfSyncParamsContainer');
@@ -2165,13 +2355,42 @@
   });
 
   // ═══════════════════════════════════════════
+  // ── DYNAMIC FOLDER SELECTS ──
+  // ═══════════════════════════════════════════
+  function updateSwfFolderSelects() {
+    if (!window.AssetManager || !window.AssetManager.getAllFolderPaths) return;
+    const paths = window.AssetManager.getAllFolderPaths();
+    
+    // Update Group Folders
+    document.querySelectorAll('.swf-group-folder').forEach(sel => {
+      const oldVal = sel.value;
+      let html = '<option value="">存至根目錄</option>';
+      paths.forEach(p => { html += `<option value="${p}">${p}</option>`; });
+      sel.innerHTML = html;
+      if (Array.from(sel.options).some(o => o.value === oldVal)) sel.value = oldVal;
+    });
+
+    // Update Node Folders
+    document.querySelectorAll('.swf-node-folder').forEach(sel => {
+      const oldVal = sel.value;
+      let html = '<option value="">預設 (繼承群組)</option>';
+      html += '<option value="根目錄">存至根目錄</option>';
+      paths.forEach(p => { html += `<option value="${p}">${p}</option>`; });
+      sel.innerHTML = html;
+      if (Array.from(sel.options).some(o => o.value === oldVal)) sel.value = oldVal;
+    });
+  }
+  
+  window.addEventListener('assets-tree-updated', updateSwfFolderSelects);
+
+  // ═══════════════════════════════════════════
   // ── AUTO-SAVE & INIT ──
   // ═══════════════════════════════════════════
   let lastSavedStateStr = '';
 
   function triggerAutoSave() {
     try {
-      const stateStr = JSON.stringify(serializeState());
+      const stateStr = JSON.stringify(serializeState(true));
       if (stateStr !== lastSavedStateStr) {
         localStorage.setItem('swf_autosave_state', stateStr);
         lastSavedStateStr = stateStr;
@@ -2188,7 +2407,7 @@
     try {
       const autosaveStr = localStorage.getItem('swf_autosave_state');
       if (autosaveStr) {
-        console.log('Loading auto-saved state...');
+        if (SWF_DEBUG) console.log('Loading auto-saved state...');
         loadWorkflowData(autosaveStr, false);
         lastSavedStateStr = autosaveStr;
       } else {
@@ -2200,6 +2419,31 @@
       createMacroNode('t2i', 40, 40);
     }
   }, 100);
+
+  // ── Auto-Revive Broken FSA Images on Restore ──
+  window.addEventListener('assets-restored', () => {
+    if (!window.AssetManager || !window.AssetManager.isConnected()) return;
+    for (const id in nodes) {
+      const n = nodes[id];
+      if (!n.data.fsaPaths) continue;
+      for (let i = 0; i < n.data.uploadedImages.length; i++) {
+        const img = n.data.uploadedImages[i];
+        if (img.startsWith('blob:') && n.data.fsaPaths[img]) {
+          const path = n.data.fsaPaths[img];
+          window.AssetManager.getFileBlobUrlByPath(path).then(newUrl => {
+            if (newUrl) {
+              const imgIdx = n.data.images.indexOf(n.data.uploadedImages[i]);
+              if (imgIdx !== -1) n.data.images[imgIdx] = newUrl;
+              n.data.uploadedImages[i] = newUrl;
+              delete n.data.fsaPaths[img];
+              n.data.fsaPaths[newUrl] = path;
+              renderImageThumbs(n);
+            }
+          });
+        }
+      }
+    }
+  });
 
   // Expose API
   window.SimpleWorkflow = {

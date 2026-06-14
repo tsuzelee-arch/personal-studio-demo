@@ -4,6 +4,8 @@
  */
 window.AIService = (function() {
 
+  const AI_DEBUG = localStorage.getItem('ps_debug') === '1';
+
   // Resize + compress a base64 dataUrl before sending to API.
   // Skips compression if image already fits within maxDim.
   // outputFormat: 'image/jpeg' for photos, 'image/png' for masks.
@@ -192,6 +194,60 @@ Analyze the user-provided image and reverse-engineer its visual components into 
   }
 
   // ── Natural Language Rewriter ──
+  // Unified single-prompt text generation across providers. Routes by model id
+  // (OPENAI_MODELS → OpenAI chat-completions, otherwise Gemini generateContent),
+  // applies the provider-specific request/response shape, and returns the raw
+  // trimmed text. Options: { temperature, maxTokens, json }. For OpenAI, temperature
+  // and JSON response_format are only sent to legacy gpt-4o (newer models reject them).
+  async function generateText(prompt, apiKey, model, opts = {}) {
+    const { temperature, maxTokens, json = false } = opts;
+    const openaiModelId = OPENAI_MODELS[model];
+
+    if (openaiModelId) {
+      const isLegacy = openaiModelId === 'gpt-4o';
+      const body = {
+        model: openaiModelId,
+        messages: [{ role: 'user', content: prompt }],
+        ...(maxTokens && { max_completion_tokens: maxTokens }),
+        ...(isLegacy && temperature != null && { temperature }),
+        ...(isLegacy && json && { response_format: { type: 'json_object' } })
+      };
+      const res = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `OpenAI API error (${res.status})`);
+      }
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (content == null) throw new Error('Empty response from OpenAI');
+      return content.trim();
+    }
+
+    const modelName = model === 'geminilite' ? 'gemini-2.5-flash-lite' : 'gemini-3.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const generationConfig = {};
+    if (temperature != null) generationConfig.temperature = temperature;
+    if (maxTokens) generationConfig.maxOutputTokens = maxTokens;
+    if (json) generationConfig.response_mime_type = 'application/json';
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Gemini API error (${res.status})`);
+    }
+    const data = await res.json();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (content == null) throw new Error('Empty response from Gemini');
+    return content.trim();
+  }
+
   async function rewriteToNaturalLanguage(structuredPrompt, apiKey, model, outputLanguage = '繁體中文') {
     const rewritePrompt = `You are an expert prompt engineer. Your task is to convert the following structured visual analysis prompt into a single, cohesive, beautifully flowing natural language paragraph.
 
@@ -204,42 +260,7 @@ CRITICAL INSTRUCTIONS:
 Structured Prompt to Rewrite:
 ${structuredPrompt}`;
 
-    const openaiModelId = OPENAI_MODELS[model];
-    if (openaiModelId) {
-      const url = 'https://api.openai.com/v1/chat/completions';
-      const body = {
-        model: openaiModelId,
-        messages: [{ role: 'user', content: rewritePrompt }],
-        ...(openaiModelId === 'gpt-4o' && { temperature: 0.5 })
-      };
-      const res = await fetchWithTimeout(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) throw new Error('Rewrite API Error');
-      const data = await res.json();
-      return data.choices[0].message.content.trim();
-    } else {
-      // Use Gemini for gemini and geminilite
-      const modelName = model === 'geminilite' ? 'gemini-2.5-flash-lite' : 'gemini-3.5-flash';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-      const payload = {
-        contents: [{ role: "user", parts: [{ text: rewritePrompt }] }],
-        generationConfig: { temperature: 0.5 }
-      };
-      const res = await fetchWithTimeout(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) throw new Error('Rewrite API Error');
-      const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text.trim() || '';
-    }
+    return generateText(rewritePrompt, apiKey, model, { temperature: 0.5 });
   }
 
   // ── Translate existing analysis JSON into a new language ──
@@ -377,16 +398,10 @@ ${JSON.stringify(analysis)}`;
 
   // ── File to Base64 ──
   function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        // result is "data:<mime>;base64,<data>"
-        const base64 = reader.result.split(',')[1];
-        resolve({ base64, mimeType: file.type || 'image/jpeg' });
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    return window.StudioUtils.fileToDataURL(file).then(dataUrl => ({
+      base64: window.StudioUtils.dataUrlToBase64(dataUrl),
+      mimeType: file.type || 'image/jpeg'
+    }));
   }
 
   async function _executeGeminiRequest(url, payload, modelName) {
@@ -500,7 +515,19 @@ ${JSON.stringify(analysis)}`;
     const parts = [{ text: sizedPrompt }];
     const imageArray = Array.isArray(images) ? images : (images ? [images] : []);
     for (const img of imageArray) {
-      const compressed = img ? await compressImage(img, 1024, 0.85, 'image/jpeg') : null;
+      // Defensive: a stale blob: URL (e.g. from an old saved workflow) cannot be
+      // base64-decoded by the API. Resolve it to a dataURL first, or skip it.
+      let resolved = img;
+      if (img && img.startsWith('blob:')) {
+        try {
+          const r = await fetch(img);
+          const blob = await r.blob();
+          resolved = await window.StudioUtils.fileToDataURL(blob);
+        } catch {
+          resolved = null;
+        }
+      }
+      const compressed = resolved ? await compressImage(resolved, 1024, 0.85, 'image/jpeg') : null;
       if (compressed) {
         const mimeMatch = compressed.match(/^data:([^;]+);/);
         parts.push({ inline_data: { mime_type: mimeMatch?.[1] || 'image/jpeg', data: stripPrefix(compressed) } });
@@ -583,7 +610,7 @@ ${JSON.stringify(analysis)}`;
       });
     }
 
-    console.log('[GPT Image 2] Request to:', url);
+    if (AI_DEBUG) console.log('[GPT Image 2] Request to:', url);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 90000);
@@ -603,7 +630,7 @@ ${JSON.stringify(analysis)}`;
       clearTimeout(timeout);
     }
 
-    console.log('[GPT Image 2] HTTP status:', response.status);
+    if (AI_DEBUG) console.log('[GPT Image 2] HTTP status:', response.status);
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -612,7 +639,7 @@ ${JSON.stringify(analysis)}`;
     }
 
     const data = await response.json();
-    console.log('[GPT Image 2] Response keys:', Object.keys(data));
+    if (AI_DEBUG) console.log('[GPT Image 2] Response keys:', Object.keys(data));
     const b64 = data.data?.[0]?.b64_json;
     if (b64) {
       return `data:image/png;base64,${b64}`;
@@ -656,6 +683,7 @@ ${JSON.stringify(analysis)}`;
     analyzeWithGeminilite,
     translateAnalysis,
     rewriteToNaturalLanguage,
+    generateText,
     generateWithNanoBanana,
     generateWithNanoBanana2,
     generateWithGPTImage,
@@ -665,6 +693,7 @@ ${JSON.stringify(analysis)}`;
     fileToBase64,
     resolveApiKey,
     analyze,
+    compressImage,
     SYSTEM_PROMPT
   };
 

@@ -32,7 +32,27 @@
   background: #2a2a2a !important;
 }
 
-[data-theme="dark"] [class*="cat-"],
+[data-theme="dark"] .cat-mj,
+[data-theme="dark"] .cat-sd,
+[data-theme="dark"] .cat-general,
+[data-theme="dark"] .cat-style,
+[data-theme="dark"] .cat-other,
+[data-theme="dark"] .cat-identity,
+[data-theme="dark"] .cat-clothing,
+[data-theme="dark"] .cat-pose,
+[data-theme="dark"] .cat-foreground,
+[data-theme="dark"] .cat-midground,
+[data-theme="dark"] .cat-background,
+[data-theme="dark"] .cat-mood,
+[data-theme="dark"] .cat-lighting,
+[data-theme="dark"] .cat-camera,
+[data-theme="dark"] .cat-material,
+[data-theme="dark"] .cat-negative,
+[data-theme="dark"] .cat-color_palette,
+[data-theme="dark"] .cat-other_elements,
+[data-theme="dark"] .cat-custom,
+[data-theme="dark"] .cat-pinned-theme,
+[data-theme="dark"] .other-badge,
 [data-theme="dark"] .style-tag {
   background: rgba(255,255,255,0.08) !important;
   color: #e0e0e0 !important;

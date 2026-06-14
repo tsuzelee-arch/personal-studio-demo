@@ -1,421 +1,628 @@
 /**
- * assets.js — Asset Library (IndexedDB) and LightBox functionality
+ * Asset Manager V2 — File System Access API (Local Direct Read)
+ * 純前端本機目錄直讀：零上傳、路徑記憶、即時互動
  */
-window.AssetsService = (function() {
-  const DB_NAME = 'PersonalStudioDB';
-  const STORE_NAME = 'assets';
-  const DB_VERSION = 2;
-  const FOLDERS_KEY = 'ps_asset_folders';
+window.AssetManager = (function() {
+  const DB_NAME    = 'PersonalStudioFSA_v1';
+  const STORE_NAME = 'handles';
+  const DB_VERSION = 1;
+
   let db = null;
-  let activeFolder = '已完成';
-  let isManageMode = false;
-  let selectedAssets = new Set();
+  let workspaceHandle = null;
+  let activeFolder = '根目錄';
+  let treeState = { expanded: new Set(['根目錄']) };
+  let activeBlobUrls = []; // Object URLs created for node/workflow resolution (getFileBlobUrl)
+  const gridBlobUrls = {}; // containerId -> [url]; revoked per-grid so grids/nodes don't clobber each other
+  let assetObserver = null; // Lazy-loads card images only when they scroll into view
 
-  // ── Folder Management (localStorage) ──
-  function getFolders() {
-    const raw = localStorage.getItem(FOLDERS_KEY);
-    let saved = [];
-    try { if (raw) saved = JSON.parse(raw); } catch { saved = []; }
-    const base = ['根目錄', '已完成'];
-    base.forEach(f => { if (!saved.includes(f)) saved.unshift(f); });
-    return saved;
-  }
+  // Virtual Tree structure: { name, path, isDir, handle, children: {} }
+  let virtualTree = { name: '根目錄', path: '根目錄', isDir: true, handle: null, children: {} };
+  let allImageFiles = []; // Flat list of file references for the grid
 
-  function addFolder(name) {
-    const folders = getFolders();
-    if (!folders.includes(name)) {
-      folders.push(name);
-      localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
-      window.dispatchEvent(new CustomEvent('assets-updated'));
-    }
-    return folders;
-  }
-
-  // ── Init IndexedDB ──
+  // 1. Database Initialization
   function initDB() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = (e) => {
-        db = e.target.result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-          store.createIndex('date', 'date', { unique: false });
-          store.createIndex('folder', 'folder', { unique: false });
-        } else {
-          // v1 → v2: add folder index if missing
-          const store = e.target.transaction.objectStore(STORE_NAME);
-          if (!store.indexNames.contains('folder')) {
-            store.createIndex('folder', 'folder', { unique: false });
-          }
+        const database = e.target.result;
+        if (!database.objectStoreNames.contains(STORE_NAME)) {
+          database.createObjectStore(STORE_NAME);
         }
       };
       request.onsuccess = (e) => {
         db = e.target.result;
-        resolve(db);
-      };
-      request.onerror = (e) => {
-        console.error('IndexedDB Error:', e);
-        reject(e);
-      };
-    });
-  }
-
-  // ── DB Operations ──
-  async function saveAsset(name, dataUrl, folder = '根目錄') {
-    if (!db) await initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const asset = {
-        id: 'asset_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-        name,
-        data: dataUrl,
-        folder: folder || '根目錄',
-        date: new Date().toISOString()
-      };
-      const request = store.add(asset);
-      request.onsuccess = () => {
-        window.dispatchEvent(new CustomEvent('assets-updated'));
-        resolve(asset);
-      };
-      request.onerror = (e) => reject(e);
-    });
-  }
-
-  async function getAllAssets() {
-    if (!db) await initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.getAll();
-      request.onsuccess = () => {
-        const results = (request.result || []).map(a => ({ folder: '根目錄', ...a }));
-        results.sort((a, b) => new Date(b.date) - new Date(a.date));
-        resolve(results);
-      };
-      request.onerror = (e) => reject(e);
-    });
-  }
-
-  async function getAsset(id) {
-    if (!db) await initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.get(id);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e);
-    });
-  }
-
-  async function deleteAsset(id) {
-    if (!db) await initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.delete(id);
-      request.onsuccess = () => {
-        window.dispatchEvent(new CustomEvent('assets-updated'));
         resolve();
       };
-      request.onerror = (e) => reject(e);
+      request.onerror = (e) => reject(e.target.error);
     });
   }
 
-  // ── LightBox UI ──
-  function openLightBox(dataUrl, title = 'Image', allowSave = true) {
-    let lb = document.getElementById('lightbox-modal');
-    if (!lb) {
-      lb = document.createElement('div');
-      lb.id = 'lightbox-modal';
-      lb.className = 'modal-backdrop';
-      lb.innerHTML = `
-        <div class="lightbox-content">
-          <button class="lightbox-close">&times;</button>
-          <img class="lightbox-img" src="" alt="Enlarged Image">
-          <div class="lightbox-actions">
-             <button class="btn-primary lightbox-save-btn">📥 存入資產庫</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(lb);
-      lb.querySelector('.lightbox-close').addEventListener('click', () => lb.classList.add('hidden'));
-      lb.addEventListener('click', (e) => { if (e.target === lb) lb.classList.add('hidden'); });
-    }
-
-    lb.querySelector('.lightbox-img').src = dataUrl;
-    const saveBtn = lb.querySelector('.lightbox-save-btn');
-
-    if (allowSave) {
-      saveBtn.style.display = 'inline-block';
-      const newSaveBtn = saveBtn.cloneNode(true);
-      saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-      newSaveBtn.addEventListener('click', async () => {
-        try {
-          const name = prompt('請為資產命名：', title) || title;
-          await saveAsset(name, dataUrl, activeFolder);
-          if (window.showToast) window.showToast('✅ 已存入資產庫！');
-          if (window.refreshAssetsGrid) window.refreshAssetsGrid();
-          lb.classList.add('hidden');
-        } catch (err) {
-          console.error(err);
-          if (window.showToast) window.showToast('❌ 儲存失敗');
-        }
-      });
-    } else {
-      saveBtn.style.display = 'none';
-    }
-
-    lb.classList.remove('hidden');
+  function getSavedHandle() {
+    return new Promise((resolve) => {
+      if (!db) return resolve(null);
+      const tx = db.transaction([STORE_NAME], 'readonly');
+      const req = tx.objectStore(STORE_NAME).get('workspace_handle');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
   }
 
-  // ── Folder Sidebar Rendering ──
-  function renderFolderSidebar() {
-    const sidebar = document.getElementById('assetsFolderList');
-    if (!sidebar) return;
-    const folders = getFolders();
-    sidebar.innerHTML = '';
-    folders.forEach(name => {
-      const btn = document.createElement('button');
-      btn.className = 'folder-item' + (name === activeFolder ? ' active' : '');
-      btn.textContent = name;
-      btn.addEventListener('click', () => {
-        activeFolder = name;
-        renderFolderSidebar();
-        window.refreshAssetsGrid();
-      });
-      sidebar.appendChild(btn);
+  function saveHandle(handle) {
+    return new Promise((resolve, reject) => {
+      if (!db) return reject('DB not init');
+      const tx = db.transaction([STORE_NAME], 'readwrite');
+      const req = tx.objectStore(STORE_NAME).put(handle, 'workspace_handle');
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
     });
-    const addBtn = document.createElement('button');
-    addBtn.className = 'folder-add-btn';
-    addBtn.textContent = '+ 新增資料夾';
-    addBtn.addEventListener('click', () => {
-      const name = prompt('資料夾名稱：');
-      if (name && name.trim()) {
-        addFolder(name.trim());
-        renderFolderSidebar();
-      }
-    });
-    sidebar.appendChild(addBtn);
   }
 
-  // ── Assets Panel Rendering ──
-  window.refreshAssetsGrid = async function() {
-    const grid = document.getElementById('assetsGrid');
-    const empty = document.getElementById('assetsEmpty');
-    if (!grid) return;
-
+  // 2. File System Access API
+  async function linkWorkspace() {
     try {
-      const all = await getAllAssets();
-      const assets = all.filter(a => a.folder === activeFolder);
-
-      if (assets.length === 0) {
-        grid.style.display = 'none';
-        if (empty) empty.classList.remove('hidden');
-        return;
-      }
-
-      grid.style.display = 'grid';
-      if (empty) empty.classList.add('hidden');
-      grid.innerHTML = '';
-
-      assets.forEach(asset => {
-        const isSelected = selectedAssets.has(asset.id);
-        const card = document.createElement('div');
-        card.className = 'asset-card prompt-card' + (isSelected ? ' selected' : '');
-        card.innerHTML = `
-          <div class="asset-img-container" style="height:150px;overflow:hidden;border-radius:6px;cursor:pointer;background:#eee;position:relative;">
-            <img src="${asset.data}" alt="${asset.name}" style="width:100%;height:100%;object-fit:cover; opacity:${isSelected ? '0.7' : '1'}; transition: opacity 0.2s;">
-            <div class="asset-checkbox ${isManageMode ? '' : 'hidden'}" style="position:absolute; top:8px; left:8px; background:rgba(255,255,255,0.9); border-radius:4px; padding:2px; display:flex;">
-              <input type="checkbox" ${isSelected ? 'checked' : ''} style="pointer-events:none; margin:0;">
-            </div>
-          </div>
-          <div style="margin-top:10px;font-weight:500;font-size:13px;color:var(--text);">${asset.name}</div>
-          <div style="margin-top:5px;font-size:10px;color:var(--muted);">${asset.folder}</div>
-          <div style="margin-top:5px;display:flex;justify-content:space-between;">
-            <button class="btn-ghost btn-sm asset-copy-tag" data-id="${asset.id}" style="padding:4px 8px;font-size:11px;">複製 Tag</button>
-            <button class="btn-ghost btn-sm asset-del-btn" data-id="${asset.id}" style="padding:4px 8px;font-size:11px;color:#dc3545;">刪除</button>
-          </div>
-        `;
-
-        card.querySelector('.asset-img-container').addEventListener('click', (e) => {
-          if (isManageMode) {
-            e.stopPropagation();
-            if (selectedAssets.has(asset.id)) {
-              selectedAssets.delete(asset.id);
-            } else {
-              selectedAssets.add(asset.id);
-            }
-            window.refreshAssetsGrid();
-          } else {
-            openLightBox(asset.data, asset.name, false);
-          }
-        });
-        card.querySelector('.asset-del-btn').addEventListener('click', async (e) => {
-          e.stopPropagation();
-          if (confirm('確定要刪除這張資產嗎？')) {
-            await deleteAsset(asset.id);
-            if (window.showToast) window.showToast('🗑️ 已刪除');
-            window.refreshAssetsGrid();
-          }
-        });
-        card.querySelector('.asset-copy-tag').addEventListener('click', (e) => {
-          e.stopPropagation();
-          navigator.clipboard.writeText(`[@${asset.name}:${asset.id}]`).then(() => {
-            if (window.showToast) window.showToast('✅ 標籤已複製');
-          });
-        });
-        grid.appendChild(card);
-      });
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  // ── Upload Handler ──
-  function initUploadButton() {
-    const uploadBtn = document.getElementById('assetUploadBtn');
-    const uploadInput = document.getElementById('assetUploadInput');
-    if (!uploadBtn || !uploadInput) return;
-    uploadBtn.addEventListener('click', () => uploadInput.click());
-    uploadInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const name = file.name.replace(/\.[^.]+$/, '') || 'Uploaded';
-        try {
-          await saveAsset(name, ev.target.result, activeFolder);
-          if (window.showToast) window.showToast('✅ 已上傳至「' + activeFolder + '」');
-          window.refreshAssetsGrid();
-        } catch (err) {
-          if (window.showToast) window.showToast('❌ 上傳失敗');
-        }
-      };
-      reader.readAsDataURL(file);
-      uploadInput.value = '';
-    });
-  }
-
-  // ── Manage Mode ──
-  function initManageButtons() {
-    const manageBtn = document.getElementById('assetManageBtn');
-    const delSelBtn = document.getElementById('assetDelSelectedBtn');
-    const clearBtn = document.getElementById('assetClearFolderBtn');
-    const authDirBtn = document.getElementById('assetAuthDirBtn');
-
-    if (authDirBtn) {
-      authDirBtn.addEventListener('click', async () => {
-        try {
-          if (!window.showDirectoryPicker) {
-            alert('您的瀏覽器不支援本機資料夾存取功能 (File System Access API)。請使用最新版 Chrome 或 Edge。');
-            return;
-          }
-          const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-          window.localDirHandle = dirHandle;
-          authDirBtn.textContent = '✅ 已授權: ' + dirHandle.name;
-          authDirBtn.style.background = '#1e7e34';
-          authDirBtn.style.borderColor = '#1c7430';
-          if (window.showToast) window.showToast('✅ 本機資產目錄授權成功！');
-        } catch (err) {
-          console.error(err);
-          if (err.name !== 'AbortError') {
-            if (window.showToast) window.showToast('❌ 授權失敗');
-          }
-        }
-      });
-    }
-
-    if (manageBtn) {
-      manageBtn.addEventListener('click', () => {
-        isManageMode = !isManageMode;
-        selectedAssets.clear();
-        manageBtn.textContent = isManageMode ? '完成' : '管理';
-        if (isManageMode) {
-          manageBtn.classList.add('btn-primary');
-          manageBtn.classList.remove('btn-ghost');
-          if(delSelBtn) delSelBtn.classList.remove('hidden');
-          if(clearBtn) clearBtn.classList.remove('hidden');
-        } else {
-          manageBtn.classList.add('btn-ghost');
-          manageBtn.classList.remove('btn-primary');
-          if(delSelBtn) delSelBtn.classList.add('hidden');
-          if(clearBtn) clearBtn.classList.add('hidden');
-        }
-        window.refreshAssetsGrid();
-      });
-    }
-
-    if (delSelBtn) {
-      delSelBtn.addEventListener('click', async () => {
-        if (selectedAssets.size === 0) return window.showToast ? window.showToast('請先選取要刪除的資產') : alert('請先選取');
-        if (!confirm(`確定要刪除選取的 ${selectedAssets.size} 項資產嗎？`)) return;
-        
-        for (let id of selectedAssets) {
-          await deleteAsset(id);
-        }
-        selectedAssets.clear();
-        if (window.showToast) window.showToast('✅ 刪除完成');
-        window.refreshAssetsGrid();
-      });
-    }
-
-    if (clearBtn) {
-      clearBtn.addEventListener('click', async () => {
-        if (!confirm(`確定要清空「${activeFolder}」資料夾中的所有資產嗎？\n此動作無法復原！`)) return;
-        const all = await getAllAssets();
-        const assets = all.filter(a => a.folder === activeFolder);
-        for (let a of assets) {
-          await deleteAsset(a.id);
-        }
-        selectedAssets.clear();
-        if (window.showToast) window.showToast('✅ 資料夾已清空');
-        window.refreshAssetsGrid();
-      });
-    }
-  }
-
-  // Init
-  initDB().then(() => {
-    if (document.getElementById('panel-assets')) {
-      renderFolderSidebar();
-      window.refreshAssetsGrid();
-      initUploadButton();
-      initManageButtons();
-    }
-  });
-
-  // ── Native File System Helper ──
-  async function saveAssetToLocalDir(base64Data, filename) {
-    if (!window.localDirHandle) return false;
-    try {
-      // Use fetch() to decode Base64 data URL → Blob asynchronously (no main-thread blocking)
-      const res = await fetch(base64Data);
-      const blob = await res.blob();
-      if (!blob || blob.size === 0) return false;
+      workspaceHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      await saveHandle(workspaceHandle);
+      const btn = document.getElementById('v2-btn-restore');
+      if (btn) btn.style.display = 'none';
+      const swfBtn = document.getElementById('swfAssetRestore');
+      if (swfBtn) swfBtn.style.display = 'none';
       
-      const fileHandle = await window.localDirHandle.getFileHandle(filename, { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      if (window.showToast) window.showToast(`✅ 已自動儲存至本機目錄: ${filename}`);
-      return true;
-    } catch (err) {
-      console.error('Failed to save to local dir:', err);
+      if (window.showToast) window.showToast('✅ 成功連結本機資料夾！');
+      await refreshUI();
+    } catch (e) {
+      console.warn('使用者取消或不支援:', e);
+    }
+  }
+
+  async function restoreWorkspace() {
+    try {
+      const handle = await getSavedHandle();
+      if (!handle) return false;
+      workspaceHandle = handle;
+      
+      const perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        await refreshUI();
+        return true;
+      } else {
+        // Needs user gesture to request permission.
+        const btn = document.getElementById('v2-btn-restore');
+        if (btn) btn.style.display = 'inline-block';
+        const swfBtn = document.getElementById('swfAssetRestore');
+        if (swfBtn) swfBtn.style.display = 'inline-block';
+        return false;
+      }
+    } catch (e) {
+      console.error('Restore error', e);
       return false;
     }
   }
 
+  async function requestRestorePermission() {
+    if (!workspaceHandle) return;
+    try {
+      const perm = await workspaceHandle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        const btn = document.getElementById('v2-btn-restore');
+        if (btn) btn.style.display = 'none';
+        const swfBtn = document.getElementById('swfAssetRestore');
+        if (swfBtn) swfBtn.style.display = 'none';
+        if (window.showToast) window.showToast('✅ 成功恢復連線！');
+        await refreshUI();
+        window.dispatchEvent(new Event('assets-restored'));
+      }
+    } catch(e) {
+      console.warn('Permission rejected', e);
+    }
+  }
+
+  function clearLink() {
+    if (confirm('確定解除本機資料夾的連結嗎？')) {
+      if (db) {
+        const tx = db.transaction([STORE_NAME], 'readwrite');
+        tx.objectStore(STORE_NAME).delete('workspace_handle');
+      }
+      workspaceHandle = null;
+      virtualTree = { name: '根目錄', path: '根目錄', isDir: true, handle: null, children: {} };
+      allImageFiles = [];
+      activeFolder = '根目錄';
+      treeState.expanded.clear();
+      treeState.expanded.add('根目錄');
+      const btn = document.getElementById('v2-btn-restore');
+      if (btn) btn.style.display = 'none';
+      const swfBtn = document.getElementById('swfAssetRestore');
+      if (swfBtn) swfBtn.style.display = 'none';
+      refreshUI();
+    }
+  }
+
+  // 3. Deep Tree Scanning
+  async function scanDirectory(dirHandle, currentPath = '根目錄', parentNode) {
+    for await (const entry of dirHandle.values()) {
+      if (entry.name.startsWith('.')) continue; // ignore hidden
+      
+      const path = currentPath === '根目錄' ? `根目錄/${entry.name}` : `${currentPath}/${entry.name}`;
+      
+      if (entry.kind === 'directory') {
+        const node = { name: entry.name, path: path, isDir: true, handle: entry, children: {} };
+        parentNode.children[entry.name] = node;
+        await scanDirectory(entry, path, node);
+      } else if (entry.kind === 'file') {
+        if (entry.name.match(/\.(png|jpe?g|webp|gif|bmp)$/i)) {
+          const node = { name: entry.name, path: path, isDir: false, handle: entry };
+          parentNode.children[entry.name] = node;
+          allImageFiles.push({
+            name: entry.name,
+            path: path,
+            folder: currentPath,
+            handle: entry
+          });
+        }
+      }
+    }
+  }
+
+  let permissionGranted = false;
+  
+  async function buildTree() {
+    if (!workspaceHandle) {
+      virtualTree = { name: '根目錄', path: '根目錄', isDir: true, handle: null, children: {} };
+      allImageFiles = [];
+      permissionGranted = false;
+      return;
+    }
+    
+    // Check permission first
+    const perm = await workspaceHandle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      virtualTree = { name: '根目錄 (等待授權)', path: '根目錄', isDir: true, handle: null, children: {} };
+      allImageFiles = [];
+      permissionGranted = false;
+      return;
+    }
+    
+    permissionGranted = true;
+    const newRoot = { name: '根目錄', path: '根目錄', isDir: true, handle: workspaceHandle, children: {} };
+    allImageFiles = [];
+    
+    // Status
+    const statusText = document.getElementById('v2-status-text');
+    if (statusText) statusText.textContent = '掃描中...';
+    
+    try {
+      await scanDirectory(workspaceHandle, '根目錄', newRoot);
+      virtualTree = newRoot;
+      if (statusText) statusText.textContent = '(就緒)';
+    } catch (e) {
+      console.error('Scan Error', e);
+      if (statusText) statusText.textContent = '(掃描失敗)';
+      virtualTree = { name: '根目錄 (掃描失敗)', path: '根目錄', isDir: true, handle: null, children: {} };
+    }
+    
+    // Dispatch event so simple-workflow.js can update dropdowns
+    window.dispatchEvent(new CustomEvent('assets-tree-updated'));
+  }
+
+  function getAllFolderPaths(node = virtualTree, paths = []) {
+    if (!node || !node.isDir) return paths;
+    paths.push(node.path);
+    if (node.children) {
+      for (const key in node.children) {
+        getAllFolderPaths(node.children[key], paths);
+      }
+    }
+    return paths;
+  }
+
+  // 4. UI Rendering
+  let isRefreshing = false;
+  
+  async function smartRefresh() {
+    if (isRefreshing || !workspaceHandle || !permissionGranted) return;
+    isRefreshing = true;
+    try {
+      const oldHash = allImageFiles.map(f => f.path + '_' + (f.file ? f.file.lastModified : 0)).join('|');
+      await buildTree();
+      const newHash = allImageFiles.map(f => f.path + '_' + (f.file ? f.file.lastModified : 0)).join('|');
+      
+      // Only re-render if the file list actually changed
+      if (oldHash !== newHash) {
+        renderSidebar(virtualTree, 'v2-tree-root');
+        await renderGrid('v2-grid');
+        if (document.getElementById('swfLeftAssets') && document.getElementById('swfLeftAssets').style.display !== 'none') {
+          renderSidebar(virtualTree, 'v2-swf-tree-root');
+          await renderGrid('v2-swf-grid');
+        }
+      }
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
+  async function refreshUI() {
+    // Immediate loading state to prevent blank screens on first open
+    const grid1 = document.getElementById('v2-grid');
+    if (grid1) grid1.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);">掃描中...</div>';
+    
+    const panel = document.getElementById('swfLeftAssets');
+    if (panel && panel.style.display !== 'none') {
+      const grid2 = document.getElementById('v2-swf-grid');
+      if (grid2) grid2.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);">掃描中...</div>';
+      const tree2 = document.getElementById('v2-swf-tree-root');
+      if (tree2) tree2.innerHTML = '<li style="padding:10px;color:var(--muted);text-align:center;">讀取中...</li>';
+    }
+
+    await buildTree();
+    renderSidebar(virtualTree, 'v2-tree-root');
+    await renderGrid('v2-grid');
+    
+    if (panel && panel.style.display !== 'none') {
+      renderSidebar(virtualTree, 'v2-swf-tree-root');
+      await renderGrid('v2-swf-grid');
+    }
+  }
+
+  function renderSidebar(tree, containerId) {
+    const rootUl = document.getElementById(containerId);
+    if (!rootUl) return;
+    rootUl.innerHTML = '';
+    if (!tree) return;
+    
+    function buildNodeHTML(node, containerEl) {
+      // Only render directories in the sidebar
+      if (!node.isDir) return;
+      
+      const sortedKeys = Object.keys(node.children)
+        .filter(k => node.children[k].isDir)
+        .sort((a,b) => a.localeCompare(b));
+      const hasChildren = sortedKeys.length > 0;
+      
+      const li = document.createElement('li');
+      li.className = 'v2-tree-node';
+      if (treeState.expanded.has(node.path)) li.classList.add('expanded');
+      
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'v2-tree-item' + (activeFolder === node.path ? ' active' : '');
+      
+      const toggleSpan = document.createElement('span');
+      toggleSpan.className = 'v2-tree-toggle';
+      toggleSpan.textContent = hasChildren ? '▶' : '';
+      
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'v2-tree-icon';
+      iconSpan.textContent = node.path === '根目錄' ? '📂' : '📁';
+      
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = node.name;
+      
+      itemDiv.appendChild(toggleSpan);
+      itemDiv.appendChild(iconSpan);
+      itemDiv.appendChild(nameSpan);
+      li.appendChild(itemDiv);
+      
+      let childrenUl = null;
+      if (hasChildren) {
+        childrenUl = document.createElement('ul');
+        childrenUl.className = 'v2-tree v2-tree-children';
+        if (!treeState.expanded.has(node.path)) childrenUl.classList.add('collapsed');
+        
+        sortedKeys.forEach(k => {
+          buildNodeHTML(node.children[k], childrenUl);
+        });
+        li.appendChild(childrenUl);
+      }
+      
+      itemDiv.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const clickX = e.clientX - itemDiv.getBoundingClientRect().left;
+        if (hasChildren && clickX < 24) {
+          if (childrenUl.classList.contains('collapsed')) {
+            childrenUl.classList.remove('collapsed');
+            li.classList.add('expanded');
+            treeState.expanded.add(node.path);
+          } else {
+            childrenUl.classList.add('collapsed');
+            li.classList.remove('expanded');
+            treeState.expanded.delete(node.path);
+          }
+          return;
+        }
+        
+        activeFolder = node.path;
+        renderSidebar(virtualTree, containerId); // Fast update sidebar
+        if (containerId === 'v2-swf-tree-root') {
+            renderSidebar(virtualTree, 'v2-tree-root');
+            renderGrid('v2-swf-grid');
+            renderGrid('v2-grid');
+        } else {
+            renderSidebar(virtualTree, 'v2-swf-tree-root');
+            renderGrid('v2-grid');
+            renderGrid('v2-swf-grid');
+        }
+      });
+      
+      containerEl.appendChild(li);
+    }
+    
+    treeState.expanded.add('根目錄');
+    buildNodeHTML(tree, rootUl);
+  }
+
+  function getAssetObserver() {
+    if (!assetObserver) {
+      assetObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            assetObserver.unobserve(entry.target);
+            loadCardImage(entry.target);
+          }
+        });
+      }, { rootMargin: '400px' }); // preload slightly before visible so drags always have a blob
+    }
+    return assetObserver;
+  }
+
+  // Create the object URL for a single card on demand (idempotent). Tracked per
+  // grid so re-rendering a grid only revokes its own URLs.
+  async function loadCardImage(card) {
+    if (card._blobUrl || !card._assetHandle) return card._blobUrl;
+    try {
+      const file = await card._assetHandle.getFile();
+      const url = URL.createObjectURL(file);
+      card._blobUrl = url;
+      (gridBlobUrls[card._containerId] = gridBlobUrls[card._containerId] || []).push(url);
+      if (card.isConnected) {
+        const img = card.querySelector('img');
+        if (img) img.src = url;
+      }
+    } catch (err) {
+      console.error('Cannot read file', card._assetName, err);
+    }
+    return card._blobUrl;
+  }
+
+  async function renderGrid(containerId) {
+    const grid = document.getElementById(containerId);
+    if (!grid) return;
+
+    // Memory Management: revoke only THIS grid's previously-created URLs so we
+    // never clobber the other grid's or a node's still-displayed images.
+    (gridBlobUrls[containerId] || []).forEach(url => URL.revokeObjectURL(url));
+    gridBlobUrls[containerId] = [];
+
+    grid.innerHTML = '';
+    
+    if (!workspaceHandle) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);">尚未連結本機資料夾</div>';
+      return;
+    }
+    
+    if (!permissionGranted) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);">權限已過期<br><br><span style="font-size:12px">請至左側導覽列「資產庫」點擊「恢復連線」</span></div>';
+      return;
+    }
+    
+    const assets = allImageFiles.filter(a => a.folder === activeFolder);
+    
+    if (assets.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);">此資料夾沒有影像</div>';
+      return;
+    }
+    
+    const observer = getAssetObserver();
+    for (let i = 0; i < assets.length; i++) {
+      const a = assets[i];
+      const card = document.createElement('div');
+      card.className = 'v2-asset-card';
+      // Stash the FSA handle/meta; the object URL is created lazily on intersect.
+      card._assetHandle = a.handle;
+      card._assetName = a.name;
+      card._containerId = containerId;
+
+      card.innerHTML = `
+        <div class="v2-asset-img-wrap">
+          <img alt="${a.name}" loading="lazy">
+          <div class="v2-asset-actions">
+            <button class="v2-btn-icon" title="複製標籤" data-action="copy" data-path="${a.path}" data-name="${a.name}">📋</button>
+          </div>
+        </div>
+        <div class="v2-asset-info">
+          <span class="v2-asset-name" title="${a.name}">${a.name}</span>
+        </div>
+      `;
+
+      card.draggable = true;
+      card.addEventListener('dragstart', (e) => {
+        // We pass the RELATIVE PATH instead of base64 data!
+        const payload = JSON.stringify({ type: 'fsa', path: a.path, name: a.name });
+        e.dataTransfer.setData('text/swf-asset', payload);
+        e.dataTransfer.setData('text/ide-asset', payload);
+        // Visible cards are already loaded (observer preloads); include the blob if ready.
+        if (card._blobUrl) e.dataTransfer.setData('text/swf-image-src', card._blobUrl);
+        e.dataTransfer.setData('text/plain', `[@${a.name}:${a.path}]`);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+
+      card.addEventListener('click', async (e) => {
+        if (e.target.closest('.v2-asset-actions')) return;
+        const url = await loadCardImage(card);
+        if (url) openLightBox(url, a.path);
+      });
+
+      grid.appendChild(card);
+      observer.observe(card);
+    }
+    
+    // Bind actions
+    grid.querySelectorAll('.v2-btn-icon').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (btn.dataset.action === 'copy') {
+          const path = btn.dataset.path;
+          navigator.clipboard.writeText(`[@${btn.dataset.name}:${path}]`).then(() => {
+            if (window.showToast) window.showToast('✅ 相對路徑標籤已複製');
+          });
+        }
+      });
+    });
+  }
+
+  // 5. Dynamic File Retrieval (For workflow rendering)
+  async function getFileBlobUrl(path) {
+    if (!workspaceHandle) return null;
+    
+    // Path looks like "根目錄/Folder/Image.png"
+    const parts = path.split('/');
+    if (parts[0] === '根目錄') parts.shift();
+    
+    let currentHandle = workspaceHandle;
+    try {
+      for (let i = 0; i < parts.length - 1; i++) {
+        currentHandle = await currentHandle.getDirectoryHandle(parts[i]);
+      }
+      const fileHandle = await currentHandle.getFileHandle(parts[parts.length - 1]);
+      const file = await fileHandle.getFile();
+      const url = URL.createObjectURL(file);
+      activeBlobUrls.push(url); // track for memory management later if needed
+      return url;
+    } catch(e) {
+      console.error('getFileBlobUrl failed for path:', path, e);
+      return null;
+    }
+  }
+
+  // 6. Bind UI Elements
+  function bindUI() {
+    const linkBtn = document.getElementById('v2-btn-link-folder');
+    const restoreBtn = document.getElementById('v2-btn-restore');
+    const clearLinkBtn = document.getElementById('v2-btn-clear-link');
+    
+    if (linkBtn) linkBtn.addEventListener('click', linkWorkspace);
+    if (restoreBtn) restoreBtn.addEventListener('click', requestRestorePermission);
+    if (clearLinkBtn) clearLinkBtn.addEventListener('click', clearLink);
+    
+    // SWF specific buttons
+    const swfRefreshBtn = document.getElementById('swfAssetRefresh');
+    const swfLinkBtn = document.getElementById('swfAssetLink');
+    const swfRestoreBtn = document.getElementById('swfAssetRestore');
+    
+    if (swfRefreshBtn) swfRefreshBtn.addEventListener('click', refreshUI);
+    if (swfLinkBtn) swfLinkBtn.addEventListener('click', linkWorkspace);
+    if (swfRestoreBtn) swfRestoreBtn.addEventListener('click', requestRestorePermission);
+    
+    // Auto-Refresh on Window Focus
+    window.addEventListener('focus', () => {
+      if (workspaceHandle && permissionGranted) {
+        smartRefresh();
+      }
+    });
+  }
+
+  // 7. Lightbox Preview
+  function openLightBox(src, titleText = '') {
+    let lb = document.getElementById('v2-lightbox');
+    if (!lb) {
+      lb = document.createElement('div');
+      lb.id = 'v2-lightbox';
+      lb.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:9999; display:flex; justify-content:center; align-items:center; flex-direction:column; opacity:0; transition:opacity 0.3s;';
+      
+      const img = document.createElement('img');
+      img.id = 'v2-lb-img';
+      img.style.cssText = 'max-width:90%; max-height:85%; object-fit:contain; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); transform:scale(0.95); transition:transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);';
+      
+      const title = document.createElement('div');
+      title.id = 'v2-lb-title';
+      title.style.cssText = 'color:#fff; margin-top:16px; font-size:16px; font-weight:500;';
+      
+      const closeBtn = document.createElement('button');
+      closeBtn.innerHTML = '✕';
+      closeBtn.style.cssText = 'position:absolute; top:20px; right:30px; background:transparent; border:none; color:#fff; font-size:32px; cursor:pointer; opacity:0.7; transition:opacity 0.2s;';
+      closeBtn.onmouseover = () => closeBtn.style.opacity = '1';
+      closeBtn.onmouseout = () => closeBtn.style.opacity = '0.7';
+      
+      lb.appendChild(img);
+      lb.appendChild(title);
+      lb.appendChild(closeBtn);
+      document.body.appendChild(lb);
+      
+      const closeLb = () => {
+        lb.style.opacity = '0';
+        img.style.transform = 'scale(0.95)';
+        setTimeout(() => lb.style.display = 'none', 300);
+      };
+      
+      closeBtn.onclick = closeLb;
+      lb.onclick = (e) => { if (e.target === lb) closeLb(); };
+    }
+    
+    lb.style.display = 'flex';
+    document.getElementById('v2-lb-img').src = src;
+    document.getElementById('v2-lb-title').textContent = titleText;
+    
+    // trigger reflow
+    void lb.offsetWidth;
+    lb.style.opacity = '1';
+    document.getElementById('v2-lb-img').style.transform = 'scale(1)';
+  }
+
+  // Initialize
+  window.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('panel-assets-v2')) {
+      bindUI();
+      initDB().then(restoreWorkspace).catch(e => console.error('AssetDB Error:', e));
+    }
+  });
+
+  // 5. Saving Assets
+  async function saveAsset(name, src, targetFolderPath) {
+    if (!workspaceHandle || !permissionGranted) {
+      if (window.showToast) window.showToast('❌ 無法儲存：未連結本機目錄或未授權', 2000);
+      return;
+    }
+    try {
+      let folderHandle = workspaceHandle;
+      if (targetFolderPath && targetFolderPath !== '根目錄' && targetFolderPath !== '') {
+        const parts = targetFolderPath.split('/');
+        if (parts[0] === '根目錄') parts.shift();
+        
+        for (const part of parts) {
+          if (!part.trim()) continue;
+          folderHandle = await folderHandle.getDirectoryHandle(part, { create: true });
+        }
+      }
+
+      let blob;
+      if (src.startsWith('data:')) {
+        const res = await fetch(src);
+        blob = await res.blob();
+      } else {
+        const res = await fetch(src);
+        blob = await res.blob();
+      }
+      
+      const fileHandle = await folderHandle.getFileHandle(name + '.png', { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      
+      // Auto refresh UI silently to show new file
+      smartRefresh();
+    } catch (e) {
+      console.error('Failed to save asset:', e);
+      if (window.showToast) window.showToast('❌ 儲存失敗: ' + e.message, 3000);
+    }
+  }
+
+  // Public API
   return {
     initDB,
-    saveAsset,
-    getAllAssets,
-    getAsset,
-    deleteAsset,
     openLightBox,
-    getFolders,
-    addFolder,
-    saveAssetToLocalDir,
-    getActiveFolder: () => activeFolder
+    getActiveFolder: () => activeFolder,
+    refreshUI,
+    isConnected: () => !!workspaceHandle && permissionGranted,
+    getFileBlobUrlByPath: getFileBlobUrl,
+    getAllFolderPaths,
+    saveAsset
   };
+
 })();

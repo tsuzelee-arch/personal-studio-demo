@@ -6,7 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Personal Studio</title>
   <meta name="description" content="Personal Studio - 您的專屬 Creative AI 圖像編輯與提示詞工作流工作站">
-  <link rel="stylesheet" href="css/style.css?v=20260612_0900">
+  <link rel="stylesheet" href="css/style.css?v=__BUILD_TS__">
+  <link rel="stylesheet" href="css/assets.css?v=__BUILD_TS__">
+  <link rel="stylesheet" href="css/base.css?v=__BUILD_TS__">
+  <link rel="stylesheet" href="css/prompts.css?v=__BUILD_TS__">
+  <link rel="stylesheet" href="css/simple-workflow.css?v=__BUILD_TS__">
+  <link rel="stylesheet" href="css/dark.css?v=__BUILD_TS__">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"
     integrity="sha384-6LFfkTKLRlzFtgx8xsWyBdKGpcMMQTkv+dB7rAbugeJAu1Ym2q1Aji1cjHBG12Xh" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/nano.min.css" />
@@ -34,7 +39,7 @@
         <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
         <div class="nav-item" data-panel="workflow" style="display: none;">自定工作流（暫時廢棄）</div>
         <div class="nav-item" data-panel="workflow-library" style="display: none;">🗂 工作流庫（暫時廢棄）</div>
-        <div class="nav-item" data-panel="assets">資產庫</div>
+        <div class="nav-item" data-panel="assets-v2">資產庫</div>
         <div class="nav-cat" style="margin-top:12px">系統</div>
         <div class="nav-item" data-panel="settings">⚙ API 設定</div>
       </div>
@@ -82,14 +87,28 @@
           <!-- IDE 3-Column Layout -->
           <div class="swf-ide-layout">
             <!-- Left Pane: Asset File Explorer -->
-            <div class="swf-left-assets" id="swfLeftAssets" style="display:none;">
-              <div class="swf-assets-header">
-                <span class="swf-pane-title">📂 資產瀏覽器</span>
-                <button class="swf-pane-close" id="swfAssetClose">✕</button>
+            <div class="swf-left-assets assets-body-v2" id="swfLeftAssets" style="display:none; flex-direction: column;">
+              <div class="assets-header-v2" style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="font-weight: 600; font-size: 14px;">🗃️ 資產瀏覽器</div>
+                  <button id="swfAssetRefresh" class="v2-btn-icon" title="即時刷新" style="width: 24px; height: 24px; font-size: 12px;">🔄</button>
+                  <button id="swfAssetLink" class="v2-btn-icon" title="連結本機資料夾" style="width: 24px; height: 24px; font-size: 12px;">🔗</button>
+                  <button id="swfAssetRestore" class="v2-btn-icon" title="恢復連線" style="width: 24px; height: 24px; font-size: 12px; display: none; color: #f39c12;">🔌</button>
+                </div>
+                <button class="swf-pane-close" id="swfAssetClose" style="background: none; border: none; font-size: 16px; cursor: pointer;">✕</button>
               </div>
-              <div class="swf-folder-list" id="swfFolderList"></div>
-              <div class="swf-assets-grid" id="swfAssetsGrid"></div>
+              <div style="display: flex; flex: 1; min-height: 0;">
+                <div class="assets-sidebar-v2" style="width: 110px; border-right: 1px solid var(--border); background: var(--bg); overflow-y: auto; padding: 8px;">
+                  <ul id="v2-swf-tree-root" style="list-style: none; padding-left: 0; margin: 0;"></ul>
+                </div>
+                <div class="assets-main-v2" style="flex: 1; overflow-y: auto; background: var(--surface); padding: 12px;">
+                  <div id="v2-swf-grid" class="swf-assets-grid"></div>
+                </div>
+              </div>
             </div>
+
+            <!-- Resizer: drag to resize left pane -->
+            <div class="swf-pane-resizer" id="swfAssetResizer"></div>
 
             <!-- Center: Canvas -->
             <div class="swf-canvas" id="swfCanvas">
@@ -102,7 +121,7 @@
             </div>
 
             <!-- Right Pane: Prompt Quick-Bar -->
-            <div class="workflow-prompt-quickbar" id="swfPromptQuickBar">
+            <div class="swf-prompt-quickbar" id="swfPromptQuickBar">
               <!-- Dynamically populated by simple-workflow.js -->
             </div>
           </div>
@@ -625,34 +644,60 @@
               </div>
             </div>
 
+            <!-- Asset Source Settings -->
+            <div class="settings-card" id="assetSourceCard">
+              <div class="settings-card-header">
+                <span class="settings-card-icon">🗂️</span>
+                <span class="settings-card-title">資產庫來源設定</span>
+              </div>
+              <div class="settings-card-body">
+                <div class="settings-hint" style="margin-top:0; padding:10px 12px; background:var(--card-bg,#2a2a2a); border-radius:6px; line-height:1.6;">
+                  📁 <strong>批次匯入</strong>：不需要填寫路徑或開啟伺服器。<br>
+                  請至「<strong>資產庫</strong>」面板 → 點「📁 匯入資料夾」按鈕，選擇包含您檔案的本機資料夾。系統會自動將所有檔案（包含子資料夾）無縫匯入本地資料庫中，永久保存且免除重新授權。
+                </div>
+                <!-- hidden inputs kept for settings.js compat — no longer functional -->
+                <textarea id="localAssetPathInput" style="display:none"></textarea>
+                <button id="saveLocalPathBtn" style="display:none"></button>
+
+                <label class="form-label" style="margin-top:16px;">Google Drive OAuth 2.0 Client ID</label>
+                <div class="key-input-row">
+                  <input type="password" class="form-input key-input" id="gdriveClientIdInput"
+                    placeholder="xxxxx.apps.googleusercontent.com">
+                  <button class="btn-primary" id="saveGdriveClientIdBtn">儲存</button>
+                </div>
+                <div class="conn-status" id="gdriveStatus"></div>
+                <div class="settings-hint">請至 Google Cloud Console 建立「Web 應用程式」類型的 OAuth 2.0 憑證，並將 <code>http://localhost:3001</code> 加入已授權的 JavaScript 來源。</div>
+              </div>
+            </div>
 
           </div>
         </section>
 
-        <!-- Panel: 資產庫 -->
-        <section class="panel" id="panel-assets">
-          <div class="prompts-toolbar"
-            style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 20px; display:flex; align-items:center; justify-content:space-between;">
-            <div style="font-size: 16px; font-weight: 600;">本地資產庫 (IndexedDB)</div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn-primary" id="assetAuthDirBtn" style="background: #28a745; border-color: #28a745;">📂
-                授權本機目錄</button>
-              <button class="btn-ghost hidden" id="assetDelSelectedBtn" style="color: #dc3545;">刪除選取</button>
-              <button class="btn-ghost hidden" id="assetClearFolderBtn" style="color: #dc3545;">清空資料夾</button>
-              <button class="btn-ghost" id="assetManageBtn">管理</button>
-              <input type="file" id="assetUploadInput" accept="image/*" hidden>
-              <button class="btn-primary" id="assetUploadBtn">上傳資產</button>
+        <!-- Panel: 資產庫 V2 -->
+        <section class="panel" id="panel-assets-v2">
+          <div class="assets-header-v2" style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
+            <div style="font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+              <span>🗃️ 影像資產庫</span>
+              <span id="v2-status-text" style="font-size: 12px; color: var(--muted); font-weight: normal;">(就緒)</span>
+            </div>
+            <div style="display: flex; gap: 12px;">
+              <button class="btn-primary" id="v2-btn-link-folder" style="padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🔗 連結本機工作夾</button>
+              <button class="btn-ghost" id="v2-btn-restore" style="display: none; color: #0d6efd;">🔄 恢復本機連線</button>
+              <button class="btn-ghost" id="v2-btn-clear-link" style="color: #dc3545;">🗑️ 解除連結</button>
             </div>
           </div>
-          <div class="assets-body">
-            <div class="assets-folder-sidebar" id="assetsFolderList"></div>
-            <div class="assets-main">
-              <div class="assets-grid" id="assetsGrid"
-                style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px;"></div>
-              <div class="empty-state hidden" id="assetsEmpty">
-                <div class="empty-icon">🖼️</div>
-                <div class="empty-text">尚無儲存的影像資產</div>
+          <div class="assets-body-v2" style="display: flex; flex: 1; min-height: 0; overflow: hidden;">
+            <div class="assets-sidebar-v2" style="width: 260px; min-width: 200px; border-right: 1px solid var(--border); background: var(--bg); overflow-y: auto; padding: 12px;">
+              <div style="font-size: 12px; font-weight: bold; color: var(--muted); margin-bottom: 12px; text-transform: uppercase;">資料夾結構</div>
+              <ul id="v2-tree-root" style="list-style: none; padding-left: 0; margin: 0;"></ul>
+            </div>
+            <div class="assets-main-v2" style="flex: 1; overflow-y: auto; background: var(--surface); padding: 20px;">
+              <div id="v2-empty-state" style="display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; color: var(--muted);">
+                <div style="font-size: 48px; margin-bottom: 16px;">🖼️</div>
+                <div style="font-size: 16px;">此資料夾尚無影像資產</div>
+                <div style="font-size: 13px; margin-top: 8px;">點擊右上方「匯入深層資料夾」載入本機圖片</div>
               </div>
+              <div id="v2-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; align-content: start;"></div>
             </div>
           </div>
         </section>
@@ -824,17 +869,20 @@
     integrity="sha384-UD8c5szelcdeclSWhUiFuz1tiZeIweaJygrWmWcSllSAfocHUyRyQZ5iiQ0J1MGm" crossorigin="anonymous"
     defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="js/utils.js?v=20260614_PHOENIX_V2"></script>
   <script src="js/app.js?v=20260611_1345"></script>
-  <script src="js/assets.js?v=20260611_1345"></script>
+  <script src="js/gdrive-api.js?v=20260612_0900"></script>
+  <script src="js/assets.js?v=20260614_PHOENIX_V2"></script>
   <script src="js/richtextarea.js?v=20260612_0900"></script>
   <script src="js/editor.js?v=20260612_0900"></script>
-  <script src="js/ai-service.js?v=20260611_1345"></script>
-  <script src="js/settings.js?v=20260611_1345"></script>
+  <script src="js/ai-service.js?v=20260614_BUGFIX_V3"></script>
+  <script src="js/settings.js?v=20260612_0900"></script>
   <script src="js/decode.js?v=20260612_0900"></script>
   <script src="js/prompts.js?v=20260611_1345"></script>
   <script src="js/workflow.js?v=20260611_1345"></script>
   <script src="js/workflow-library.js?v=20260611_1345"></script>
-  <script src="js/simple-workflow.js?v=20260612_0900"></script>
+  <script src="js/simple-workflow.js?v=20260614_BUGFIX_V5"></script>
   <script src="js/ide-agent.js?v=20260612_0900"></script>
 </body>
 

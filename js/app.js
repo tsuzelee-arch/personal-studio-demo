@@ -10,7 +10,7 @@ const panels = {
   decode: '圖像解構',
   prompts: '提示詞庫與熔爐',
   workflow: '自定工作流',
-  assets: '資產庫',
+  'assets-v2': '資產庫',
   settings: 'API 設定'
 };
 

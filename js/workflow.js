@@ -552,12 +552,10 @@
         fileInput.addEventListener('change', (e) => {
           const file = e.target.files[0];
           if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            el.dataset.maskData = ev.target.result;
-            preview.innerHTML = `<img src="${ev.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
-          };
-          reader.readAsDataURL(file);
+          window.StudioUtils.fileToDataURL(file).then(dataUrl => {
+            el.dataset.maskData = dataUrl;
+            preview.innerHTML = `<img src="${dataUrl}" style="width:100%; height:100%; object-fit:cover;">`;
+          }).catch(() => {});
         });
         
         if (datum.data.maskData) {
@@ -767,14 +765,11 @@
     container.style.position = 'relative';
     container.insertBefore(svgOverlay, container.firstChild);
 
-    function updateCustomEdges() {
+    function drawEdgesOnce() {
       if (!graph || graph.destroyed) return;
 
       const _wfPanel = document.getElementById('panel-workflow');
-      if (!_wfPanel || !_wfPanel.classList.contains('active')) {
-        requestAnimationFrame(updateCustomEdges);
-        return;
-      }
+      if (!_wfPanel || !_wfPanel.classList.contains('active')) return;
 
       let edges = [];
       try {
@@ -825,10 +820,36 @@
       if (svgOverlay.innerHTML !== pathHTML) {
         svgOverlay.innerHTML = pathHTML;
       }
-      requestAnimationFrame(updateCustomEdges);
     }
-    requestAnimationFrame(updateCustomEdges);
-    
+
+    // ── Event-driven edge rendering ──
+    // Run a 60fps rAF loop ONLY while the user is interacting (node drag / pan /
+    // zoom / port drag — all of which start with a pointerdown or wheel on the
+    // canvas). When idle, a cheap 500ms safety tick keeps edges consistent after
+    // discrete changes (add node, load workflow) without burning CPU every frame.
+    let wfEdgeRaf = null, wfEdgeActive = false, wfEdgeSettle = null;
+    function edgeFrame() {
+      drawEdgesOnce();
+      wfEdgeRaf = wfEdgeActive ? requestAnimationFrame(edgeFrame) : null;
+    }
+    function startEdgeLoop() { if (wfEdgeRaf == null) wfEdgeRaf = requestAnimationFrame(edgeFrame); }
+    function beginEdgeInteraction() {
+      wfEdgeActive = true;
+      if (wfEdgeSettle) { clearTimeout(wfEdgeSettle); wfEdgeSettle = null; }
+      startEdgeLoop();
+    }
+    function endEdgeInteraction(ms) {
+      if (wfEdgeSettle) clearTimeout(wfEdgeSettle);
+      wfEdgeSettle = setTimeout(() => { wfEdgeActive = false; wfEdgeSettle = null; }, ms);
+    }
+
+    container.addEventListener('pointerdown', beginEdgeInteraction);
+    window.addEventListener('pointerup', () => endEdgeInteraction(250)); // settle inertia/dragend
+    container.addEventListener('wheel', () => { beginEdgeInteraction(); endEdgeInteraction(200); }, { passive: true });
+    window.addEventListener('resize', drawEdgesOnce);
+    setInterval(drawEdgesOnce, 500); // idle safety tick (catches discrete data changes)
+    requestAnimationFrame(drawEdgesOnce); // initial render
+
     // Mouse tracking for drag line
     window.addEventListener('pointermove', (e) => {
         window.__wfMouseX = e.clientX;
@@ -1310,16 +1331,13 @@
         const item = items[index];
         if (item.kind === 'file' && item.type.startsWith('image/')) {
           const blob = item.getAsFile();
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const base64 = event.target.result;
-            
+          window.StudioUtils.fileToDataURL(blob).then(base64 => {
             nodeIdCounter++;
             const id = 'node_paste_' + Date.now() + '_' + nodeIdCounter;
             const [cx, cy] = getViewportCenter();
             const x = cx + (Math.random() - 0.5) * 60;
             const y = cy + (Math.random() - 0.5) * 60;
-            
+
             graph.addNodeData([{
               id,
               data: { type: 'img2img', initialImage: base64 },
@@ -1327,8 +1345,7 @@
             }]);
             graph.draw();
             if (window.showToast) window.showToast('✅ 已從剪貼簿匯入圖片為圖生圖節點');
-          };
-          reader.readAsDataURL(blob);
+          }).catch(() => {});
           e.preventDefault();
           break;
         }
