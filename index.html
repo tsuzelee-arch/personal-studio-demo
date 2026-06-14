@@ -54,7 +54,9 @@
     <main class="main" id="main-content">
       <header class="topbar">
         <div class="page-title" id="pageTitle">圖像解構</div>
-        <div class="topbar-actions" id="topbarActions"></div>
+        <div class="topbar-actions" id="topbarActions">
+          <button class="global-ide-agent-btn" id="globalIdeAgentBtn" title="開啟 IDE Agent">✨</button>
+        </div>
       </header>
       <div class="content">
 
@@ -785,9 +787,6 @@
   <div id="pickr-anchor" style="position: fixed; width: 0; height: 0; opacity: 0; pointer-events: none; z-index: 99999;"></div>
 
   <!-- Global Floating IDE Agent -->
-  <button class="global-ide-agent-btn" id="globalIdeAgentBtn" title="開啟 IDE Agent">
-    ✨
-  </button>
   <div class="global-ide-agent-panel hidden" id="globalIdeAgentPanel">
     <div class="agent-archive-overlay"
       style="position:absolute; inset:0; z-index:999; background:rgba(0,0,0,0.55); display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:all; backdrop-filter:blur(4px); border-radius:12px;">
@@ -852,6 +851,9 @@
           <option value="gptimage">GPT-Image</option>
         </select>
 
+        <label class="form-label" style="margin-top: 12px;">儲存資料夾</label>
+        <select class="form-input" id="swfSyncFolderSel"></select>
+
         <!-- Params container populated by JS -->
         <div id="swfSyncParamsContainer" style="margin-top: 12px;"></div>
       </div>
@@ -873,7 +875,7 @@
   <script src="js/utils.js?v=20260614_PHOENIX_V2"></script>
   <script src="js/app.js?v=20260611_1345"></script>
   <script src="js/gdrive-api.js?v=20260612_0900"></script>
-  <script src="js/assets.js?v=20260614_PHOENIX_V2"></script>
+  <script src="js/assets.js?v=20260614_PHOENIX_V3"></script>
   <script src="js/richtextarea.js?v=20260612_0900"></script>
   <script src="js/editor.js?v=20260612_0900"></script>
   <script src="js/ai-service.js?v=20260614_BUGFIX_V3"></script>
@@ -882,7 +884,7 @@
   <script src="js/prompts.js?v=20260611_1345"></script>
   <script src="js/workflow.js?v=20260611_1345"></script>
   <script src="js/workflow-library.js?v=20260611_1345"></script>
-  <script src="js/simple-workflow.js?v=20260614_BUGFIX_V5"></script>
+  <script src="js/simple-workflow.js?v=20260614_BUGFIX_V7"></script>
   <script src="js/ide-agent.js?v=20260612_0900"></script>
 </body>
 

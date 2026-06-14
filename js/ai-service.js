@@ -587,7 +587,6 @@ ${JSON.stringify(analysis)}`;
       formData.append('output_format', 'webp');
       formData.append('output_compression', '80');
       formData.append('moderation', 'auto');
-      formData.append('input_fidelity', options.input_fidelity || 'high');
 
       // Convert dataURL to Blob asynchronously (avoids main-thread blocking)
       const blobRes = await fetch(baseImage);

@@ -91,6 +91,29 @@
   function isGroup(id) { return !!groups[id]; }
   /** Get entity (node or group) */
   function getEntity(id) { return nodes[id] || groups[id] || null; }
+  /**
+   * A group's images offered to downstream consumers = its execution results PLUS
+   * every member node's reference images (uploadedImages), de-duped. This lets a
+   * group→group / group→node connection carry reference images immediately (before
+   * running) and add result images after a sync-execute. Nodes still expose results
+   * only, preserving existing node→x behaviour.
+   */
+  function getGroupOutputImages(group) {
+    // Everything the group can offer downstream, whether the user ran the whole
+    // group (group.resultImages) or just an individual member node (n.resultImages):
+    // member generated results + member reference images, de-duped.
+    const out = [...(group.resultImages || [])];
+    getGroupMembers(group.id).forEach(n => {
+      if (n.resultImages) out.push(...n.resultImages);
+      if (n.data && n.data.uploadedImages) out.push(...n.data.uploadedImages);
+    });
+    return [...new Set(out)];
+  }
+  function getSourceOutputImages(id) {
+    const ent = getEntity(id);
+    if (!ent) return [];
+    return isGroup(id) ? getGroupOutputImages(ent) : (ent.resultImages || []);
+  }
   /** Get port element for entity */
   function getPortEl(id, type) {
     const ent = getEntity(id);
@@ -106,6 +129,9 @@
       const ent = getEntity(id);
       if (ent && ent.el) ent.el.classList.add('swf-selected');
     }
+    // Clear reference image selection when selecting a node or group
+    document.querySelectorAll('.swf-img-thumb-selected').forEach(el => el.classList.remove('swf-img-thumb-selected'));
+    window.__swfSelectedImage = null;
   }
 
   // ═══════════════════════════════════════════
@@ -190,9 +216,30 @@
       }
     }
 
-    // Delete / Backspace: remove selected entity
+    // Delete / Backspace: remove selected entity or selected image
     if (!isInput && (e.key === 'Delete' || e.key === 'Backspace')) {
-      if (selectedEntityId) {
+      if (window.__swfSelectedImage) {
+        const selImg = window.__swfSelectedImage;
+        const node = nodes[selImg.nodeId];
+        if (node) {
+          e.preventDefault();
+          saveUndoState();
+          node.data.images.splice(selImg.index, 1);
+          const isUploaded = node.data.uploadedImages.includes(selImg.src);
+          if (isUploaded) {
+            const uIdx = node.data.uploadedImages.indexOf(selImg.src);
+            if (uIdx >= 0) node.data.uploadedImages.splice(uIdx, 1);
+          } else {
+            if (!node.data.excludedIncomingImages.includes(selImg.src)) {
+              node.data.excludedIncomingImages.push(selImg.src);
+            }
+          }
+          renderImageThumbs(node);
+          propagateVisualImages();
+          window.__swfSelectedImage = null;
+          if (window.showToast) window.showToast('🗑 已刪除參考圖片');
+        }
+      } else if (selectedEntityId) {
         saveUndoState();
         if (isGroup(selectedEntityId)) {
           promptRemoveGroup(selectedEntityId);
@@ -216,25 +263,15 @@
       }
     }
 
-    // Ctrl+C: Copy selected node/group
+    // Ctrl+C: Copy selected node/group or selected image
     if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInput) {
-      e.preventDefault();
-      if (selectedEntityId) {
+      if (window.__swfSelectedImage) {
+        e.preventDefault();
+        copyDataURLToClipboard(window.__swfSelectedImage.src);
+      } else if (selectedEntityId) {
+        e.preventDefault();
         window.__swfClipboard = { id: selectedEntityId, isGroup: isGroup(selectedEntityId) };
         if (window.showToast) window.showToast('📋 已複製');
-      }
-    }
-    // Ctrl+V: Paste copied node/group
-    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isInput) {
-      e.preventDefault();
-      if (window.__swfClipboard) {
-        saveUndoState();
-        if (window.__swfClipboard.isGroup) {
-          duplicateGroup(window.__swfClipboard.id);
-        } else {
-          const srcNode = nodes[window.__swfClipboard.id];
-          if (srcNode) duplicateNode(srcNode);
-        }
       }
     }
 
@@ -244,6 +281,81 @@
       executeAll();
     }
   });
+
+  window.addEventListener('paste', async (e) => {
+    const panel = document.getElementById('panel-simple-workflow');
+    if (!panel || !panel.classList.contains('active')) return;
+
+    const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
+    if (isInput) return;
+
+    const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+    let hasImage = false;
+
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          hasImage = true;
+          const file = item.getAsFile();
+          e.preventDefault();
+          try {
+            const dataUrl = await window.StudioUtils.fileToDataURL(file);
+            await handlePastedImage(dataUrl);
+          } catch (err) {
+            console.error('File to data URL failed:', err);
+          }
+          break;
+        }
+      }
+    }
+
+    if (!hasImage) {
+      if (window.__swfImageClipboard) {
+        e.preventDefault();
+        await handlePastedImage(window.__swfImageClipboard);
+      } else if (window.__swfClipboard) {
+        e.preventDefault();
+        saveUndoState();
+        if (window.__swfClipboard.isGroup) {
+          duplicateGroup(window.__swfClipboard.id);
+        } else {
+          const srcNode = nodes[window.__swfClipboard.id];
+          if (srcNode) duplicateNode(srcNode);
+        }
+      }
+    }
+  });
+
+  function getSimpleWorkflowViewportCenter() {
+    const rect = canvas.getBoundingClientRect();
+    const cx = (rect.width / 2 - panX) / zoomLevel - 160;
+    const cy = (rect.height / 2 - panY) / zoomLevel - 100;
+    return [Math.round(cx), Math.round(cy)];
+  }
+
+  async function handlePastedImage(dataUrl) {
+    if (selectedEntityId && !isGroup(selectedEntityId)) {
+      const node = nodes[selectedEntityId];
+      if (node && node.type === 'i2i') {
+        if (node.data.images.length >= 16) {
+          if (window.showToast) window.showToast('⚠️ 參考圖片已達 16 張上限');
+          return;
+        }
+        saveUndoState();
+        await addNodeImage(node, dataUrl);
+        if (window.showToast) window.showToast('✅ 已貼上圖片至所選節點');
+        return;
+      }
+    }
+
+    saveUndoState();
+    const [cx, cy] = getSimpleWorkflowViewportCenter();
+    const node = createMacroNode('i2i', cx, cy);
+    await addNodeImage(node, dataUrl);
+    selectEntity(node.id);
+    if (window.showToast) window.showToast('✅ 已貼上圖片並建立圖生圖節點');
+  }
 
   window.addEventListener('keyup', (e) => {
     if (e.code === 'Space') {
@@ -357,15 +469,12 @@
       </div>
       <div class="swf-group-header" style="background:${hexToRgba(gc, 0.15)};">
         <input class="swf-group-title" value="${gt}" spellcheck="false" style="flex:1;">
-        <select class="swf-group-folder" title="群組儲存路徑 (若無選項請先至資產庫載入目錄)" style="width: 120px; margin-right: 6px; font-size: 11px; padding: 2px 4px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 4px;">
-          <option value="">存至根目錄 (已完成)</option>
-        </select>
         <input type="color" class="swf-group-color-picker" value="${gc}" title="群組顏色">
         <div class="swf-group-actions">
-          <button class="swf-grp-sync-btn" title="統一內部節點參數">🔄</button>
-          <button class="swf-grp-dup-btn" title="複製群組">📋</button>
-          <button class="swf-grp-run-btn" title="同步執行群組">▶</button>
-          <button class="swf-grp-del-btn" title="刪除群組">✕</button>
+          <button class="swf-grp-sync-btn" title="統一內部節點參數"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg></button>
+          <button class="swf-grp-dup-btn" title="複製群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>
+          <button class="swf-grp-del-btn" title="刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
       </div>
       <div class="swf-group-resize"></div>
@@ -486,10 +595,7 @@
     // Collect all upstream images flowing into this group
     const upstreamImages = [];
     edges.filter(e => e.target === group.id).forEach(e => {
-      const src = getEntity(e.source);
-      if (src && src.resultImages && src.resultImages.length > 0) {
-        src.resultImages.forEach(img => upstreamImages.push(img));
-      }
+      getSourceOutputImages(e.source).forEach(img => upstreamImages.push(img));
     });
 
     // Filter out excluded images
@@ -713,7 +819,14 @@
     
     sel.value = model;
     container.innerHTML = buildParamsHTML(model, params);
-    
+
+    // Folder picker: mirror node-folder options, default to the first member's folder
+    const folderSel = document.getElementById('swfSyncFolderSel');
+    if (folderSel) {
+      const curFolder = source.el.querySelector('.swf-node-folder')?.value || '';
+      folderSel.innerHTML = buildNodeFolderOptionsHTML(curFolder);
+    }
+
     // Wire up inputs within the modal to keep track of changed params internally
     // We can just rely on the inputs being there, and scrape them when confirmed
     // But we need to make sure the selects work. The HTML structure from buildParamsHTML handles basic selects.
@@ -743,6 +856,9 @@
       if (field) newParams[field] = parseFloat(i.value);
     });
     
+    // Folder chosen in the modal — applied to every member node's save-folder.
+    const folder = document.getElementById('swfSyncFolderSel')?.value ?? '';
+
     // Apply to all members
     for (let i = 0; i < members.length; i++) {
       const n = members[i];
@@ -751,8 +867,10 @@
       n.el.querySelector('.swf-model-sel').value = model;
       n.el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(model, newParams);
       wireParamInputs(n);
+      const nf = n.el.querySelector('.swf-node-folder');
+      if (nf) nf.value = folder;
     }
-    
+
     if (window.showToast) window.showToast(`✅ 已將 ${members.length} 個節點統一為 ${MODEL_PARAMS[model]?.label || model}`);
     closeSyncModal();
   }
@@ -796,15 +914,15 @@
       <div class="swf-macro-header">
         <span>${headerTitle}</span>
         <div class="swf-macro-actions">
-          <button class="swf-collapse-btn" title="摺疊/展開">🔽</button>
-          <button class="swf-dup-btn" title="複製">📋</button>
-          <button class="swf-del-btn" title="刪除">&times;</button>
+          <button class="swf-collapse-btn" title="摺疊/展開"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <button class="swf-dup-btn" title="複製"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          <button class="swf-del-btn" title="刪除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
       </div>
       <div class="swf-macro-body">
         <div style="display:flex; gap: 8px; margin-bottom: 8px;">
           <div class="swf-model-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">模型</label><select class="swf-model-sel" style="width:100%; box-sizing:border-box;">${modelOptionsHTML}</select></div>
-          <div class="swf-folder-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">儲存資料夾</label><select class="swf-node-folder" title="選擇儲存資料夾" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 4px; font-size: 12px; height: 26px;"><option value="">預設 (繼承群組)</option></select></div>
+          <div class="swf-folder-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">儲存資料夾</label><select class="swf-node-folder" title="選擇儲存資料夾" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 4px; font-size: 12px; height: 26px;"><option value="">預設 (根目錄)</option></select></div>
         </div>
         <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
         ${isI2I ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
@@ -920,20 +1038,11 @@
     if (collapseBtn) {
       collapseBtn.addEventListener('click', () => {
         node.isCollapsed = !node.isCollapsed;
-        if (node.isCollapsed) {
-          el.classList.add('swf-collapsed');
-          collapseBtn.textContent = '▶';
-        } else {
-          el.classList.remove('swf-collapsed');
-          collapseBtn.textContent = '🔽';
-        }
-        // Save state immediately for auto-save, if auto-save hooks into these changes. 
-        // We will just call scheduleEdgeRender which is enough.
+        el.classList.toggle('swf-collapsed', node.isCollapsed);
         scheduleEdgeRender();
       });
       if (node.isCollapsed) {
         el.classList.add('swf-collapsed');
-        collapseBtn.textContent = '▶';
       }
     }
 
@@ -1075,6 +1184,41 @@
     return window.StudioUtils.blobUrlToDataURL(src);
   }
 
+  function convertToPngBlob(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((pngBlob) => {
+          if (pngBlob) resolve(pngBlob);
+          else reject(new Error('Canvas toBlob failed'));
+        }, 'image/png');
+      };
+      img.onerror = () => reject(new Error('Failed to load image for canvas conversion'));
+      img.src = dataUrl;
+    });
+  }
+
+  async function copyDataURLToClipboard(dataUrl) {
+    window.__swfImageClipboard = dataUrl;
+    try {
+      const pngBlob = await convertToPngBlob(dataUrl);
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [pngBlob.type]: pngBlob
+        })
+      ]);
+      if (window.showToast) window.showToast('📋 已複製圖片至剪貼簿');
+    } catch (err) {
+      console.warn('Failed to copy image to system clipboard:', err);
+      if (window.showToast) window.showToast('📋 已複製圖片 (僅限工作流內部貼上)');
+    }
+  }
+
   function wireParamInputs(node) {
     const area = node.el.querySelector('.swf-params-area'); if (!area) return;
     area.querySelectorAll('select[data-param]').forEach(inp => {
@@ -1121,6 +1265,9 @@
       node.data.images.forEach((src, idx) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'swf-img-thumb-wrapper';
+        if (window.__swfSelectedImage && window.__swfSelectedImage.nodeId === node.id && window.__swfSelectedImage.index === idx) {
+          wrapper.classList.add('swf-img-thumb-selected');
+        }
         wrapper.draggable = true;
         wrapper.dataset.imgIndex = idx;
 
@@ -1130,6 +1277,21 @@
         // Determine if this is an uploaded image or upstream image
         const isUploaded = node.data.uploadedImages.includes(src);
 
+        // Copy button
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'swf-img-thumb-copy';
+        copyBtn.title = '複製此圖片';
+        copyBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 10px; height: 10px;">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        `;
+        copyBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          copyDataURLToClipboard(src);
+        });
+
         // Delete button
         const delBtn = document.createElement('button');
         delBtn.className = 'swf-img-thumb-del';
@@ -1138,6 +1300,9 @@
         delBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           saveUndoState();
+          if (window.__swfSelectedImage && window.__swfSelectedImage.nodeId === node.id && window.__swfSelectedImage.index === idx) {
+            window.__swfSelectedImage = null;
+          }
           // Remove from main array
           node.data.images.splice(idx, 1);
           if (isUploaded) {
@@ -1164,7 +1329,19 @@
         }
 
         wrapper.appendChild(img);
+        wrapper.appendChild(copyBtn);
         wrapper.appendChild(delBtn);
+
+        // Selection click
+        wrapper.addEventListener('click', (e) => {
+          e.stopPropagation();
+          document.querySelectorAll('.swf-selected').forEach(el => el.classList.remove('swf-selected'));
+          selectedEntityId = null;
+
+          document.querySelectorAll('.swf-img-thumb-selected').forEach(el => el.classList.remove('swf-img-thumb-selected'));
+          wrapper.classList.add('swf-img-thumb-selected');
+          window.__swfSelectedImage = { nodeId: node.id, index: idx, src: src };
+        });
 
         // Drag events for reordering
         wrapper.addEventListener('dragstart', (e) => {
@@ -1251,6 +1428,9 @@
     if (activeOutPort && !e.target.classList.contains('swf-port') && !e.target.classList.contains('swf-group-port')) {
       activeOutPort.classList.remove('swf-port-active'); activeOutPort = null;
     }
+    // Clear reference image selection when clicking elsewhere on the canvas
+    document.querySelectorAll('.swf-img-thumb-selected').forEach(el => el.classList.remove('swf-img-thumb-selected'));
+    window.__swfSelectedImage = null;
   });
 
   function addEdge(source, target) {
@@ -1304,8 +1484,7 @@
 
       // Direct edges to this node (from outside group or standalone)
       edges.filter(e => e.target === nid).forEach(e => {
-        const src = getEntity(e.source);
-        if (src && src.resultImages && src.resultImages.length > 0) rawUpstream.push(...src.resultImages);
+        rawUpstream.push(...getSourceOutputImages(e.source));
       });
 
       // If it's an entry node inside a group, also grab the group's incoming images
@@ -1315,8 +1494,7 @@
         if (isEntry && g && g.receiveUpstream) {
           const groupUpstream = [];
           edges.filter(e => e.target === groupIdIfAny).forEach(e => {
-            const src = getEntity(e.source);
-            if (src && src.resultImages && src.resultImages.length > 0) groupUpstream.push(...src.resultImages);
+            groupUpstream.push(...getSourceOutputImages(e.source));
           });
           // Apply group-level exclusion
           const filtered = groupUpstream.filter(img => !g.excludedImages.includes(img));
@@ -1517,8 +1695,7 @@
       // Collect upstream images for standalone node execution
       let rawUpstream = [];
       edges.filter(e => e.target === node.id).forEach(e => {
-        const src = getEntity(e.source);
-        if (src && src.resultImages && src.resultImages.length > 0) rawUpstream.push(...src.resultImages);
+        rawUpstream.push(...getSourceOutputImages(e.source));
       });
       const activeUpstream = rawUpstream.filter(img => !node.data.excludedIncomingImages.includes(img));
       // Merge preserving order
@@ -1612,8 +1789,7 @@
     let groupIncomingImages = [];
     if (group.receiveUpstream) {
       edges.filter(e => e.target === groupId).forEach(e => {
-        const src = getEntity(e.source);
-        if (src && src.resultImages && src.resultImages.length > 0) groupIncomingImages.push(...src.resultImages);
+        groupIncomingImages.push(...getSourceOutputImages(e.source));
       });
       // Apply group-level exclusion
       groupIncomingImages = groupIncomingImages.filter(img => !group.excludedImages.includes(img));
@@ -1636,8 +1812,7 @@
         
         // 1. Direct external edges (Node outside -> Node inside)
         edges.filter(e => e.target === n.id && !memberIds.has(e.source)).forEach(e => {
-          const src = getEntity(e.source);
-          if (src && src.resultImages && src.resultImages.length > 0) rawUpstream.push(...src.resultImages);
+          rawUpstream.push(...getSourceOutputImages(e.source));
         });
 
         // 2. If it's an entry node, it also receives the group's filtered incoming images
@@ -1883,8 +2058,6 @@
             n.isCollapsed = !!nd.isCollapsed;
             if (n.isCollapsed) {
               n.el.classList.add('swf-collapsed');
-              const collapseBtn = n.el.querySelector('.swf-collapse-btn');
-              if (collapseBtn) collapseBtn.textContent = '▶';
             }
             const promptEl = n.el.querySelector('.swf-prompt-editor');
             if (promptEl && nd.promptHeight) promptEl.style.height = nd.promptHeight + 'px';
@@ -2357,28 +2530,21 @@
   // ═══════════════════════════════════════════
   // ── DYNAMIC FOLDER SELECTS ──
   // ═══════════════════════════════════════════
-  function updateSwfFolderSelects() {
-    if (!window.AssetManager || !window.AssetManager.getAllFolderPaths) return;
-    const paths = window.AssetManager.getAllFolderPaths();
-    
-    // Update Group Folders
-    document.querySelectorAll('.swf-group-folder').forEach(sel => {
-      const oldVal = sel.value;
-      let html = '<option value="">存至根目錄</option>';
-      paths.forEach(p => { html += `<option value="${p}">${p}</option>`; });
-      sel.innerHTML = html;
-      if (Array.from(sel.options).some(o => o.value === oldVal)) sel.value = oldVal;
-    });
+  // <option> HTML for a node save-folder selector (also used by the unified-params
+  // modal folder picker). Group-level folder was removed; folder is now set per node
+  // via the 統一群組參數 modal, so the default ("") resolves to the root directory.
+  function buildNodeFolderOptionsHTML(selected) {
+    const paths = (window.AssetManager && window.AssetManager.getAllFolderPaths) ? window.AssetManager.getAllFolderPaths() : [];
+    const opts = [{ v: '', l: '預設 (根目錄)' }, { v: '根目錄', l: '存至根目錄' }, ...paths.map(p => ({ v: p, l: p }))];
+    return opts.map(o => `<option value="${o.v}" ${o.v === (selected || '') ? 'selected' : ''}>${o.l}</option>`).join('');
+  }
 
-    // Update Node Folders
+  function updateSwfFolderSelects() {
     document.querySelectorAll('.swf-node-folder').forEach(sel => {
-      const oldVal = sel.value;
-      let html = '<option value="">預設 (繼承群組)</option>';
-      html += '<option value="根目錄">存至根目錄</option>';
-      paths.forEach(p => { html += `<option value="${p}">${p}</option>`; });
-      sel.innerHTML = html;
-      if (Array.from(sel.options).some(o => o.value === oldVal)) sel.value = oldVal;
+      sel.innerHTML = buildNodeFolderOptionsHTML(sel.value);
     });
+    const syncFolderSel = document.getElementById('swfSyncFolderSel');
+    if (syncFolderSel) syncFolderSel.innerHTML = buildNodeFolderOptionsHTML(syncFolderSel.value);
   }
   
   window.addEventListener('assets-tree-updated', updateSwfFolderSelects);

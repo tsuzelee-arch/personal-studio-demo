@@ -424,6 +424,7 @@ window.AssetManager = (function() {
           <img alt="${a.name}" loading="lazy">
           <div class="v2-asset-actions">
             <button class="v2-btn-icon" title="複製標籤" data-action="copy" data-path="${a.path}" data-name="${a.name}">📋</button>
+            <button class="v2-btn-icon danger" title="刪除檔案" data-action="delete" data-path="${a.path}" data-name="${a.name}">🗑️</button>
           </div>
         </div>
         <div class="v2-asset-info">
@@ -462,6 +463,11 @@ window.AssetManager = (function() {
           navigator.clipboard.writeText(`[@${btn.dataset.name}:${path}]`).then(() => {
             if (window.showToast) window.showToast('✅ 相對路徑標籤已複製');
           });
+        } else if (btn.dataset.action === 'delete') {
+          const name = btn.dataset.name;
+          if (confirm(`確定刪除「${name}」？此動作會從本機資料夾永久刪除該檔案，無法復原。`)) {
+            await deleteAsset(btn.dataset.path);
+          }
         }
       });
     });
@@ -613,6 +619,32 @@ window.AssetManager = (function() {
     }
   }
 
+  // Permanently delete an image from the linked workspace folder. The workspace
+  // handle is opened with mode:'readwrite', so removeEntry is already permitted.
+  async function deleteAsset(path) {
+    if (!workspaceHandle || !permissionGranted) {
+      if (window.showToast) window.showToast('❌ 無法刪除：未連結本機目錄或未授權', 2000);
+      return false;
+    }
+    const parts = path.split('/');
+    if (parts[0] === '根目錄') parts.shift();
+    const fileName = parts[parts.length - 1];
+    try {
+      let dir = workspaceHandle;
+      for (let i = 0; i < parts.length - 1; i++) {
+        dir = await dir.getDirectoryHandle(parts[i]);
+      }
+      await dir.removeEntry(fileName);
+      await smartRefresh(); // rescan → file drops out of both grids + sidebar counts
+      if (window.showToast) window.showToast('🗑️ 已刪除 ' + fileName, 2000);
+      return true;
+    } catch (e) {
+      console.error('Failed to delete asset:', e);
+      if (window.showToast) window.showToast('❌ 刪除失敗: ' + e.message, 3000);
+      return false;
+    }
+  }
+
   // Public API
   return {
     initDB,
@@ -622,7 +654,8 @@ window.AssetManager = (function() {
     isConnected: () => !!workspaceHandle && permissionGranted,
     getFileBlobUrlByPath: getFileBlobUrl,
     getAllFolderPaths,
-    saveAsset
+    saveAsset,
+    deleteAsset
   };
 
 })();

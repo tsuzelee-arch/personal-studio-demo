@@ -161,31 +161,24 @@
 }
 /* ── IDE Agent Floating UI ── */
 .global-ide-agent-btn {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--accent, #1783FF);
-  color: #fff;
+  background: none;
   border: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  font-size: 24px;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  z-index: 9999;
-  transition: transform 0.2s, box-shadow 0.2s;
 }
 .global-ide-agent-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+  background: var(--border);
 }
 .global-ide-agent-panel {
   position: fixed;
-  bottom: 96px;
+  top: 96px;
   right: 24px;
   width: 360px;
   height: 500px;

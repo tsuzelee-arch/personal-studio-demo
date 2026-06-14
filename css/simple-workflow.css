@@ -444,11 +444,30 @@
   color: var(--text);
   cursor: pointer;
   font-size: 12px;
-  padding: 3px 8px;
+  padding: 0;
+  width: 22px; height: 22px;
   border-radius: 4px;
   transition: background 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.swf-group-actions button svg {
+  width: 13px; height: 13px;
+  flex-shrink: 0;
 }
 .swf-group-actions button:hover { background: rgba(0,0,0,0.25); }
+
+/* Prominent "同步執行" (synchronized group run) button */
+.swf-grp-run-btn {
+  background: var(--accent, #1783FF) !important;
+  color: #fff !important;
+  font-weight: 600;
+  padding: 0 10px !important;
+  width: auto !important;
+  gap: 5px;
+  font-size: 12px !important;
+}
+.swf-grp-run-btn:hover { background: var(--accent, #1783FF) !important; filter: brightness(1.12); }
 
 /* Group Ports (larger than node ports) */
 .swf-group-port {
@@ -617,11 +636,22 @@
 }
 .swf-macro-header .swf-macro-actions button {
   background: none; border: none; cursor: pointer;
-  padding: 2px 4px; border-radius: 4px;
-  color: inherit; opacity: 0.7; font-size: 14px;
-  line-height: 1;
+  padding: 0; border-radius: 4px;
+  color: inherit; opacity: 0.65;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
-.swf-macro-actions button:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+.swf-macro-header .swf-macro-actions button svg {
+  width: 13px; height: 13px;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.swf-macro-actions button:hover { opacity: 1; background: rgba(255,255,255,0.12); }
+/* Chevron rotates when node is collapsed */
+.swf-macro.swf-collapsed .swf-collapse-btn svg {
+  transform: rotate(-90deg);
+}
 
 /* Macro Body */
 .swf-macro-body {
@@ -791,6 +821,34 @@
   padding: 0;
 }
 .swf-img-thumb-wrapper:hover .swf-img-thumb-del { opacity: 1; }
+
+.swf-img-thumb-copy {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent, #1783FF);
+  color: #fff;
+  font-size: 8px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 3;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.swf-img-thumb-wrapper:hover .swf-img-thumb-copy { opacity: 1; }
+
+.swf-img-thumb-wrapper.swf-img-thumb-selected {
+  outline: 2px solid var(--accent, #1783FF);
+  outline-offset: 1px;
+  box-shadow: 0 0 8px rgba(23, 131, 255, 0.5);
+}
 
 .swf-img-upstream-badge {
   position: absolute;
