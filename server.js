@@ -87,7 +87,7 @@ app.get('*', (_req, res) => {
 
 app.listen(PORT, HOST, () => {
   console.log('');
-  console.log('  Personal Studio — Backend Server');
+  console.log('  客制化 Studio — Backend Server');
   console.log(`  Express : http://localhost:${PORT}  (bound to ${HOST})`);
   console.log(`  n8n UI  : http://localhost:${N8N}`);
   console.log(`  Health  : http://localhost:${PORT}/health`);

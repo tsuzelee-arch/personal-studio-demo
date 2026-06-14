@@ -1,4 +1,4 @@
-﻿/* ── Assets Panel Layout ── */
+/* ── Assets Panel Layout ── */
 .assets-body {
   display: flex;
   gap: 16px;
@@ -839,48 +839,6 @@
   cursor: not-allowed;
 }
 
-/* =========================================================================
-   23. Global Floating IDE Agent
-   ========================================================================= */
-.global-ide-agent-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 20px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  line-height: 1;
-  transition: background 0.15s;
-}
-
-.global-ide-agent-btn:hover {
-  background: var(--border);
-}
-
-.global-ide-agent-panel {
-  position: fixed;
-  top: 52px;
-  right: 16px;
-  width: 380px;
-  height: 500px;
-  max-height: calc(100vh - 120px);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: opacity 0.2s, transform 0.2s;
-  transform-origin: bottom right;
-}
-
-.global-ide-agent-panel.hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: scale(0.95);
-}
 
 .agent-close-btn {
   background: none;

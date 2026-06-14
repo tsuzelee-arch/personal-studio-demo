@@ -636,13 +636,6 @@
       }
     }
 
-    // Provide invisible G6 ports so edges route perfectly to the bounding box edges
-    function getPorts(type) {
-      return [
-        { key: 'in', placement: 'left' },
-        { key: 'out', placement: 'right' }
-      ];
-    }
 
     function getNodeSize(type) {
       switch(type) {

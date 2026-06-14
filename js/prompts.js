@@ -87,10 +87,6 @@
     return 'cat-custom';
   }
 
-  function isCustomCategory(cat) {
-    return loadCustomCategories().includes(cat);
-  }
-
   function isPinned(cat) {
     return cat === '全部' || PINNED_CATEGORIES.includes(cat);
   }
@@ -205,7 +201,10 @@
       // Drag handle for non-pinned
       const dragHandle = isPinned(cat) ? '' : '<span class="cat-drag-handle">⠿</span>';
 
-      item.innerHTML = `${dragHandle}<span class="cat-label">${escHtml(cat)}</span><span class="cat-count">${count}</span>`;
+      // Delete button for non-pinned
+      const deleteBtn = isPinned(cat) ? '' : '<span class="cat-delete-btn" title="刪除分類">✕</span>';
+
+      item.innerHTML = `${dragHandle}<span class="cat-label">${escHtml(cat)}</span><span class="cat-count">${count}</span>${deleteBtn}`;
 
       // Click to filter
       item.addEventListener('click', () => {
@@ -213,6 +212,17 @@
         renderSidebar();
         renderPromptRows();
       });
+
+      // Delete event listener
+      if (!isPinned(cat)) {
+        const delEl = item.querySelector('.cat-delete-btn');
+        if (delEl) {
+          delEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteCategory(cat);
+          });
+        }
+      }
 
       // Drag & drop for reordering (non-pinned only)
       if (!isPinned(cat)) {

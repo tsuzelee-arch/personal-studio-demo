@@ -345,6 +345,22 @@
   min-width: 20px;
   text-align: center;
 }
+.cat-sidebar-item .cat-delete-btn {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s, color .15s;
+  padding: 2px 4px;
+}
+.cat-sidebar-item:hover .cat-delete-btn {
+  opacity: 0.6;
+}
+.cat-sidebar-item .cat-delete-btn:hover {
+  opacity: 1;
+  color: var(--danger, #ff4d4d);
+}
 .cat-sidebar-item.dragging {
   opacity: 0.4;
 }
