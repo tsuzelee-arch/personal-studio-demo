@@ -437,17 +437,18 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  gap: 2px;
 }
 .swf-group-actions button {
-  background: rgba(0,0,0,0.15);
-  border: none;
-  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--node-header-text, #333);
   cursor: pointer;
   font-size: 12px;
   padding: 0;
   width: 22px; height: 22px;
   border-radius: 4px;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
@@ -455,19 +456,23 @@
   width: 13px; height: 13px;
   flex-shrink: 0;
 }
-.swf-group-actions button:hover { background: rgba(0,0,0,0.25); }
+.swf-group-actions button:hover {
+  background: var(--border);
+  border-color: var(--border);
+}
 
 /* Prominent "同步執行" (synchronized group run) button */
 .swf-grp-run-btn {
-  background: var(--accent, #1783FF) !important;
-  color: #fff !important;
+  background: var(--warm) !important;
+  color: var(--ink) !important;
   font-weight: 600;
   padding: 0 10px !important;
   width: auto !important;
   gap: 5px;
   font-size: 12px !important;
+  border: none !important;
 }
-.swf-grp-run-btn:hover { background: var(--accent, #1783FF) !important; filter: brightness(1.12); }
+.swf-grp-run-btn:hover { background: var(--warm-dark) !important; filter: none; }
 
 /* Group Ports (larger than node ports) */
 .swf-group-port {
@@ -635,19 +640,27 @@
   align-items: center;
 }
 .swf-macro-header .swf-macro-actions button {
-  background: none; border: none; cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
   padding: 0; border-radius: 4px;
-  color: inherit; opacity: 0.65;
+  color: var(--node-header-text, #333);
+  opacity: 0.7;
   width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s;
 }
 .swf-macro-header .swf-macro-actions button svg {
   width: 13px; height: 13px;
   flex-shrink: 0;
   transition: transform 0.2s;
 }
-.swf-macro-actions button:hover { opacity: 1; background: rgba(255,255,255,0.12); }
+.swf-macro-actions button:hover {
+  opacity: 1;
+  background: var(--border);
+  border-color: var(--border);
+}
 /* Chevron rotates when node is collapsed */
 .swf-macro.swf-collapsed .swf-collapse-btn svg {
   transform: rotate(-90deg);
@@ -984,14 +997,14 @@
   padding: 7px;
   border: none;
   border-radius: 6px;
-  background: linear-gradient(135deg, #1783FF, #4ade80);
-  color: #fff;
+  background: var(--warm);
+  color: var(--ink);
   font-weight: 600;
   font-size: 12px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: background 0.2s;
 }
-.swf-run-btn:hover { opacity: 0.9; }
+.swf-run-btn:hover { background: var(--warm-dark); }
 .swf-run-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -1060,12 +1073,12 @@
 /* ═══════════════════════════════════════════
    ── GROUP SIDEBAR (Phase 3) ──
    ═══════════════════════════════════════════ */
-.swf-group-sidebar-toggle {
+.swf-group-sidebar-toggle,
+.swf-left-tab-btn {
   position: absolute;
   left: -28px;
-  top: 40px;
   width: 24px;
-  height: 32px;
+  height: 28px;
   border: 1px solid var(--dyn-grp-color, #00c8b4);
   border-right: none;
   border-radius: 6px 0 0 6px;
@@ -1080,7 +1093,14 @@
   z-index: 3;
   padding: 0;
 }
-.swf-group-sidebar-toggle:hover {
+.swf-group-sidebar-toggle { top: 40px; }
+.swf-grp-sync-btn.swf-left-tab-btn { top: 72px; }
+.swf-grp-dup-btn.swf-left-tab-btn  { top: 104px; }
+.swf-group-sidebar-toggle svg,
+.swf-left-tab-btn svg { width: 14px; height: 14px; }
+
+.swf-group-sidebar-toggle:hover,
+.swf-left-tab-btn:hover {
   background: var(--dyn-grp-color, #00c8b4);
   color: #fff;
 }
@@ -1198,7 +1218,8 @@
 .swf-gs-img-wrapper:hover .swf-gs-img-del { opacity: 1; }
 
 /* Dark mode sidebar */
-[data-theme="dark"] .swf-group-sidebar-toggle {
+[data-theme="dark"] .swf-group-sidebar-toggle,
+[data-theme="dark"] .swf-left-tab-btn {
   background: var(--surface, #1e1e2e);
 }
 [data-theme="dark"] .swf-group-sidebar {

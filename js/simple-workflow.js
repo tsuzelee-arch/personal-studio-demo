@@ -452,7 +452,9 @@
     el.innerHTML = `
       <div class="swf-group-port swf-group-port-in" data-port="in" data-node="${id}" title="群組接收端"></div>
       <div class="swf-group-port swf-group-port-out" data-port="out" data-node="${id}" title="群組輸出端"></div>
-      <button class="swf-group-sidebar-toggle" title="上游圖片管理">📁</button>
+      <button class="swf-group-sidebar-toggle" title="上游圖片管理"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+      <button class="swf-grp-sync-btn swf-left-tab-btn" title="統一內部節點參數"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2"/></svg></button>
+      <button class="swf-grp-dup-btn swf-left-tab-btn" title="複製群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
       <div class="swf-group-sidebar">
         <div class="swf-gs-header">
           <span>📁 上游圖片</span>
@@ -471,8 +473,6 @@
         <input class="swf-group-title" value="${gt}" spellcheck="false" style="flex:1;">
         <input type="color" class="swf-group-color-picker" value="${gc}" title="群組顏色">
         <div class="swf-group-actions">
-          <button class="swf-grp-sync-btn" title="統一內部節點參數"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg></button>
-          <button class="swf-grp-dup-btn" title="複製群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
           <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>
           <button class="swf-grp-del-btn" title="刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
@@ -760,7 +760,7 @@
   function duplicateGroup(groupId) {
     const g = groups[groupId]; if (!g) return;
     const members = getGroupMembers(groupId);
-    const offsetX = 60, offsetY = 60;
+    const offsetX = g.width + 40, offsetY = 0;
 
     // Create new group
     const newGroup = createGroup(g.x + offsetX, g.y + offsetY, g.width, g.height, g.color, g.title + ' (複本)');
@@ -1160,7 +1160,18 @@
         }
       } else if (promptText) {
         e.preventDefault(); promptEditor.focus();
-        document.execCommand('insertText', false, promptText);
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(document.createTextNode(promptText));
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else {
+          promptEditor.textContent += promptText;
+        }
+        promptEditor.dispatchEvent(new Event('input'));
       }
     });
 
@@ -1882,14 +1893,6 @@
 
   /** Execute all: topological sort across all entities */
   async function executeAll() {
-    if (false) {
-      // old directory permission check removed
-      if (!ok) {
-        if (window.showToast) window.showToast('❌ 本機資料夾權限遭拒，無法執行');
-        return;
-      }
-    }
-
     const runAllBtn = document.getElementById('swfRunAll');
     runAllBtn.disabled = true; runAllBtn.textContent = '執行中...';
 
