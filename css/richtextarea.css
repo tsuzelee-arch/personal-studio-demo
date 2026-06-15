@@ -44,6 +44,20 @@
   margin-right: 4px;
   object-fit: cover;
 }
+/* Never show a full filename: truncate long names to a short ellipsised label
+   so a UUID asset name can't wrap onto multiple lines. */
+.editor-img-tag .tag-name {
+  display: inline-block;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+/* Thumbnail-only chip (no name span): drop the trailing image margin. */
+.editor-img-tag img:last-child {
+  margin-right: 0;
+}
 
 [data-theme="dark"] .rich-editor[data-placeholder][data-empty="true"]::before,
 [data-theme="dark"] .rich-editor[data-placeholder]:not([data-empty]):empty::before {

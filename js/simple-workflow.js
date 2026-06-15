@@ -1320,7 +1320,9 @@
     const tagSpan = document.createElement('span');
     tagSpan.className = 'editor-img-tag';
     tagSpan.contentEditable = 'false';
-    tagSpan.innerHTML = `<img src="${dataUrl}" class="inline-prompt-thumb" alt="${assetName || 'img'}"><span class="tag-name">${assetName || 'img'}</span>`;
+    // Show the thumbnail only — the underlying filename is a meaningless UUID, so
+    // it's kept in alt (for accessibility/extraction) but never displayed as text.
+    tagSpan.innerHTML = `<img src="${dataUrl}" class="inline-prompt-thumb" alt="${assetName || 'img'}">`;
     const sel = window.getSelection();
     let range = null;
     if (sel && sel.rangeCount > 0 && promptEditor.contains(sel.anchorNode)) {
