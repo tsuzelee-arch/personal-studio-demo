@@ -13,8 +13,6 @@ n8n-data/
 implementation_plan_workflow.md
 implementation-plan-*.md
 
-# Scripts
-*.bat
 
 # Local config with absolute paths — machine-specific, must not be committed
 server-config.json
