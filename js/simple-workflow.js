@@ -1642,63 +1642,68 @@
   }
 
   /** Visually propagate all images downwards to instantly update node thumbnails when edges change */
-  function propagateVisualImages() {
-    // Determine group relationships
-    const groupMemberSets = {};
-    for (const gid in groups) { groupMemberSets[gid] = new Set(getGroupMembers(gid).map(m => m.id)); }
+  // Compute a node's active upstream reference images, accounting for group
+  // membership. An entry node of a group also receives the group's incoming
+  // images (per the group's upstream mode) — these arrive via the group's port,
+  // not a direct edge to the node, so callers that only inspect direct edges miss
+  // them. Node-level exclusions are applied. Returns an ordered list (caller
+  // de-dupes via Set merge). Shared by propagateVisualImages and executeSingleNode
+  // so a standalone re-run of a group member keeps the same upstream references.
+  function collectNodeUpstreamImages(node) {
+    const nid = node.id;
+    let groupId = null;
+    for (const gid in groups) {
+      if (getGroupMembers(gid).some(m => m.id === nid)) { groupId = gid; break; }
+    }
+    const memberIds = groupId ? new Set(getGroupMembers(groupId).map(m => m.id)) : new Set();
 
-    for (const nid in nodes) {
-      const n = nodes[nid];
+    const rawUpstream = [];
+    // Direct edges to this node (external sources and internal member edges).
+    edges.filter(e => e.target === nid).forEach(e => {
+      rawUpstream.push(...getSourceOutputImages(e.source));
+    });
 
-      let groupIdIfAny = null;
-      for (const gid in groupMemberSets) {
-        if (groupMemberSets[gid].has(nid)) { groupIdIfAny = gid; break; }
-      }
-      
-      const memberIds = groupIdIfAny ? groupMemberSets[groupIdIfAny] : new Set();
-      
-      // Collect raw upstream images for this node
-      let rawUpstream = [];
-
-      // Direct edges to this node (from outside group or standalone)
-      edges.filter(e => e.target === nid).forEach(e => {
-        rawUpstream.push(...getSourceOutputImages(e.source));
-      });
-
-      // If it's an entry node inside a group, also grab the group's incoming images
-      if (groupIdIfAny) {
-        const g = groups[groupIdIfAny];
-        const isEntry = !edges.some(e => e.target === nid && memberIds.has(e.source));
-        if (isEntry && g && g.receiveUpstream) {
-          if (g.upstreamMode === 'ordered') {
-            const entryNodes = getGroupEntryNodes(groupIdIfAny);
-            const nodeIndex = entryNodes.findIndex(m => m.id === nid);
-            edges.filter(e => e.target === groupIdIfAny).forEach(srcEdge => {
-              if (isGroup(srcEdge.source)) {
-                const exitNodes = getGroupExitNodes(srcEdge.source);
-                if (nodeIndex >= 0 && nodeIndex < exitNodes.length) {
-                  (exitNodes[nodeIndex].resultImages || [])
-                    .filter(img => !g.excludedImages.includes(img))
-                    .forEach(img => rawUpstream.push(img));
-                }
-              } else if (nodeIndex === 0) {
-                getSourceOutputImages(srcEdge.source)
+    // Entry node of a group also receives the group's incoming images.
+    if (groupId) {
+      const g = groups[groupId];
+      const isEntry = !edges.some(e => e.target === nid && memberIds.has(e.source));
+      if (isEntry && g && g.receiveUpstream) {
+        if (g.upstreamMode === 'ordered') {
+          const entryNodes = getGroupEntryNodes(groupId);
+          const nodeIndex = entryNodes.findIndex(m => m.id === nid);
+          edges.filter(e => e.target === groupId).forEach(srcEdge => {
+            if (isGroup(srcEdge.source)) {
+              const exitNodes = getGroupExitNodes(srcEdge.source);
+              if (nodeIndex >= 0 && nodeIndex < exitNodes.length) {
+                (exitNodes[nodeIndex].resultImages || [])
                   .filter(img => !g.excludedImages.includes(img))
                   .forEach(img => rawUpstream.push(img));
               }
-            });
-          } else {
-            const groupUpstream = [];
-            edges.filter(e => e.target === groupIdIfAny).forEach(e => {
-              groupUpstream.push(...getSourceOutputImages(e.source));
-            });
-            groupUpstream.filter(img => !g.excludedImages.includes(img)).forEach(img => rawUpstream.push(img));
-          }
+            } else if (nodeIndex === 0) {
+              getSourceOutputImages(srcEdge.source)
+                .filter(img => !g.excludedImages.includes(img))
+                .forEach(img => rawUpstream.push(img));
+            }
+          });
+        } else {
+          edges.filter(e => e.target === groupId).forEach(e => {
+            getSourceOutputImages(e.source)
+              .filter(img => !g.excludedImages.includes(img))
+              .forEach(img => rawUpstream.push(img));
+          });
         }
       }
+    }
 
-      // Apply node-level exclusion
-      const activeUpstream = rawUpstream.filter(img => !n.data.excludedIncomingImages.includes(img));
+    return rawUpstream.filter(img => !node.data.excludedIncomingImages.includes(img));
+  }
+
+  function propagateVisualImages() {
+    for (const nid in nodes) {
+      const n = nodes[nid];
+
+      // Group-aware upstream collection (entry nodes also receive group images).
+      const activeUpstream = collectNodeUpstreamImages(n);
 
       // Merge into unified images array while preserving user order:
       // 1. Keep existing items in images that are still valid (uploaded or active upstream)
@@ -1885,14 +1890,11 @@
     let secs = 0;
     const timer = setInterval(() => { secs++; placeholder.textContent = `Generating... (${secs}s)`; }, 1000);
 
-    // Propagate upstream images (skip if called from group execution where images are pre-set)
+    // Propagate upstream images (skip if called from group execution where images are pre-set).
+    // Uses the group-aware collector so a standalone re-run of a group member keeps the
+    // images distributed via the group's input port (previously these were dropped).
     if (!skipImageReset) {
-      // Collect upstream images for standalone node execution
-      let rawUpstream = [];
-      edges.filter(e => e.target === node.id).forEach(e => {
-        rawUpstream.push(...getSourceOutputImages(e.source));
-      });
-      const activeUpstream = rawUpstream.filter(img => !node.data.excludedIncomingImages.includes(img));
+      const activeUpstream = collectNodeUpstreamImages(node);
       // Merge preserving order
       const validSet = new Set([...node.data.uploadedImages, ...activeUpstream]);
       const preserved = node.data.images.filter(img => validSet.has(img));
