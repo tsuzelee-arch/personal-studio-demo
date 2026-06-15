@@ -445,6 +445,7 @@ ${JSON.stringify(analysis)}`;
     const {
       aspectRatio = '1:1',
       imageSize = '',
+      temperature = null,
       thinkingLevel = 'none',
       googleSearch = false,
     } = options;
@@ -454,10 +455,11 @@ ${JSON.stringify(analysis)}`;
     const _imgCfgPro = { aspectRatio };
     if (imageSize) _imgCfgPro.imageSize = imageSize;
 
-    const generationConfig = { 
+    const generationConfig = {
       imageConfig: _imgCfgPro,
       responseModalities: googleSearch ? ['TEXT', 'IMAGE'] : ['IMAGE']
     };
+    if (temperature != null) generationConfig.temperature = temperature;
     if (thinkingLevel !== 'none') {
       const _apiThinkingLevel = thinkingLevel === 'low' ? 'minimal' : thinkingLevel;
       generationConfig.thinkingConfig = { thinkingLevel: _apiThinkingLevel };

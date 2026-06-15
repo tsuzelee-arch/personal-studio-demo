@@ -369,17 +369,19 @@
     nanobanana2: {
       label: 'Nano Banana 2',
       params: [
-        { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','4:5','5:4','21:9'], default: '1:1' },
+        { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','21:9','1:4','4:1','1:8','8:1'], default: '1:1' },
         { key: 'imageSize', label: 'Image Size', type: 'select', options: [{ v: '', l: 'Default' }, { v: '512', l: '512px' }, { v: '1K', l: '1K' }, { v: '2K', l: '2K' }, { v: '4K', l: '4K' }], default: '' },
         { key: 'temperature', label: 'Temperature', type: 'range', min: 0, max: 2, step: 0.05, default: 0.4 },
+        { key: 'thinkingLevel', label: 'Thinking (思考)', type: 'select', options: [{ v: 'none', l: 'None' }, { v: 'minimal', l: 'Minimal' }, { v: 'high', l: 'High' }], default: 'none' },
       ]
     },
     nanobanana: {
       label: 'Nano Banana Pro',
       params: [
-        { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','4:5','5:4','21:9'], default: '1:1' },
+        { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','21:9','1:4','4:1','1:8','8:1'], default: '1:1' },
         { key: 'imageSize', label: 'Image Size', type: 'select', options: [{ v: '', l: 'Default' }, { v: '512', l: '512px' }, { v: '1K', l: '1K' }, { v: '2K', l: '2K' }, { v: '4K', l: '4K' }], default: '' },
         { key: 'temperature', label: 'Temperature', type: 'range', min: 0, max: 2, step: 0.05, default: 0.4 },
+        { key: 'thinkingLevel', label: 'Thinking (思考)', type: 'select', options: [{ v: 'none', l: 'None' }, { v: 'minimal', l: 'Minimal' }, { v: 'high', l: 'High' }], default: 'none' },
       ]
     },
     gptimage: {
@@ -1921,10 +1923,12 @@
       } else if (model === 'nanobanana2') {
         imageUrl = await window.AIService.generateWithNanoBanana2(text, apiKey, allRefs.length > 0 ? allRefs : null, null, {
           aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
+          thinkingLevel: params.thinkingLevel || 'none',
         });
       } else {
         imageUrl = await window.AIService.generateWithNanoBanana(text, apiKey, {
           aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
+          thinkingLevel: params.thinkingLevel || 'none',
         });
       }
 
