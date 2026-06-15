@@ -564,7 +564,12 @@ ${JSON.stringify(analysis)}`;
   }
 
   async function generateWithGPTImage(prompt, apiKey, size="1024x1024", baseImage=null, options={}) {
-    const isEdit = !!baseImage;
+    // baseImage may be a single dataURL string or an array of dataURLs (multiple
+    // reference images). Normalize to an array so all references are sent.
+    const refImages = Array.isArray(baseImage)
+      ? baseImage.filter(Boolean)
+      : (baseImage ? [baseImage] : []);
+    const isEdit = refImages.length > 0;
     const url = isEdit ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations';
     
     let body;
@@ -588,11 +593,13 @@ ${JSON.stringify(analysis)}`;
       formData.append('output_compression', '80');
       formData.append('moderation', 'auto');
 
-      // Convert dataURL to Blob asynchronously (avoids main-thread blocking)
-      const blobRes = await fetch(baseImage);
-      const blob = await blobRes.blob();
-
-      formData.append('image', blob, 'ref_0.png');
+      // Convert each dataURL to Blob and append as image[] so gpt-image-2 edits
+      // receives every reference image (not just the first).
+      for (let i = 0; i < refImages.length; i++) {
+        const blobRes = await fetch(refImages[i]);
+        const blob = await blobRes.blob();
+        formData.append('image[]', blob, `ref_${i}.png`);
+      }
       body = formData;
     } else {
       headers['Content-Type'] = 'application/json';

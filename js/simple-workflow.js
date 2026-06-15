@@ -1237,31 +1237,45 @@
       window.RichTextService.enhance(promptEditor);
     }
     promptEditor.addEventListener('dragover', (e) => {
-      if (e.dataTransfer.types.includes('text/swf-image-src') || e.dataTransfer.types.includes('text/swf-prompt')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }
+      const t = e.dataTransfer.types;
+      // Accept our custom image/prompt drags AND native image drags (files / URLs)
+      // so the drop fires and we can convert them to a clean inline thumbnail
+      // instead of letting the browser dump a base64 dataURL as plain text.
+      if (t.includes('text/swf-image-src') || t.includes('text/swf-prompt') ||
+          t.includes('Files') || t.includes('text/uri-list')) {
+        e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+      }
     });
     promptEditor.addEventListener('drop', (e) => {
       const imgSrc = e.dataTransfer.getData('text/swf-image-src');
       const promptText = e.dataTransfer.getData('text/swf-prompt');
       if (imgSrc) {
         e.preventDefault(); promptEditor.focus();
-        const sel = window.getSelection();
-        if (sel.rangeCount > 0) {
-          const range = sel.getRangeAt(0); range.collapse(false);
-          const assetName = imgSrc.split('/').pop().split('.')[0] || 'img';
-          // 轉成 dataURL（並壓縮）後再插入，避免 blob: URL 被 Asset Manager 重繪 revoke 而破圖，
-          // 同時壓縮以免內嵌圖撐爆 promptHTML 的 localStorage 配額
-          blobUrlToDataUrl(imgSrc).then(compressForStore).then(dataUrl => {
-            const tagSpan = document.createElement('span');
-            tagSpan.className = 'editor-img-tag';
-            tagSpan.contentEditable = 'false';
-            tagSpan.innerHTML = `<img src="${dataUrl}" class="inline-prompt-thumb" alt="${assetName}"><span class="tag-name">${assetName}</span>`;
-            range.insertNode(tagSpan); range.setStartAfter(tagSpan); range.collapse(true);
-            sel.removeAllRanges(); sel.addRange(range);
-            // Range 插入不會觸發 input 事件，手動更新 placeholder 狀態
-            if (window.RichTextService) window.RichTextService.updatePlaceholder(promptEditor);
-          });
+        // 轉成 dataURL（並壓縮）後再插入，避免 blob: URL 被 Asset Manager 重繪 revoke 而破圖，
+        // 同時壓縮以免內嵌圖撐爆 promptHTML 的 localStorage 配額
+        blobUrlToDataUrl(imgSrc).then(compressForStore).then(dataUrl => {
+          insertImageThumbIntoPrompt(promptEditor, dataUrl, imgSrc.split('/').pop().split('.')[0] || 'img');
+        });
+      } else if (e.dataTransfer.files && e.dataTransfer.files.length &&
+                 Array.from(e.dataTransfer.files).some(f => f.type.startsWith('image/'))) {
+        // Native OS image file drop
+        e.preventDefault(); promptEditor.focus();
+        const file = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'));
+        window.StudioUtils.fileToDataURL(file).then(compressForStore).then(dataUrl => {
+          insertImageThumbIntoPrompt(promptEditor, dataUrl, file.name.split('.')[0] || 'img');
+        }).catch(() => {});
+      } else if (!promptText) {
+        // Native image-element drag (e.g. another app) exposes a URL — capture it
+        // and block the default base64-text insertion.
+        const uri = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+        if (uri && /^(data:image\/|https?:|blob:)/.test(uri.trim())) {
+          e.preventDefault(); promptEditor.focus();
+          blobUrlToDataUrl(uri.trim()).then(compressForStore).then(dataUrl => {
+            insertImageThumbIntoPrompt(promptEditor, dataUrl, 'img');
+          }).catch(() => {});
         }
-      } else if (promptText) {
+      }
+      if (promptText) {
         e.preventDefault(); promptEditor.focus();
         const sel = window.getSelection();
         if (sel && sel.rangeCount) {
@@ -1284,10 +1298,39 @@
       const a = document.createElement('a'); a.href = img.src; a.download = 'swf_' + Date.now() + '.png';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
     });
-    el.querySelector('.swf-preview-img').addEventListener('click', function () {
+    const previewImg = el.querySelector('.swf-preview-img');
+    previewImg.addEventListener('click', function () {
       if (this.src && window.AssetManager?.openLightBox) window.AssetManager.openLightBox(this.src, 'Generated', false);
     });
+    // Route result-image drags through our clean image path (sets a custom type)
+    // so dropping into a prompt inserts a thumbnail rather than a base64 text dump.
+    previewImg.addEventListener('dragstart', (e) => {
+      if (!previewImg.src) return;
+      e.dataTransfer.setData('text/swf-image-src', previewImg.src);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
     el.querySelector('.swf-run-btn').addEventListener('click', async () => await executeSingleNode(node));
+  }
+
+  // Insert an image as a non-editable inline thumbnail tag into a prompt editor at
+  // the current selection (or appended). Shared by all drop paths.
+  function insertImageThumbIntoPrompt(promptEditor, dataUrl, assetName) {
+    const tagSpan = document.createElement('span');
+    tagSpan.className = 'editor-img-tag';
+    tagSpan.contentEditable = 'false';
+    tagSpan.innerHTML = `<img src="${dataUrl}" class="inline-prompt-thumb" alt="${assetName || 'img'}"><span class="tag-name">${assetName || 'img'}</span>`;
+    const sel = window.getSelection();
+    let range = null;
+    if (sel && sel.rangeCount > 0 && promptEditor.contains(sel.anchorNode)) {
+      range = sel.getRangeAt(0); range.collapse(false);
+    } else {
+      range = document.createRange();
+      range.selectNodeContents(promptEditor); range.collapse(false);
+    }
+    range.insertNode(tagSpan); range.setStartAfter(tagSpan); range.collapse(true);
+    if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+    // Range 插入不會觸發 input 事件，手動更新 placeholder 狀態
+    if (window.RichTextService) window.RichTextService.updatePlaceholder(promptEditor);
   }
 
   // blob: URL 是暫時性的，Asset Manager grid 重繪（如 saveAsset 後）會 revokeObjectURL，
@@ -1872,7 +1915,7 @@
       const allRefs = [...node.data.images, ...inlineImages];
       let imageUrl = '';
       if (model === 'gptimage') {
-        imageUrl = await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', allRefs[0] || null, {
+        imageUrl = await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', allRefs.length > 0 ? allRefs : null, {
           quality: params.quality || 'low', background: params.gptBackground || 'auto', input_fidelity: params.gptFidelity || 'high'
         });
       } else if (model === 'nanobanana2') {

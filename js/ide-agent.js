@@ -287,12 +287,12 @@ window.IDEAgent = (function() {
 
   // ── GPT Image 2.0 Core ──
   // Delegates to the shared AIService implementation (identical gpt-image-2 params,
-  // single reference image for edits, plus a 90s request timeout). The agent's chat
-  // layer only ever needs the first reference image when editing.
+  // multiple reference images for edits, plus a 90s request timeout). All provided
+  // reference images are forwarded so gpt-image-2 can use them together.
   async function generateWithGPTImage2(apiKey, prompt, refImages, size, quality) {
-    const baseImage = (refImages && refImages.length > 0) ? refImages[0] : null;
+    const baseImages = (refImages && refImages.length > 0) ? refImages : null;
     return window.AIService.generateWithGPTImage(
-      prompt, apiKey, size || '1024x1024', baseImage, { quality: quality || 'high' }
+      prompt, apiKey, size || '1024x1024', baseImages, { quality: quality || 'high' }
     );
   }
 
