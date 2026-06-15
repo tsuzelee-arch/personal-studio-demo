@@ -404,74 +404,39 @@ ${JSON.stringify(analysis)}`;
     }));
   }
 
-  // Transient failures worth retrying: rate limiting + server overload/instability.
-  // Google AI Studio (Gemini) returns these intermittently under load.
-  const _GEMINI_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
-  const _sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  async function _executeGeminiRequest(url, payload, modelName) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
 
-  // Backoff before the next attempt. Honors a Retry-After header when the server
-  // provides one (429), otherwise exponential backoff (0.8s,1.6s,3.2s…) + jitter.
-  async function _geminiBackoff(attempt, response) {
-    let delay = Math.min(8000, 800 * Math.pow(2, attempt)) + Math.floor(Math.random() * 300);
-    const ra = response && parseFloat(response.headers.get('retry-after'));
-    if (ra && !isNaN(ra) && ra > 0) delay = Math.min(ra * 1000, 15000);
-    await _sleep(delay);
-  }
-
-  async function _executeGeminiRequest(url, payload, modelName, maxRetries = 3) {
-    const body = JSON.stringify(payload);
-    let lastErr = null;
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 90000);
-
-      let response;
-      try {
-        response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body,
-          signal: controller.signal
-        });
-      } catch (fetchErr) {
-        clearTimeout(timeoutId);
-        // Network drop or timeout — transient, retry until attempts exhausted.
-        lastErr = fetchErr.name === 'AbortError'
-          ? new Error(`${modelName} 請求逾時（90秒），伺服器無回應`)
-          : new Error('網路錯誤：' + fetchErr.message);
-        if (attempt < maxRetries) { await _geminiBackoff(attempt); continue; }
-        throw lastErr;
-      }
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+    } catch (fetchErr) {
+      if (fetchErr.name === 'AbortError') throw new Error(`${modelName} 請求逾時（90秒），伺服器無回應`);
+      throw new Error('網路錯誤：' + fetchErr.message);
+    } finally {
       clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        const msg = err.error?.message || `${modelName} API Error: HTTP ${response.status}`;
-        if (_GEMINI_RETRYABLE_STATUS.has(response.status) && attempt < maxRetries) {
-          lastErr = new Error(msg);
-          if (AI_DEBUG) console.warn(`[${modelName}] transient HTTP ${response.status}, retry ${attempt + 1}/${maxRetries}`);
-          await _geminiBackoff(attempt, response);
-          continue;
-        }
-        throw new Error(msg);
-      }
-
-      const data = await response.json();
-      const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-      if (!imagePart) {
-        // No image: usually a safety block or empty candidate. Not retryable —
-        // retrying an identical safety-blocked prompt just wastes quota.
-        const textPart = data.candidates?.[0]?.content?.parts?.find(p => p.text);
-        const errReason = textPart ? textPart.text : JSON.stringify(data);
-        throw new Error(`${modelName} Error: ${errReason}`);
-      }
-      const { mimeType, data: b64 } = imagePart.inlineData;
-      return `data:${mimeType || 'image/png'};base64,${b64}`;
     }
 
-    // Loop exhausted on transient errors.
-    throw lastErr || new Error(`${modelName} 連線失敗，請稍後重試`);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `${modelName} API Error: HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    if (!imagePart) {
+      const textPart = data.candidates?.[0]?.content?.parts?.find(p => p.text);
+      const errReason = textPart ? textPart.text : JSON.stringify(data);
+      throw new Error(`${modelName} Error: ${errReason}`);
+    }
+    const { mime_type, data: b64 } = imagePart.inlineData;
+    return `data:${mime_type || 'image/png'};base64,${b64}`;
   }
 
   // ── Image Generation APIs ──
