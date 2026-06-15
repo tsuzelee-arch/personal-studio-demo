@@ -1308,11 +1308,14 @@
       node.data.params[inp.dataset.param] = inp.value;
     });
     area.querySelectorAll('input[type="range"][data-param]').forEach(slider => {
-      const valSpan = slider.parentElement.querySelector('.swf-slider-val');
-      slider.addEventListener('input', () => {
-        node.data.params[slider.dataset.param] = parseFloat(slider.value);
-        if (valSpan) valSpan.textContent = Number(slider.value).toFixed(2);
-      });
+      const updateSlider = () => {
+        const val = parseFloat(slider.value);
+        node.data.params[slider.dataset.param] = val;
+        const valSpan = slider.nextElementSibling;
+        if (valSpan && valSpan.classList.contains('swf-slider-val')) valSpan.textContent = val.toFixed(2);
+      };
+      slider.addEventListener('input', updateSlider);
+      slider.addEventListener('change', updateSlider);
       node.data.params[slider.dataset.param] = parseFloat(slider.value);
     });
   }
