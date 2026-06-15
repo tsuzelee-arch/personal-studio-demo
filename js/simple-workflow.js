@@ -250,17 +250,15 @@
       }
     }
 
-    // Ctrl+Z: Undo
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    // Ctrl+Z: Undo (skip when typing in any input/textarea/contenteditable)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey && !isInput) {
       e.preventDefault();
       undo();
     }
-    // Ctrl+Y or Ctrl+Shift+Z: Redo
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-      if (e.key === 'y' || e.shiftKey) {
-        e.preventDefault();
-        redo();
-      }
+    // Ctrl+Y or Ctrl+Shift+Z: Redo (same guard)
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey)) && !isInput) {
+      e.preventDefault();
+      redo();
     }
 
     // Ctrl+C: Copy selected node/group or selected image
@@ -275,8 +273,8 @@
       }
     }
 
-    // Ctrl+Enter: Execute All
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    // Ctrl+Enter: Execute All (only when not typing)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !isInput) {
       e.preventDefault();
       executeAll();
     }
