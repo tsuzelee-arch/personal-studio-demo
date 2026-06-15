@@ -890,6 +890,7 @@
     
     sel.value = model;
     container.innerHTML = buildParamsHTML(model, params);
+    wireModalSliders(container);
 
     // Folder picker: mirror node-folder options, default to the first member's folder
     const folderSel = document.getElementById('swfSyncFolderSel');
@@ -944,6 +945,37 @@
 
     if (window.showToast) window.showToast(`✅ 已將 ${members.length} 個節點統一為 ${MODEL_PARAMS[model]?.label || model}`);
     closeSyncModal();
+  }
+
+  // Wire range sliders inside the 統一群組參數 modal. Uses manual pointer
+  // tracking (same as wireParamInputs) because input[type=range] events are
+  // unreliable in some browsers; here it also guarantees live display updates.
+  function wireModalSliders(container) {
+    container.querySelectorAll('input[type="range"]').forEach(slider => {
+      slider.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        const doUpdate = (ev) => {
+          const rect = slider.getBoundingClientRect();
+          const min = parseFloat(slider.min);
+          const max = parseFloat(slider.max);
+          const step = parseFloat(slider.step) || 1;
+          const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+          let val = Math.round((min + ratio * (max - min)) / step) * step;
+          val = Math.max(min, Math.min(max, parseFloat(val.toFixed(10))));
+          slider.value = val;
+          const valEl = slider.nextElementSibling;
+          if (valEl && valEl.classList.contains('swf-slider-val')) valEl.textContent = val.toFixed(2);
+        };
+        doUpdate(e);
+        const onMove = (ev) => doUpdate(ev);
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
   }
 
   function closeSyncModal() {
@@ -2648,13 +2680,7 @@
     const container = document.getElementById('swfSyncParamsContainer');
     if (container) {
       container.innerHTML = buildParamsHTML(e.target.value, {});
-      // Setup range sliders for the modal
-      container.querySelectorAll('input[type="range"]').forEach(input => {
-        input.addEventListener('input', ev => {
-          const valEl = ev.target.nextElementSibling;
-          if (valEl) valEl.textContent = parseFloat(ev.target.value).toFixed(2);
-        });
-      });
+      wireModalSliders(container);
     }
   });
 
