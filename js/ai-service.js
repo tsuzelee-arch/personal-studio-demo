@@ -440,6 +440,28 @@ ${JSON.stringify(analysis)}`;
   }
 
   // ── Image Generation APIs ──
+  // Allowed values per the Gemini image-generation API (generationConfig.imageConfig
+  // and thinkingConfig). Sending a value outside these sets makes the API reject the
+  // request (HTTP 400) or silently ignore it, so we sanitize before building the body
+  // to guarantee the parameters are actually accepted.
+  const NB_ASPECT_RATIOS = ['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','21:9','1:4','4:1','1:8','8:1'];
+  const NB_IMAGE_SIZES = ['512','1K','2K','4K'];
+  const NB_THINKING_LEVELS = ['minimal','high'];
+
+  // Build a valid imageConfig, dropping anything unsupported (defaults to 1:1).
+  function _buildImageConfig(aspectRatio, imageSize) {
+    const cfg = { aspectRatio: NB_ASPECT_RATIOS.includes(aspectRatio) ? aspectRatio : '1:1' };
+    if (imageSize && NB_IMAGE_SIZES.includes(imageSize)) cfg.imageSize = imageSize;
+    return cfg;
+  }
+
+  // Map UI thinking level to a valid API value, or null to omit thinkingConfig.
+  // Accepts 'none' (disable), legacy 'low' (→ 'minimal'), or a valid level.
+  function _resolveThinkingLevel(level) {
+    if (level === 'low') level = 'minimal';
+    return NB_THINKING_LEVELS.includes(level) ? level : null;
+  }
+
   async function generateWithNanoBanana(prompt, apiKey, options = {}) {
     // Nano Banana Pro -> gemini-3-pro-image
     const {
@@ -452,18 +474,13 @@ ${JSON.stringify(analysis)}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent?key=${apiKey}`;
 
-    const _imgCfgPro = { aspectRatio };
-    if (imageSize) _imgCfgPro.imageSize = imageSize;
-
     const generationConfig = {
-      imageConfig: _imgCfgPro,
+      imageConfig: _buildImageConfig(aspectRatio, imageSize),
       responseModalities: googleSearch ? ['TEXT', 'IMAGE'] : ['IMAGE']
     };
     if (temperature != null) generationConfig.temperature = temperature;
-    if (thinkingLevel !== 'none') {
-      const _apiThinkingLevel = thinkingLevel === 'low' ? 'minimal' : thinkingLevel;
-      generationConfig.thinkingConfig = { thinkingLevel: _apiThinkingLevel };
-    }
+    const _tlPro = _resolveThinkingLevel(thinkingLevel);
+    if (_tlPro) generationConfig.thinkingConfig = { thinkingLevel: _tlPro };
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
@@ -540,21 +557,16 @@ ${JSON.stringify(analysis)}`;
       parts.push({ inline_data: { mime_type: mimeMask ? mimeMask[1] : 'image/png', data: stripPrefix(compressedMask) } });
     }
 
-    const _imgCfg2 = { aspectRatio };
-    if (imageSize) _imgCfg2.imageSize = imageSize;
-
     const generationConfig = {
       temperature,
       topP,
       maxOutputTokens,
       stopSequences: stopSequences.length ? stopSequences : undefined,
-      imageConfig: _imgCfg2,
+      imageConfig: _buildImageConfig(aspectRatio, imageSize),
       responseModalities: googleSearch ? ['TEXT', 'IMAGE'] : ['IMAGE']
     };
-    if (thinkingLevel !== 'none') {
-      const _apiThinkingLevel = thinkingLevel === 'low' ? 'minimal' : thinkingLevel;
-      generationConfig.thinkingConfig = { thinkingLevel: _apiThinkingLevel };
-    }
+    const _tl2 = _resolveThinkingLevel(thinkingLevel);
+    if (_tl2) generationConfig.thinkingConfig = { thinkingLevel: _tl2 };
 
     const payload = {
       contents: [{ parts }],
