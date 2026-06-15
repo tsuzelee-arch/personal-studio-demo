@@ -462,6 +462,10 @@
         </div>
         <div class="swf-gs-controls">
           <label class="swf-gs-checkbox-label"><input type="checkbox" class="swf-gs-receive-cb" checked> 接收上游圖片</label>
+          <div class="swf-gs-mode-row">
+            <label class="swf-gs-mode-opt"><input type="radio" class="swf-gs-mode-radio" name="gsmode_${id}" value="all" checked> 全部接收</label>
+            <label class="swf-gs-mode-opt"><input type="radio" class="swf-gs-mode-radio" name="gsmode_${id}" value="ordered"> 順序配對</label>
+          </div>
           <div style="margin-top: 6px; display: flex; gap: 4px; justify-content: space-between;">
             <button class="swf-gs-select-all" style="font-size: 10px; cursor: pointer; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface);">全選</button>
             <button class="swf-gs-apply-btn" style="font-size: 10px; cursor: pointer; background: var(--accent, #1783FF); color: #fff; border: none; border-radius: 4px; padding: 2px 6px;">📥 全部套用</button>
@@ -482,7 +486,7 @@
 
     nodesContainer.appendChild(el);
 
-    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false };
+    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, upstreamMode: 'all' };
     groups[id] = groupData;
 
     // Entity Selection
@@ -538,6 +542,11 @@
       propagateVisualImages();
       renderGroupSidebar(group);
     });
+    el.querySelectorAll('.swf-gs-mode-radio').forEach(r => {
+      r.addEventListener('change', (e) => {
+        if (e.target.checked) { group.upstreamMode = e.target.value; propagateVisualImages(); renderGroupSidebar(group); }
+      });
+    });
 
     // Select All
     el.querySelector('.swf-gs-select-all').addEventListener('click', () => {
@@ -592,19 +601,65 @@
     if (!container) return;
     container.innerHTML = '';
 
-    // Collect all upstream images flowing into this group
-    const upstreamImages = [];
-    edges.filter(e => e.target === group.id).forEach(e => {
-      getSourceOutputImages(e.source).forEach(img => upstreamImages.push(img));
-    });
-
-    // Filter out excluded images
-    const visibleImages = upstreamImages.filter(img => !group.excludedImages.includes(img));
+    // Sync radio buttons to current mode
+    group.el.querySelectorAll('.swf-gs-mode-radio').forEach(r => { r.checked = r.value === (group.upstreamMode || 'all'); });
 
     if (!group.receiveUpstream) {
       container.innerHTML = '<div class="swf-gs-empty">已關閉接收上游圖片</div>';
       return;
     }
+
+    // Ordered mode: show per-node assignment preview instead of flat image list
+    if (group.upstreamMode === 'ordered') {
+      const entryNodes = getGroupEntryNodes(group.id);
+      const hasUpstream = edges.some(e => e.target === group.id);
+      if (!hasUpstream) {
+        container.innerHTML = '<div class="swf-gs-empty">無上游連結</div>';
+        return;
+      }
+      entryNodes.forEach((n, idx) => {
+        const slot = document.createElement('div');
+        slot.className = 'swf-gs-ordered-slot';
+        const label = document.createElement('div');
+        label.className = 'swf-gs-ordered-label';
+        label.textContent = `節點 ${idx + 1}：${n.data.model || n.type}`;
+        slot.appendChild(label);
+        // Collect images this node would receive
+        edges.filter(e => e.target === group.id).forEach(srcEdge => {
+          let imgs = [];
+          if (isGroup(srcEdge.source)) {
+            const exitNodes = getGroupExitNodes(srcEdge.source);
+            if (idx < exitNodes.length) imgs = exitNodes[idx].resultImages || [];
+          } else if (idx === 0) {
+            imgs = getSourceOutputImages(srcEdge.source);
+          }
+          imgs.filter(img => !group.excludedImages.includes(img)).forEach(imgSrc => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'swf-gs-img-wrapper';
+            const img = document.createElement('img');
+            img.src = imgSrc; img.className = 'swf-gs-img';
+            wrapper.appendChild(img);
+            slot.appendChild(wrapper);
+          });
+        });
+        if (slot.children.length === 1) {
+          const hint = document.createElement('div');
+          hint.className = 'swf-gs-empty';
+          hint.style.cssText = 'font-size:10px;padding:4px 0';
+          hint.textContent = '（等待上游執行）';
+          slot.appendChild(hint);
+        }
+        container.appendChild(slot);
+      });
+      return;
+    }
+
+    // All mode: flat image list
+    const upstreamImages = [];
+    edges.filter(e => e.target === group.id).forEach(e => {
+      getSourceOutputImages(e.source).forEach(img => upstreamImages.push(img));
+    });
+    const visibleImages = upstreamImages.filter(img => !group.excludedImages.includes(img));
 
     if (visibleImages.length === 0) {
       container.innerHTML = '<div class="swf-gs-empty">無上游圖片</div>';
@@ -732,6 +787,24 @@
       }
     }
     return members;
+  }
+
+  /** Entry nodes = members with no internal upstream edge (sorted left→right by X) */
+  function getGroupEntryNodes(groupId) {
+    const members = getGroupMembers(groupId);
+    const memberSet = new Set(members.map(m => m.id));
+    return members
+      .filter(m => !edges.some(e => e.target === m.id && memberSet.has(e.source)))
+      .sort((a, b) => a.x - b.x);
+  }
+
+  /** Exit nodes = members with no internal downstream edge (sorted left→right by X) */
+  function getGroupExitNodes(groupId) {
+    const members = getGroupMembers(groupId);
+    const memberSet = new Set(members.map(m => m.id));
+    return members
+      .filter(m => !edges.some(e => e.source === m.id && memberSet.has(e.target)))
+      .sort((a, b) => a.x - b.x);
   }
 
   function removeGroup(id) {
@@ -1503,13 +1576,30 @@
         const g = groups[groupIdIfAny];
         const isEntry = !edges.some(e => e.target === nid && memberIds.has(e.source));
         if (isEntry && g && g.receiveUpstream) {
-          const groupUpstream = [];
-          edges.filter(e => e.target === groupIdIfAny).forEach(e => {
-            groupUpstream.push(...getSourceOutputImages(e.source));
-          });
-          // Apply group-level exclusion
-          const filtered = groupUpstream.filter(img => !g.excludedImages.includes(img));
-          rawUpstream.push(...filtered);
+          if (g.upstreamMode === 'ordered') {
+            const entryNodes = getGroupEntryNodes(groupIdIfAny);
+            const nodeIndex = entryNodes.findIndex(m => m.id === nid);
+            edges.filter(e => e.target === groupIdIfAny).forEach(srcEdge => {
+              if (isGroup(srcEdge.source)) {
+                const exitNodes = getGroupExitNodes(srcEdge.source);
+                if (nodeIndex >= 0 && nodeIndex < exitNodes.length) {
+                  (exitNodes[nodeIndex].resultImages || [])
+                    .filter(img => !g.excludedImages.includes(img))
+                    .forEach(img => rawUpstream.push(img));
+                }
+              } else if (nodeIndex === 0) {
+                getSourceOutputImages(srcEdge.source)
+                  .filter(img => !g.excludedImages.includes(img))
+                  .forEach(img => rawUpstream.push(img));
+              }
+            });
+          } else {
+            const groupUpstream = [];
+            edges.filter(e => e.target === groupIdIfAny).forEach(e => {
+              groupUpstream.push(...getSourceOutputImages(e.source));
+            });
+            groupUpstream.filter(img => !g.excludedImages.includes(img)).forEach(img => rawUpstream.push(img));
+          }
         }
       }
 
@@ -1826,9 +1916,28 @@
           rawUpstream.push(...getSourceOutputImages(e.source));
         });
 
-        // 2. If it's an entry node, it also receives the group's filtered incoming images
+        // 2. If it's an entry node, distribute incoming images per mode
         if (isEntry) {
-          rawUpstream.push(...groupIncomingImages);
+          if (group.upstreamMode === 'ordered') {
+            const entryNodesList = getGroupEntryNodes(groupId);
+            const nodeIndex = entryNodesList.findIndex(m => m.id === n.id);
+            edges.filter(e => e.target === groupId).forEach(srcEdge => {
+              if (isGroup(srcEdge.source)) {
+                const exitNodes = getGroupExitNodes(srcEdge.source);
+                if (nodeIndex >= 0 && nodeIndex < exitNodes.length) {
+                  (exitNodes[nodeIndex].resultImages || [])
+                    .filter(img => !group.excludedImages.includes(img))
+                    .forEach(img => rawUpstream.push(img));
+                }
+              } else if (nodeIndex === 0) {
+                getSourceOutputImages(srcEdge.source)
+                  .filter(img => !group.excludedImages.includes(img))
+                  .forEach(img => rawUpstream.push(img));
+              }
+            });
+          } else {
+            rawUpstream.push(...groupIncomingImages);
+          }
         }
 
         // 3. Direct internal edges (Node inside -> Node inside)
@@ -1964,7 +2073,7 @@
       const folderInput = g.el.querySelector('.swf-group-folder');
       groupsData[id] = {
         id: g.id, x: g.x, y: g.y, width: g.width, height: g.height, color: g.color, title: g.title,
-        receiveUpstream: g.receiveUpstream, excludedImages: forStorage ? [] : [...g.excludedImages],
+        receiveUpstream: g.receiveUpstream, upstreamMode: g.upstreamMode || 'all', excludedImages: forStorage ? [] : [...g.excludedImages],
         folder: folderInput ? folderInput.value : ''
       };
     }
@@ -2037,12 +2146,14 @@
             idRemap[savedId] = g.id;
             // Restore v3 fields with backward compatibility
             g.receiveUpstream = gd.receiveUpstream !== undefined ? gd.receiveUpstream : true;
+            g.upstreamMode = gd.upstreamMode || 'all';
             g.excludedImages = Array.isArray(gd.excludedImages) ? [...gd.excludedImages] : [];
             const folderInput = g.el.querySelector('.swf-group-folder');
             if (folderInput) folderInput.value = gd.folder || '';
-            // Sync checkbox state
+            // Sync checkbox + mode radio state
             const cb = g.el.querySelector('.swf-gs-receive-cb');
             if (cb) cb.checked = g.receiveUpstream;
+            g.el.querySelectorAll('.swf-gs-mode-radio').forEach(r => { r.checked = r.value === g.upstreamMode; });
           } catch (e) { console.warn('Failed to restore group:', savedId, e); }
         }
       }
