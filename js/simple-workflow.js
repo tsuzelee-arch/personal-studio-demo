@@ -1308,14 +1308,30 @@
       node.data.params[inp.dataset.param] = inp.value;
     });
     area.querySelectorAll('input[type="range"][data-param]').forEach(slider => {
-      const updateSlider = () => {
-        const val = parseFloat(slider.value);
-        node.data.params[slider.dataset.param] = val;
-        const valSpan = slider.nextElementSibling;
-        if (valSpan && valSpan.classList.contains('swf-slider-val')) valSpan.textContent = val.toFixed(2);
-      };
-      slider.addEventListener('input', updateSlider);
-      slider.addEventListener('change', updateSlider);
+      slider.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        const doUpdate = (ev) => {
+          const rect = slider.getBoundingClientRect();
+          const min = parseFloat(slider.min);
+          const max = parseFloat(slider.max);
+          const step = parseFloat(slider.step) || 1;
+          const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+          let val = Math.round((min + ratio * (max - min)) / step) * step;
+          val = Math.max(min, Math.min(max, parseFloat(val.toFixed(10))));
+          slider.value = val;
+          node.data.params[slider.dataset.param] = val;
+          const valSpan = slider.nextElementSibling;
+          if (valSpan && valSpan.classList.contains('swf-slider-val')) valSpan.textContent = val.toFixed(2);
+        };
+        doUpdate(e);
+        const onMove = (ev) => doUpdate(ev);
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
       node.data.params[slider.dataset.param] = parseFloat(slider.value);
     });
   }
