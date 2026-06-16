@@ -443,7 +443,18 @@
                 </select>
               </div>
 
+              <div class="control-group">
+                <label for="ipRefLine">參考輔助線：</label>
+                <select id="ipRefLine" class="form-select form-select-sm">
+                  <option value="none" selected>無</option>
+                  <option value="crosshair">十字線</option>
+                  <option value="thirds">井字線</option>
+                </select>
+              </div>
+
               <div class="control-group" style="margin-left: auto; display: flex; gap: 8px;">
+                <button id="ipBtnStitch" class="btn-ghost" disabled>🔗 拼合選取</button>
+                <button id="ipBtnScript" class="btn-ghost">🤖 自動化腳本</button>
                 <button id="ipBtnProcess" class="btn-primary" disabled>🚀 開始處理</button>
                 <button id="ipBtnExport" class="btn-primary" style="background: var(--success);" disabled>📦 匯出 ZIP</button>
                 <button id="ipBtnClear" class="btn-ghost" disabled>🗑️ 清除全部</button>
@@ -866,6 +877,129 @@
     </div>
   </div>
 
+  <!-- Modal: 圖片拼合設定 -->
+  <div class="modal-backdrop hidden" id="ipStitchModal">
+    <div class="modal" style="max-width: 400px;">
+      <div class="modal-header">
+        <div class="modal-title">圖片拼合設定</div>
+        <button class="modal-close" id="ipStitchModalClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">拼合方向</label>
+        <select class="form-input" id="ipStitchDir">
+          <option value="horizontal">橫向拼合 (Side-by-side)</option>
+          <option value="vertical">縱向拼合 (Top-to-bottom)</option>
+          <option value="grid">網格拼合 (Grid)</option>
+        </select>
+        
+        <div id="ipStitchGridColsGroup" style="display: none; margin-top: 10px;">
+          <label class="form-label">每行圖片數量 (列數)</label>
+          <input type="number" class="form-input" id="ipStitchGridCols" value="2" min="1">
+        </div>
+
+        <label class="form-label" style="margin-top: 12px;">圖片間距 (像素)</label>
+        <input type="number" class="form-input" id="ipStitchGap" value="0" min="0" placeholder="0 px">
+
+        <label class="form-label" style="margin-top: 12px;">背景填充顏色</label>
+        <select class="form-input" id="ipStitchBg">
+          <option value="#FFFFFF">白色</option>
+          <option value="#000000">黑色</option>
+          <option value="#00FF00">綠色</option>
+          <option value="#0000FF">藍色</option>
+          <option value="transparent" selected>透明</option>
+          <option value="custom">自訂顏色</option>
+        </select>
+        <input type="color" class="form-input" id="ipStitchBgPicker" value="#FFFFFF" style="display: none; margin-top: 8px;">
+
+        <label class="form-label" style="margin-top: 12px;">對齊方式</label>
+        <select class="form-input" id="ipStitchAlign">
+          <option value="center" selected>居中對齊</option>
+          <option value="start">靠左 / 靠上對齊</option>
+          <option value="end">靠右 / 靠下對齊</option>
+        </select>
+
+        <label class="form-label" style="margin-top: 12px;">尺寸適配</label>
+        <select class="form-input" id="ipStitchSize">
+          <option value="original" selected>保持原始比例 (可能大小不一)</option>
+          <option value="uniform">以首張圖片為準進行縮放對齊</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="ipStitchModalCancel">取消</button>
+        <button class="btn-primary" id="ipStitchModalConfirm">確認拼合</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: 自動化處理腳本 -->
+  <div class="modal-backdrop hidden" id="ipScriptModal">
+    <div class="modal" style="max-width: 450px;">
+      <div class="modal-header">
+        <div class="modal-title">🤖 自動化裁切與編輯腳本</div>
+        <button class="modal-close" id="ipScriptModalClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 12.5px; color: var(--muted); margin-bottom: 12px; line-height: 1.5;">
+          自動化腳本將讀取本機「資產庫」中指定資料夾的所有圖片，根據規則批次進行編輯與裁切，並將新產生的影像儲存至輸出資料夾。
+        </div>
+
+        <label class="form-label">來源資料夾 (Source Folder)</label>
+        <select class="form-input" id="ipScriptSourceDir">
+          <!-- 由 JS 動態填充 -->
+        </select>
+
+        <label class="form-label" style="margin-top: 12px;">輸出資料夾 (Output Folder)</label>
+        <select class="form-input" id="ipScriptOutputDir">
+          <!-- 由 JS 動態填充 -->
+        </select>
+
+        <label class="form-label" style="margin-top: 12px;">目標解析度 (Target Resolution)</label>
+        <select class="form-input" id="ipScriptResolution">
+          <option value="512">512 × 512</option>
+          <option value="1024_512">1024 × 512</option>
+          <option value="512_1024">512 × 1024</option>
+          <option value="1024" selected>1024 × 1024</option>
+          <option value="2048">2048 × 2048</option>
+        </select>
+
+        <label class="form-label" style="margin-top: 12px;">適配模式 (Fit Mode)</label>
+        <select class="form-input" id="ipScriptFitMode">
+          <option value="contain" selected>Contain (等比例縮小以完整顯示，背景色填充)</option>
+          <option value="cover">Cover (等比例放大填滿畫布，裁切溢出)</option>
+          <option value="stretch">Stretch (非等比例拉伸填滿)</option>
+        </select>
+
+        <label class="form-label" style="margin-top: 12px;">對齊基準 (Alignment)</label>
+        <select class="form-input" id="ipScriptAlign">
+          <option value="center" selected>Center (居中)</option>
+          <option value="top">Top (靠上)</option>
+          <option value="bottom">Bottom (靠下)</option>
+          <option value="left">Left (靠左)</option>
+          <option value="right">Right (靠右)</option>
+          <option value="top-left">Top-Left</option>
+          <option value="top-right">Top-Right</option>
+          <option value="bottom-left">Bottom-Left</option>
+          <option value="bottom-right">Bottom-Right</option>
+        </select>
+
+        <label class="form-label" style="margin-top: 12px;">背景填充顏色</label>
+        <select class="form-input" id="ipScriptBg">
+          <option value="#FFFFFF" selected>白色</option>
+          <option value="#000000">黑色</option>
+          <option value="#00FF00">綠色</option>
+          <option value="#0000FF">藍色</option>
+          <option value="transparent">透明</option>
+          <option value="custom">自訂顏色</option>
+        </select>
+        <input type="color" class="form-input" id="ipScriptBgPicker" value="#FFFFFF" style="display: none; margin-top: 8px;">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="ipScriptModalCancel">取消</button>
+        <button class="btn-primary" id="ipScriptBtnExecute">🚀 執行自動化</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 全域 Pickr 錨點 -->
   <div id="pickr-anchor" style="position: fixed; width: 0; height: 0; opacity: 0; pointer-events: none; z-index: 99999;"></div>
 
@@ -912,44 +1046,6 @@
         <div id="swfLibList" style="display: flex; flex-direction: column; gap: 8px;">
           <!-- Populated by JS -->
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Simple Workflow: Sync Group Params Modal -->
-  <div class="modal-backdrop hidden" id="swfSyncParamsModal">
-    <div class="modal" style="max-width: 360px;">
-      <div class="modal-header">
-        <h3 class="modal-title">統一群組參數</h3>
-        <button class="modal-close" id="swfSyncModalCloseBtn">✕</button>
-      </div>
-      <div class="modal-body">
-        <div style="margin-bottom: 12px; font-size: 13px; color: var(--muted);">
-          選擇要套用到群組內所有節點的參數：
-        </div>
-        <label class="form-label">Model</label>
-        <select class="form-input" id="swfSyncModelSel">
-          <option value="nanobanana2">Nano Banana 2</option>
-          <option value="nanobanana">Nano Banana</option>
-          <option value="gptimage">GPT-Image</option>
-        </select>
-
-        <label class="form-label" style="margin-top: 12px;">儲存資料夾</label>
-        <select class="form-input" id="swfSyncFolderSel"></select>
-
-        <label class="form-label" style="margin-top: 12px;">檔案命名前綴</label>
-        <input type="text" class="form-input" id="swfSyncNamePrefix" placeholder="留空＝1, 2, 3…（如 shot → shot1, shot2）">
-
-        <label style="display:flex; align-items:center; gap:6px; margin-top:10px; font-size:13px; cursor:pointer;">
-          <input type="checkbox" id="swfSyncOverwrite" checked> 覆蓋同名檔案（關閉時自動加 _1, _2…）
-        </label>
-
-        <!-- Params container populated by JS -->
-        <div id="swfSyncParamsContainer" style="margin-top: 12px;"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-ghost" id="swfSyncModalCancelBtn">取消</button>
-        <button class="btn-primary" id="swfSyncModalConfirmBtn">確認統一</button>
       </div>
     </div>
   </div>

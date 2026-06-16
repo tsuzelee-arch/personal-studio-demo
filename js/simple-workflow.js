@@ -114,6 +114,40 @@
     if (!ent) return [];
     return isGroup(id) ? getGroupOutputImages(ent) : (ent.resultImages || []);
   }
+
+  // Downstream-receive priority of a source entity. Reference images sit at 0;
+  // groups carry a configurable priority (default 1); non-group nodes are 0.
+  function srcPriority(id) { return isGroup(id) ? (groups[id]?.receivePriority ?? 1) : 0; }
+
+  // Upstream edges feeding a target, stable-sorted by source priority then edge order.
+  function sortedUpstreamEdges(targetId) {
+    return edges.map((e, i) => ({ e, i }))
+      .filter(x => x.e.target === targetId)
+      .sort((a, b) => (srcPriority(a.e.source) - srcPriority(b.e.source)) || (a.i - b.i));
+  }
+
+  // Assemble a node's reference-image array from prioritized upstream contributions
+  // and the node's own uploaded images (priority 0). contribs = [{priority, images}].
+  // Order = priority ascending; the node's reference images anchor at priority 0
+  // (before equal-priority upstream), so a negative-priority group precedes them.
+  // First occurrence wins on dedupe; node-level excluded incoming images are dropped.
+  function assembleNodeImages(node, contribs) {
+    const uploadedSet = new Set(node.data.uploadedImages);
+    const refOrdered = node.data.images.filter(img => uploadedSet.has(img));
+    node.data.uploadedImages.forEach(img => { if (!refOrdered.includes(img)) refOrdered.push(img); });
+
+    const items = [{ priority: 0, seq: -1, images: refOrdered }];
+    contribs.forEach((c, i) => items.push({ priority: c.priority, seq: i, images: c.images || [] }));
+    items.sort((a, b) => (a.priority - b.priority) || (a.seq - b.seq));
+
+    const out = [], seen = new Set();
+    for (const it of items) {
+      for (const img of it.images) {
+        if (!seen.has(img)) { seen.add(img); out.push(img); }
+      }
+    }
+    return out.filter(img => !node.data.excludedIncomingImages.includes(img));
+  }
   /** Get port element for entity */
   function getPortEl(id, type) {
     const ent = getEntity(id);
@@ -473,8 +507,30 @@
         </div>
         <div class="swf-gs-images"></div>
       </div>
+      <div class="swf-group-params-sidebar">
+        <div class="swf-gs-header">
+          <span>⚙ 統一參數</span>
+          <button class="swf-gps-close">✕</button>
+        </div>
+        <div class="swf-gps-body">
+          <label class="swf-gps-label">模型</label>
+          <select class="swf-gps-model swf-gps-input">
+            <option value="nanobanana2">Nano Banana 2</option>
+            <option value="nanobanana">Nano Banana Pro</option>
+            <option value="gptimage">GPT Image 2.0</option>
+          </select>
+          <label class="swf-gps-label">儲存資料夾</label>
+          <select class="swf-gps-folder swf-gps-input"></select>
+          <label class="swf-gps-label">檔案命名前綴</label>
+          <input type="text" class="swf-gps-prefix swf-gps-input" placeholder="留空＝1, 2, 3…">
+          <label class="swf-gps-check"><input type="checkbox" class="swf-gps-overwrite" checked> 覆蓋同名檔案</label>
+          <div class="swf-gps-params"></div>
+          <button class="swf-gps-apply">套用至所有節點</button>
+        </div>
+      </div>
       <div class="swf-group-header" style="background:${hexToRgba(gc, 0.15)};">
         <input class="swf-group-title" value="${gt}" spellcheck="false" style="flex:1;">
+        <input type="number" class="swf-grp-priority" value="1" step="1" title="下游接收優先級（參考圖=0，數字越小越前）">
         <input type="color" class="swf-group-color-picker" value="${gc}" title="群組顏色">
         <div class="swf-group-actions">
           <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>
@@ -486,7 +542,7 @@
 
     nodesContainer.appendChild(el);
 
-    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, upstreamMode: 'all' };
+    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, upstreamMode: 'all', receivePriority: 1 };
     groups[id] = groupData;
 
     // Entity Selection
@@ -520,17 +576,58 @@
       el.querySelector('.swf-group-header').style.background = hexToRgba(group.color, 0.15);
     });
     el.querySelector('.swf-group-title').addEventListener('change', (e) => { group.title = e.target.value; });
+    const priorityInput = el.querySelector('.swf-grp-priority');
+    if (priorityInput) {
+      priorityInput.value = group.receivePriority ?? 1;
+      priorityInput.addEventListener('change', (e) => {
+        group.receivePriority = parseInt(e.target.value, 10) || 0;
+        e.target.value = group.receivePriority;
+        propagateVisualImages();
+      });
+      // Don't let clicks/drags on the number field start a group drag
+      priorityInput.addEventListener('mousedown', (e) => e.stopPropagation());
+    }
     el.querySelector('.swf-grp-del-btn').addEventListener('click', () => { saveUndoState(); promptRemoveGroup(group.id); });
     el.querySelector('.swf-grp-run-btn').addEventListener('click', () => executeGroup(group.id));
     el.querySelector('.swf-grp-dup-btn').addEventListener('click', () => { saveUndoState(); duplicateGroup(group.id); });
-    el.querySelector('.swf-grp-sync-btn').addEventListener('click', () => syncGroupParams(group.id));
 
-    // Sidebar toggle
+    // 統一參數 slide-out toggle (mutually exclusive with the 上游圖片 sidebar)
+    el.querySelector('.swf-grp-sync-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (getGroupMembers(group.id).length === 0) {
+        if (window.showToast) window.showToast('⚠️ 群組內沒有節點'); return;
+      }
+      group.paramsSidebarOpen = !group.paramsSidebarOpen;
+      if (group.paramsSidebarOpen) {
+        group.sidebarOpen = false; el.classList.remove('sidebar-open');
+        renderGroupParamsSidebar(group);
+      }
+      el.classList.toggle('params-sidebar-open', group.paramsSidebarOpen);
+    });
+    el.querySelector('.swf-gps-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      group.paramsSidebarOpen = false;
+      el.classList.remove('params-sidebar-open');
+    });
+    el.querySelector('.swf-gps-model').addEventListener('change', (e) => {
+      const paramsBox = el.querySelector('.swf-gps-params');
+      paramsBox.innerHTML = buildParamsHTML(e.target.value, {});
+      wireModalSliders(paramsBox);
+    });
+    el.querySelector('.swf-gps-apply').addEventListener('click', (e) => {
+      e.stopPropagation();
+      applyGroupParamsSidebar(group);
+    });
+
+    // 上游圖片 sidebar toggle (mutually exclusive with the 統一參數 panel)
     el.querySelector('.swf-group-sidebar-toggle').addEventListener('click', (e) => {
       e.stopPropagation();
       group.sidebarOpen = !group.sidebarOpen;
+      if (group.sidebarOpen) {
+        group.paramsSidebarOpen = false; el.classList.remove('params-sidebar-open');
+        renderGroupSidebar(group);
+      }
       el.classList.toggle('sidebar-open', group.sidebarOpen);
-      if (group.sidebarOpen) renderGroupSidebar(group);
     });
     el.querySelector('.swf-gs-close').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -901,85 +998,49 @@
     if (window.showToast) window.showToast('✅ 已複製群組 "' + g.title + '"');
   }
 
-  /** Feature 7: Sync all member nodes via Modal */
-  let currentSyncGroupId = null;
+  /** Feature 7: Unify member-node params via the group's 統一參數 slide-out panel */
 
-  function syncGroupParams(groupId) {
-    const members = getGroupMembers(groupId);
-    if (members.length === 0) {
-      if (window.showToast) window.showToast('⚠️ 群組內沒有節點');
-      return;
-    }
-    currentSyncGroupId = groupId;
-    
-    // Default to the first node's parameters
+  // Populate the group's 統一參數 slide-out panel from its first member node.
+  function renderGroupParamsSidebar(group) {
+    const el = group.el;
+    const members = getGroupMembers(group.id);
     const source = members[0];
-    const model = source.data.model || 'nanobanana2';
-    const params = { ...source.data.params };
-    
-    // Populate modal
-    const modal = document.getElementById('swfSyncParamsModal');
-    const sel = document.getElementById('swfSyncModelSel');
-    const container = document.getElementById('swfSyncParamsContainer');
-    
-    if (!modal || !sel || !container) return;
-    
-    sel.value = model;
-    container.innerHTML = buildParamsHTML(model, params);
-    wireModalSliders(container);
+    const model = source ? (source.data.model || 'nanobanana2') : 'nanobanana2';
+    const params = source ? { ...source.data.params } : {};
 
-    // Folder picker: mirror node-folder options, default to the first member's folder
-    const folderSel = document.getElementById('swfSyncFolderSel');
+    const modelSel = el.querySelector('.swf-gps-model');
+    if (modelSel) modelSel.value = model;
+    const paramsBox = el.querySelector('.swf-gps-params');
+    if (paramsBox) { paramsBox.innerHTML = buildParamsHTML(model, params); wireModalSliders(paramsBox); }
+
+    const folderSel = el.querySelector('.swf-gps-folder');
     if (folderSel) {
-      const curFolder = source.el.querySelector('.swf-node-folder')?.value || '';
+      const curFolder = source ? (source.el.querySelector('.swf-node-folder')?.value || '') : '';
       folderSel.innerHTML = buildNodeFolderOptionsHTML(curFolder);
     }
-
-    // Filename prefix: prefill from the first member's setting
-    const prefixInput = document.getElementById('swfSyncNamePrefix');
-    if (prefixInput) prefixInput.value = source.data.namePrefix || '';
-    const overwriteInput = document.getElementById('swfSyncOverwrite');
-    if (overwriteInput) overwriteInput.checked = source.data.overwrite !== false;
-
-    // Wire up inputs within the modal to keep track of changed params internally
-    // We can just rely on the inputs being there, and scrape them when confirmed
-    // But we need to make sure the selects work. The HTML structure from buildParamsHTML handles basic selects.
-    
-    modal.classList.remove('hidden');
+    const prefixInput = el.querySelector('.swf-gps-prefix');
+    if (prefixInput) prefixInput.value = source ? (source.data.namePrefix || '') : '';
+    const overwriteInput = el.querySelector('.swf-gps-overwrite');
+    if (overwriteInput) overwriteInput.checked = source ? (source.data.overwrite !== false) : true;
   }
 
-  function applySyncParams() {
-    if (!currentSyncGroupId) return;
-    const members = getGroupMembers(currentSyncGroupId);
-    if (members.length === 0) return;
-    
-    const sel = document.getElementById('swfSyncModelSel');
-    const container = document.getElementById('swfSyncParamsContainer');
-    const model = sel.value;
-    
-    // Scrape params from modal
-    const newParams = {};
-    const selects = container.querySelectorAll('select');
-    selects.forEach(s => {
-      const field = s.dataset.param;
-      if (field) newParams[field] = s.value;
-    });
-    const inputs = container.querySelectorAll('input[type="range"]');
-    inputs.forEach(i => {
-      const field = i.dataset.param;
-      if (field) newParams[field] = parseFloat(i.value);
-    });
-    
-    // Folder chosen in the modal — applied to every member node's save-folder.
-    const folder = document.getElementById('swfSyncFolderSel')?.value ?? '';
-    // Filename prefix — applied to every member node.
-    const namePrefix = (document.getElementById('swfSyncNamePrefix')?.value ?? '').trim();
-    // Overwrite toggle — applied to every member node.
-    const overwrite = document.getElementById('swfSyncOverwrite')?.checked !== false;
+  // Apply the 統一參數 panel's values to every member node of the group.
+  function applyGroupParamsSidebar(group) {
+    const members = getGroupMembers(group.id);
+    if (members.length === 0) { if (window.showToast) window.showToast('⚠️ 群組內沒有節點'); return; }
+    const el = group.el;
+    const model = el.querySelector('.swf-gps-model').value;
+    const paramsBox = el.querySelector('.swf-gps-params');
 
-    // Apply to all members
-    for (let i = 0; i < members.length; i++) {
-      const n = members[i];
+    const newParams = {};
+    paramsBox.querySelectorAll('select[data-param]').forEach(s => { newParams[s.dataset.param] = s.value; });
+    paramsBox.querySelectorAll('input[type="range"][data-param]').forEach(i => { newParams[i.dataset.param] = parseFloat(i.value); });
+
+    const folder = el.querySelector('.swf-gps-folder')?.value ?? '';
+    const namePrefix = (el.querySelector('.swf-gps-prefix')?.value ?? '').trim();
+    const overwrite = el.querySelector('.swf-gps-overwrite')?.checked !== false;
+
+    for (const n of members) {
       n.data.model = model;
       n.data.params = { ...newParams };
       n.data.namePrefix = namePrefix;
@@ -994,10 +1055,9 @@
     }
 
     if (window.showToast) window.showToast(`✅ 已將 ${members.length} 個節點統一為 ${MODEL_PARAMS[model]?.label || model}`);
-    closeSyncModal();
   }
 
-  // Wire range sliders inside the 統一群組參數 modal. Uses manual pointer
+  // Wire range sliders inside a params panel. Uses manual pointer
   // tracking (same as wireParamInputs) because input[type=range] events are
   // unreliable in some browsers; here it also guarantees live display updates.
   function wireModalSliders(container) {
@@ -1026,11 +1086,6 @@
         document.addEventListener('mouseup', onUp);
       });
     });
-  }
-
-  function closeSyncModal() {
-    currentSyncGroupId = null;
-    document.getElementById('swfSyncParamsModal')?.classList.add('hidden');
   }
 
   // ═══════════════════════════════════════════
@@ -1706,7 +1761,7 @@
   // them. Node-level exclusions are applied. Returns an ordered list (caller
   // de-dupes via Set merge). Shared by propagateVisualImages and executeSingleNode
   // so a standalone re-run of a group member keeps the same upstream references.
-  function collectNodeUpstreamImages(node) {
+  function collectNodeUpstreamContribs(node) {
     const nid = node.id;
     let groupId = null;
     for (const gid in groups) {
@@ -1714,10 +1769,11 @@
     }
     const memberIds = groupId ? new Set(getGroupMembers(groupId).map(m => m.id)) : new Set();
 
-    const rawUpstream = [];
-    // Direct edges to this node (external sources and internal member edges).
-    edges.filter(e => e.target === nid).forEach(e => {
-      rawUpstream.push(...getSourceOutputImages(e.source));
+    const contribs = [];
+    // Direct edges to this node (external sources and internal member edges),
+    // visited in priority order. Each source contributes at its own priority.
+    sortedUpstreamEdges(nid).forEach(({ e }) => {
+      contribs.push({ priority: srcPriority(e.source), images: getSourceOutputImages(e.source) });
     });
 
     // Entry node of a group also receives the group's incoming images.
@@ -1728,52 +1784,35 @@
         if (g.upstreamMode === 'ordered') {
           const entryNodes = getGroupEntryNodes(groupId);
           const nodeIndex = entryNodes.findIndex(m => m.id === nid);
-          edges.filter(e => e.target === groupId).forEach(srcEdge => {
+          sortedUpstreamEdges(groupId).forEach(({ e: srcEdge }) => {
             if (isGroup(srcEdge.source)) {
               const exitNodes = getGroupExitNodes(srcEdge.source);
               if (nodeIndex >= 0 && nodeIndex < exitNodes.length) {
-                (exitNodes[nodeIndex].resultImages || [])
-                  .filter(img => !g.excludedImages.includes(img))
-                  .forEach(img => rawUpstream.push(img));
+                contribs.push({ priority: srcPriority(srcEdge.source),
+                  images: (exitNodes[nodeIndex].resultImages || []).filter(img => !g.excludedImages.includes(img)) });
               }
             } else if (nodeIndex === 0) {
-              getSourceOutputImages(srcEdge.source)
-                .filter(img => !g.excludedImages.includes(img))
-                .forEach(img => rawUpstream.push(img));
+              contribs.push({ priority: srcPriority(srcEdge.source),
+                images: getSourceOutputImages(srcEdge.source).filter(img => !g.excludedImages.includes(img)) });
             }
           });
         } else {
-          edges.filter(e => e.target === groupId).forEach(e => {
-            getSourceOutputImages(e.source)
-              .filter(img => !g.excludedImages.includes(img))
-              .forEach(img => rawUpstream.push(img));
+          sortedUpstreamEdges(groupId).forEach(({ e }) => {
+            contribs.push({ priority: srcPriority(e.source),
+              images: getSourceOutputImages(e.source).filter(img => !g.excludedImages.includes(img)) });
           });
         }
       }
     }
 
-    return rawUpstream.filter(img => !node.data.excludedIncomingImages.includes(img));
+    return contribs;
   }
 
   function propagateVisualImages() {
     for (const nid in nodes) {
       const n = nodes[nid];
-
-      // Group-aware upstream collection (entry nodes also receive group images).
-      const activeUpstream = collectNodeUpstreamImages(n);
-
-      // Merge into unified images array while preserving user order:
-      // 1. Keep existing items in images that are still valid (uploaded or active upstream)
-      const validSet = new Set([...n.data.uploadedImages, ...activeUpstream]);
-      const preservedImages = n.data.images.filter(img => validSet.has(img));
-      
-      // 2. Find new upstream images not already in preserved list
-      const preservedSet = new Set(preservedImages);
-      const newUpstream = activeUpstream.filter(img => !preservedSet.has(img));
-
-      // 3. Final merged array: preserved order + new upstream appended
-      n.data.images = [...preservedImages, ...newUpstream];
-      
+      // Group-aware, priority-ordered assembly (entry nodes also receive group images).
+      n.data.images = assembleNodeImages(n, collectNodeUpstreamContribs(n));
       renderImageThumbs(n);
     }
 
@@ -1950,16 +1989,9 @@
     const timer = setInterval(() => { secs++; placeholder.textContent = `Generating... (${secs}s)`; }, 1000);
 
     // Propagate upstream images (skip if called from group execution where images are pre-set).
-    // Uses the group-aware collector so a standalone re-run of a group member keeps the
-    // images distributed via the group's input port (previously these were dropped).
+    // Priority-ordered assembly so a standalone re-run keeps the same ordering as propagate.
     if (!skipImageReset) {
-      const activeUpstream = collectNodeUpstreamImages(node);
-      // Merge preserving order
-      const validSet = new Set([...node.data.uploadedImages, ...activeUpstream]);
-      const preserved = node.data.images.filter(img => validSet.has(img));
-      const preservedSet = new Set(preserved);
-      const newUp = activeUpstream.filter(img => !preservedSet.has(img));
-      node.data.images = [...preserved, ...newUp];
+      node.data.images = assembleNodeImages(node, collectNodeUpstreamContribs(node));
     }
     renderImageThumbs(node);
 
@@ -2051,16 +2083,6 @@
 
     group.el.classList.add('swf-group-executing');
 
-    // Get images sent to the group's own input port, filtered by group settings
-    let groupIncomingImages = [];
-    if (group.receiveUpstream) {
-      edges.filter(e => e.target === groupId).forEach(e => {
-        groupIncomingImages.push(...getSourceOutputImages(e.source));
-      });
-      // Apply group-level exclusion
-      groupIncomingImages = groupIncomingImages.filter(img => !group.excludedImages.includes(img));
-    }
-
     const memberIds = new Set(members.map(m => m.id));
 
     // Topological sort within group — pass skipImageReset=true so group-assigned images aren't cleared
@@ -2070,56 +2092,11 @@
         const n = nodes[id];
         if (!n) return Promise.resolve();
 
-        // Check if node is an entry node (no internal upstream dependencies)
-        const isEntry = !edges.some(e => e.target === n.id && memberIds.has(e.source));
-
-        // Gather upstream images for this specific node execution
-        let rawUpstream = [];
-        
-        // 1. Direct external edges (Node outside -> Node inside)
-        edges.filter(e => e.target === n.id && !memberIds.has(e.source)).forEach(e => {
-          rawUpstream.push(...getSourceOutputImages(e.source));
-        });
-
-        // 2. If it's an entry node, distribute incoming images per mode
-        if (isEntry) {
-          if (group.upstreamMode === 'ordered') {
-            const entryNodesList = getGroupEntryNodes(groupId);
-            const nodeIndex = entryNodesList.findIndex(m => m.id === n.id);
-            edges.filter(e => e.target === groupId).forEach(srcEdge => {
-              if (isGroup(srcEdge.source)) {
-                const exitNodes = getGroupExitNodes(srcEdge.source);
-                if (nodeIndex >= 0 && nodeIndex < exitNodes.length) {
-                  (exitNodes[nodeIndex].resultImages || [])
-                    .filter(img => !group.excludedImages.includes(img))
-                    .forEach(img => rawUpstream.push(img));
-                }
-              } else if (nodeIndex === 0) {
-                getSourceOutputImages(srcEdge.source)
-                  .filter(img => !group.excludedImages.includes(img))
-                  .forEach(img => rawUpstream.push(img));
-              }
-            });
-          } else {
-            rawUpstream.push(...groupIncomingImages);
-          }
-        }
-
-        // 3. Direct internal edges (Node inside -> Node inside)
-        edges.filter(e => e.target === n.id && memberIds.has(e.source)).forEach(e => {
-          const src = nodes[e.source];
-          if (src && src.resultImages && src.resultImages.length > 0) rawUpstream.push(...src.resultImages);
-        });
-
-        // Apply node-level exclusion
-        const activeUpstream = rawUpstream.filter(img => !n.data.excludedIncomingImages.includes(img));
-
-        // Merge into unified images array preserving user order
-        const validSet = new Set([...n.data.uploadedImages, ...activeUpstream]);
-        const preserved = n.data.images.filter(img => validSet.has(img));
-        const preservedSet = new Set(preserved);
-        const newUp = activeUpstream.filter(img => !preservedSet.has(img));
-        n.data.images = [...preserved, ...newUp];
+        // Priority-ordered, group-aware assembly: direct/internal edges + the group's
+        // distributed incoming images (per upstream mode), interleaved with the node's
+        // own reference images at priority 0. Fresh member resultImages are read here
+        // because earlier batches have already executed.
+        n.data.images = assembleNodeImages(n, collectNodeUpstreamContribs(n));
 
         // Execute passing true for skipImageReset so it doesn't clear our carefully gathered images
         return executeSingleNode(n, true);
@@ -2241,6 +2218,7 @@
       groupsData[id] = {
         id: g.id, x: g.x, y: g.y, width: g.width, height: g.height, color: g.color, title: g.title,
         receiveUpstream: g.receiveUpstream, upstreamMode: g.upstreamMode || 'all', excludedImages: forStorage ? [] : [...g.excludedImages],
+        receivePriority: g.receivePriority ?? 1,
         folder: folderInput ? folderInput.value : ''
       };
     }
@@ -2315,12 +2293,15 @@
             g.receiveUpstream = gd.receiveUpstream !== undefined ? gd.receiveUpstream : true;
             g.upstreamMode = gd.upstreamMode || 'all';
             g.excludedImages = Array.isArray(gd.excludedImages) ? [...gd.excludedImages] : [];
+            g.receivePriority = gd.receivePriority ?? 1;
             const folderInput = g.el.querySelector('.swf-group-folder');
             if (folderInput) folderInput.value = gd.folder || '';
             // Sync checkbox + mode radio state
             const cb = g.el.querySelector('.swf-gs-receive-cb');
             if (cb) cb.checked = g.receiveUpstream;
             g.el.querySelectorAll('.swf-gs-mode-radio').forEach(r => { r.checked = r.value === g.upstreamMode; });
+            const prioInput = g.el.querySelector('.swf-grp-priority');
+            if (prioInput) prioInput.value = g.receivePriority;
           } catch (e) { console.warn('Failed to restore group:', savedId, e); }
         }
       }
@@ -2784,11 +2765,6 @@
     document.getElementById('swfPromptQuickBar')?.classList.remove('active');
   });
 
-  // Sync Modal Bindings
-  document.getElementById('swfSyncModalCloseBtn')?.addEventListener('click', closeSyncModal);
-  document.getElementById('swfSyncModalCancelBtn')?.addEventListener('click', closeSyncModal);
-  document.getElementById('swfSyncModalConfirmBtn')?.addEventListener('click', applySyncParams);
-
   // Library (Load Workflow) Modal — close via ✕ or backdrop click (bound once here;
   // loadWorkflow() only wires the dynamic load/delete buttons).
   document.getElementById('swfLibModalCloseBtn')?.addEventListener('click', () => {
@@ -2798,14 +2774,6 @@
     if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
   });
   
-  document.getElementById('swfSyncModelSel')?.addEventListener('change', (e) => {
-    const container = document.getElementById('swfSyncParamsContainer');
-    if (container) {
-      container.innerHTML = buildParamsHTML(e.target.value, {});
-      wireModalSliders(container);
-    }
-  });
-
   // ═══════════════════════════════════════════
   // ── DYNAMIC FOLDER SELECTS ──
   // ═══════════════════════════════════════════
@@ -2819,11 +2787,9 @@
   }
 
   function updateSwfFolderSelects() {
-    document.querySelectorAll('.swf-node-folder').forEach(sel => {
+    document.querySelectorAll('.swf-node-folder, .swf-gps-folder').forEach(sel => {
       sel.innerHTML = buildNodeFolderOptionsHTML(sel.value);
     });
-    const syncFolderSel = document.getElementById('swfSyncFolderSel');
-    if (syncFolderSel) syncFolderSel.innerHTML = buildNodeFolderOptionsHTML(syncFolderSel.value);
   }
   
   window.addEventListener('assets-tree-updated', updateSwfFolderSelects);
@@ -2893,7 +2859,7 @@
   // Expose API
   window.SimpleWorkflow = {
     createMacroNode, createGroup, executeAll, executeSingleNode, executeGroup,
-    duplicateGroup, syncGroupParams,
+    duplicateGroup,
     saveWorkflow, loadWorkflow,
     getNodes: () => nodes, getGroups: () => groups, getEdges: () => edges,
     renderSwfAssets, initSwfPromptQuickBar
