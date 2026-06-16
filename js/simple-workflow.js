@@ -938,6 +938,8 @@
     // Filename prefix: prefill from the first member's setting
     const prefixInput = document.getElementById('swfSyncNamePrefix');
     if (prefixInput) prefixInput.value = source.data.namePrefix || '';
+    const overwriteInput = document.getElementById('swfSyncOverwrite');
+    if (overwriteInput) overwriteInput.checked = source.data.overwrite !== false;
 
     // Wire up inputs within the modal to keep track of changed params internally
     // We can just rely on the inputs being there, and scrape them when confirmed
@@ -972,6 +974,8 @@
     const folder = document.getElementById('swfSyncFolderSel')?.value ?? '';
     // Filename prefix — applied to every member node.
     const namePrefix = (document.getElementById('swfSyncNamePrefix')?.value ?? '').trim();
+    // Overwrite toggle — applied to every member node.
+    const overwrite = document.getElementById('swfSyncOverwrite')?.checked !== false;
 
     // Apply to all members
     for (let i = 0; i < members.length; i++) {
@@ -979,11 +983,14 @@
       n.data.model = model;
       n.data.params = { ...newParams };
       n.data.namePrefix = namePrefix;
+      n.data.overwrite = overwrite;
       n.el.querySelector('.swf-model-sel').value = model;
       n.el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(model, newParams);
       wireParamInputs(n);
       const nf = n.el.querySelector('.swf-node-folder');
       if (nf) nf.value = folder;
+      const owCb = n.el.querySelector('.swf-overwrite-cb');
+      if (owCb) owCb.checked = overwrite;
     }
 
     if (window.showToast) window.showToast(`✅ 已將 ${members.length} 個節點統一為 ${MODEL_PARAMS[model]?.label || model}`);
@@ -1071,6 +1078,7 @@
           <div class="swf-model-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">模型</label><select class="swf-model-sel" style="width:100%; box-sizing:border-box;">${modelOptionsHTML}</select></div>
           <div class="swf-folder-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">儲存資料夾</label><select class="swf-node-folder" title="選擇儲存資料夾" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 4px; font-size: 12px; height: 26px;"><option value="">預設 (根目錄)</option></select></div>
         </div>
+        <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb" checked> 覆蓋同名檔案</label>
         <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
         ${isI2I ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
         <div><div class="swf-section-label swf-prompt-label">提示詞 (Prompt)</div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
@@ -1084,7 +1092,7 @@
     const nodeData = { 
       id, type, el, x: pos.x, y: pos.y, 
       width: 320, isCollapsed: false,
-      data: { model: defaultModel, images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {}, promptHeight: 0, namePrefix: '' },
+      data: { model: defaultModel, images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {}, promptHeight: 0, namePrefix: '', overwrite: true },
       resultImages: [] 
     };
     nodes[id] = nodeData;
@@ -1208,6 +1216,11 @@
       wireParamInputs(node);
     });
     wireParamInputs(node);
+
+    const overwriteCb = el.querySelector('.swf-overwrite-cb');
+    if (overwriteCb) {
+      overwriteCb.addEventListener('change', (e) => { node.data.overwrite = e.target.checked; });
+    }
 
     // Image upload (I2I)
     const imagesArea = el.querySelector('.swf-images-area');
@@ -2014,7 +2027,7 @@
       const baseName = (num != null)
         ? `${prefix}${num}`
         : `${prefix || 'SWF'}_${Date.now()}`;
-      if (window.AssetManager) window.AssetManager.saveAsset(baseName, imageUrl, targetFolder);
+      if (window.AssetManager) window.AssetManager.saveAsset(baseName, imageUrl, targetFolder, node.data.overwrite !== false);
       if (window.showToast) window.showToast('✅ 生成完成');
     } catch (err) {
       console.error(err);
@@ -2217,6 +2230,7 @@
         excludedIncomingImages: forStorage ? [] : [...n.data.excludedIncomingImages],
         folder: folderInput ? folderInput.value : '',
         namePrefix: n.data.namePrefix || '',
+        overwrite: n.data.overwrite !== false,
         promptHTML: forStorage ? stripInlineImageData(promptHTML) : promptHTML
       };
     }
@@ -2367,6 +2381,9 @@
                window.showToast('⚠️ 工具流包含本機影像，請先在資產庫「恢復連線」', 4000);
             }
             n.data.namePrefix = nd.namePrefix || '';
+            n.data.overwrite = nd.overwrite !== false;
+            const owCb = n.el.querySelector('.swf-overwrite-cb');
+            if (owCb) owCb.checked = n.data.overwrite;
             n.el.querySelector('.swf-model-sel').value = n.data.model;
             const folderInput = n.el.querySelector('.swf-node-folder');
             if (folderInput) folderInput.value = nd.folder || '';

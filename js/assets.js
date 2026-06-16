@@ -580,7 +580,23 @@ window.AssetManager = (function() {
   });
 
   // 5. Saving Assets
-  async function saveAsset(name, src, targetFolderPath) {
+  // Find a .png filename that doesn't already exist in the folder by appending
+  // _1, _2, … to the base name. Used when overwrite is disabled so re-runs don't
+  // clobber an earlier image that shares the same (slot-based) name.
+  async function resolveUniqueName(folderHandle, baseName) {
+    let candidate = baseName, i = 1;
+    while (i < 10000) {
+      try {
+        await folderHandle.getFileHandle(candidate + '.png'); // resolves → exists
+        candidate = `${baseName}_${i++}`;
+      } catch {
+        return candidate; // NotFoundError → available
+      }
+    }
+    return `${baseName}_${Date.now()}`;
+  }
+
+  async function saveAsset(name, src, targetFolderPath, overwrite = true) {
     if (!workspaceHandle || !permissionGranted) {
       if (window.showToast) window.showToast('❌ 無法儲存：未連結本機目錄或未授權', 2000);
       return;
@@ -590,7 +606,7 @@ window.AssetManager = (function() {
       if (targetFolderPath && targetFolderPath !== '根目錄' && targetFolderPath !== '') {
         const parts = targetFolderPath.split('/');
         if (parts[0] === '根目錄') parts.shift();
-        
+
         for (const part of parts) {
           if (!part.trim()) continue;
           folderHandle = await folderHandle.getDirectoryHandle(part, { create: true });
@@ -605,8 +621,9 @@ window.AssetManager = (function() {
         const res = await fetch(src);
         blob = await res.blob();
       }
-      
-      const fileHandle = await folderHandle.getFileHandle(name + '.png', { create: true });
+
+      const finalName = overwrite ? name : await resolveUniqueName(folderHandle, name);
+      const fileHandle = await folderHandle.getFileHandle(finalName + '.png', { create: true });
       const writable = await fileHandle.createWritable();
       await writable.write(blob);
       await writable.close();

@@ -940,6 +940,10 @@
         <label class="form-label" style="margin-top: 12px;">檔案命名前綴</label>
         <input type="text" class="form-input" id="swfSyncNamePrefix" placeholder="留空＝1, 2, 3…（如 shot → shot1, shot2）">
 
+        <label style="display:flex; align-items:center; gap:6px; margin-top:10px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="swfSyncOverwrite" checked> 覆蓋同名檔案（關閉時自動加 _1, _2…）
+        </label>
+
         <!-- Params container populated by JS -->
         <div id="swfSyncParamsContainer" style="margin-top: 12px;"></div>
       </div>
