@@ -492,6 +492,8 @@
       <button class="swf-group-sidebar-toggle" title="上游圖片管理"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
       <button class="swf-grp-sync-btn swf-left-tab-btn" title="統一內部節點參數"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2"/></svg></button>
       <button class="swf-grp-dup-btn swf-left-tab-btn" title="複製群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      <button class="swf-grp-lock-btn swf-left-tab-btn" title="鎖定群組成員（不再接收/帶走其他節點）"><svg class="swf-lock-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg><svg class="swf-lock-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+      <button class="swf-grp-fit-btn swf-left-tab-btn" title="自動調整範圍以囊括所有節點"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
       <div class="swf-group-sidebar">
         <div class="swf-gs-header">
           <span>📁 上游圖片</span>
@@ -532,17 +534,17 @@
         </div>
       </div>
       <div class="swf-group-header" style="background:${hexToRgba(gc, 0.15)};">
-        <button class="swf-grp-collapse-btn" title="摺疊/展開群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
-        <input class="swf-group-title" value="${gt}" spellcheck="false" style="flex:1;">
+        <input type="color" class="swf-group-color-picker" value="${gc}" title="群組顏色">
+        <input class="swf-group-title" value="${gt}" spellcheck="false">
         <span class="swf-grp-priority-wrap" title="下游接收優先級（參考圖=0，數字越小越前）">
           <span class="swf-grp-priority-label">接受優先級</span>
           <input type="number" class="swf-grp-priority" value="1" step="1">
         </span>
-        <input type="color" class="swf-group-color-picker" value="${gc}" title="群組顏色">
-        <span class="swf-grp-divider"></span>
+        <span class="swf-grp-spacer"></span>
         <div class="swf-group-actions">
           <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>
-          <button class="swf-grp-del-btn" title="刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <button class="swf-grp-collapse-btn" title="摺疊/展開群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <button class="swf-grp-del-btn" title="關閉/刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
       </div>
       <div class="swf-group-resize"></div>
@@ -550,7 +552,7 @@
 
     nodesContainer.appendChild(el);
 
-    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, upstreamMode: 'all', receivePriority: 1, collapsed: false, expandedHeight: null, _collapsedMembers: null };
+    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, upstreamMode: 'all', receivePriority: 1, collapsed: false, expandedHeight: null, _collapsedMembers: null, locked: false, lockedMemberIds: null };
     groups[id] = groupData;
 
     // Entity Selection
@@ -598,6 +600,8 @@
     el.querySelector('.swf-grp-del-btn').addEventListener('click', () => { saveUndoState(); promptRemoveGroup(group.id); });
     el.querySelector('.swf-grp-run-btn').addEventListener('click', () => executeGroup(group.id));
     el.querySelector('.swf-grp-collapse-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleGroupCollapse(group); });
+    el.querySelector('.swf-grp-lock-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleGroupLock(group); });
+    el.querySelector('.swf-grp-fit-btn').addEventListener('click', (e) => { e.stopPropagation(); autoFitGroup(group); });
     el.querySelector('.swf-grp-dup-btn').addEventListener('click', () => { saveUndoState(); duplicateGroup(group.id); });
 
     // 統一參數 slide-out toggle (mutually exclusive with the 上游圖片 sidebar)
@@ -914,6 +918,10 @@
     if (g.collapsed && g._collapsedMembers) {
       return g._collapsedMembers.filter(n => nodes[n.id]);
     }
+    // Locked: membership is frozen to the snapshot — geometry (new/overlapping nodes) is ignored.
+    if (g.locked && g.lockedMemberIds) {
+      return g.lockedMemberIds.map(nid => nodes[nid]).filter(Boolean);
+    }
     const members = [];
     for (const nid in nodes) {
       const n = nodes[nid];
@@ -1001,6 +1009,44 @@
     // Reflect chevron state
     const chev = group.el.querySelector('.swf-grp-collapse-btn');
     if (chev) chev.classList.toggle('collapsed', group.collapsed);
+    scheduleEdgeRender();
+  }
+
+  // Lock freezes the current member set: no new nodes are accepted and overlapping
+  // nodes aren't carried away; only bound members move with the group.
+  function toggleGroupLock(group) {
+    group.locked = !group.locked;
+    if (group.locked) {
+      group.lockedMemberIds = getGroupMembers(group.id).map(m => m.id);
+    } else {
+      group.lockedMemberIds = null;
+    }
+    group.el.classList.toggle('swf-group-locked', group.locked);
+    if (!isLoadingWorkflow && window.showToast) window.showToast(group.locked ? '🔒 已鎖定群組成員' : '🔓 已解除鎖定', 1500);
+    scheduleEdgeRender();
+  }
+
+  // Resize the group so its box encloses every member node (header sits above them).
+  function autoFitGroup(group) {
+    if (group.collapsed) toggleGroupCollapse(group); // expand first
+    const members = getGroupMembers(group.id);
+    if (members.length === 0) { if (window.showToast) window.showToast('⚠️ 群組內沒有節點', 1500); return; }
+    const PAD = 24;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    members.forEach(n => {
+      const w = n.el.offsetWidth || 320, h = n.el.offsetHeight || 200;
+      minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
+      maxX = Math.max(maxX, n.x + w); maxY = Math.max(maxY, n.y + h);
+    });
+    group.x = Math.round(minX - PAD);
+    group.y = Math.round(minY - PAD - GROUP_HEADER_H);
+    group.width = Math.max(400, Math.round((maxX - minX) + PAD * 2));
+    group.height = Math.max(260, Math.round((maxY - minY) + PAD * 2 + GROUP_HEADER_H));
+    group.el.style.left = group.x + 'px';
+    group.el.style.top = group.y + 'px';
+    group.el.style.width = group.width + 'px';
+    group.el.style.height = group.height + 'px';
+    if (group.locked) group.lockedMemberIds = members.map(m => m.id); // keep snapshot fresh
     scheduleEdgeRender();
   }
 
@@ -2289,7 +2335,7 @@
         // Persist the expanded height even when collapsed, so geometry/membership restore correctly.
         height: g.collapsed ? (g.expandedHeight || 320) : g.height, color: g.color, title: g.title,
         receiveUpstream: g.receiveUpstream, upstreamMode: g.upstreamMode || 'all', excludedImages: forStorage ? [] : [...g.excludedImages],
-        receivePriority: g.receivePriority ?? 1, collapsed: !!g.collapsed,
+        receivePriority: g.receivePriority ?? 1, collapsed: !!g.collapsed, locked: !!g.locked,
         folder: folderInput ? folderInput.value : ''
       };
     }
@@ -2376,6 +2422,7 @@
             const prioInput = g.el.querySelector('.swf-grp-priority');
             if (prioInput) prioInput.value = g.receivePriority;
             if (gd.collapsed) g._restoreCollapsed = true; // re-collapse after members exist
+            if (gd.locked) g._restoreLocked = true; // re-lock after members exist
           } catch (e) { console.warn('Failed to restore group:', savedId, e); }
         }
       }
@@ -2467,6 +2514,16 @@
 
       requestAnimationFrame(scheduleEdgeRender);
       if (!isUndoRestore && window.showToast) window.showToast('✅ 已讀取儲存的工作流');
+
+      // Re-lock groups that were saved locked (snapshot geometric members now they exist,
+      // BEFORE any re-collapse hides them).
+      for (const gid in groups) {
+        if (groups[gid]._restoreLocked) {
+          delete groups[gid]._restoreLocked;
+          groups[gid].locked = false; // toggle flips to true and snapshots members
+          toggleGroupLock(groups[gid]);
+        }
+      }
 
       // Re-collapse groups that were saved collapsed (now that their members exist).
       for (const gid in groups) {

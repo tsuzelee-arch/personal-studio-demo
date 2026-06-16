@@ -382,7 +382,7 @@
 .swf-group-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 6px 12px;
   border-radius: 12px 12px 0 0;
   cursor: grab;
@@ -390,6 +390,9 @@
   flex-wrap: nowrap;
   overflow: hidden;
 }
+/* Blank flexible gap between the left cluster (color/name/priority) and the
+   right actions (run/collapse/close). */
+.swf-grp-spacer { flex: 1 1 auto; min-width: 8px; align-self: stretch; }
 .swf-group-header:active { cursor: grabbing; }
 
 /* Collapse toggle */
@@ -1223,8 +1226,24 @@
 .swf-group-sidebar-toggle { top: 40px; }
 .swf-grp-sync-btn.swf-left-tab-btn { top: 72px; }
 .swf-grp-dup-btn.swf-left-tab-btn  { top: 104px; }
+.swf-grp-lock-btn.swf-left-tab-btn { top: 136px; }
+.swf-grp-fit-btn.swf-left-tab-btn  { top: 168px; }
 .swf-group-sidebar-toggle svg,
 .swf-left-tab-btn svg { width: 14px; height: 14px; }
+
+/* Lock button: show open padlock by default, closed when the group is locked */
+.swf-grp-lock-btn .swf-lock-closed { display: none; }
+.swf-group-locked .swf-grp-lock-btn .swf-lock-open { display: none; }
+.swf-group-locked .swf-grp-lock-btn .swf-lock-closed { display: block; }
+.swf-group-locked .swf-grp-lock-btn {
+  background: var(--dyn-grp-color, #00c8b4);
+  color: #fff;
+}
+/* Locked group: solid (non-dashed) emphasis border so it reads as fixed */
+.swf-group.swf-group-locked {
+  border-style: solid;
+  box-shadow: 0 0 0 1px var(--dyn-grp-color, #00c8b4) inset;
+}
 
 .swf-group-sidebar-toggle:hover,
 .swf-left-tab-btn:hover {
