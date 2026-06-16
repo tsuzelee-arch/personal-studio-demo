@@ -23,11 +23,6 @@
   };
 
   // ── DOM refs ──
-  const localAssetPathInput = document.getElementById('localAssetPathInput');
-  const saveLocalPathBtn    = document.getElementById('saveLocalPathBtn');
-  const gdriveClientIdInput = document.getElementById('gdriveClientIdInput');
-  const saveGdriveClientIdBtn = document.getElementById('saveGdriveClientIdBtn');
-  const gdriveStatus        = document.getElementById('gdriveStatus');
   const openaiKeyInput  = document.getElementById('openaiKeyInput');
   const geminiKeyInput  = document.getElementById('geminiKeyInput');
   const geminiliteKeyInput = document.getElementById('geminiliteKeyInput');
@@ -54,8 +49,6 @@
     const nbKey = localStorage.getItem(STORAGE_KEYS.nanobananaKey) || '';
     const model = localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini';
     const lang  = localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文';
-    const localPaths  = localStorage.getItem(STORAGE_KEYS.localAssetPaths) || '';
-    const gdriveId    = localStorage.getItem(STORAGE_KEYS.gdriveClientId) || '';
 
     if (openaiKeyInput)       openaiKeyInput.value = oKey;
     if (geminiKeyInput)       geminiKeyInput.value = gKey;
@@ -63,46 +56,6 @@
     if (nanobananaKeyInput)   nanobananaKeyInput.value = nbKey;
     if (modelSelect)          modelSelect.value = model;
     if (languageSelect)       languageSelect.value = lang;
-    if (localAssetPathInput)  localAssetPathInput.value = localPaths;
-    if (gdriveClientIdInput)  gdriveClientIdInput.value = gdriveId;
-  }
-
-  // ── Save local asset paths ──
-  // Parses the textarea (one absolute path per line), saves to localStorage,
-  // and syncs to the backend server-config.json so the Node.js API can enforce
-  // the path whitelist without server restart.
-  async function saveLocalPaths() {
-    const raw = localAssetPathInput ? localAssetPathInput.value : '';
-    const paths = raw.split('\n').map(p => p.trim()).filter(Boolean);
-    // Save locally first — works even without the server running
-    localStorage.setItem(STORAGE_KEYS.localAssetPaths, raw);
-    window.dispatchEvent(new CustomEvent('assets-source-paths-updated'));
-    // Background sync to backend (optional — needed only for localdir browsing)
-    try {
-      const res = await fetch('/api/local-assets/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paths })
-      });
-      if (res.ok) {
-        showToast('✅ 本機目錄路徑已儲存');
-      } else {
-        const err = await res.json().catch(() => ({}));
-        showToast('⚠️ 路徑已存至本機，後端同步失敗：' + (err.error || res.status), 4000);
-      }
-    } catch {
-      showToast('路徑已儲存（需啟動伺服器才能瀏覽本機目錄）', 3000);
-    }
-  }
-
-  // ── Save Google Drive Client ID ──
-  function saveGdriveClientId() {
-    const id = gdriveClientIdInput ? gdriveClientIdInput.value.trim() : '';
-    localStorage.setItem(STORAGE_KEYS.gdriveClientId, id);
-    showToast(id ? 'Google Drive Client ID 已儲存' : 'Google Drive Client ID 已清除');
-    updateStatusIndicator(gdriveStatus, 'saved');
-    // Re-initialise GDriveService with new client ID (sign-out first if already signed in)
-    if (window.GDriveService) window.GDriveService.reinit(id);
   }
 
   // ── Save keys ──
@@ -245,8 +198,6 @@
   if (testOpenaiBtn)      testOpenaiBtn.addEventListener('click', testOpenAI);
   if (testGeminiBtn)      testGeminiBtn.addEventListener('click', testGemini);
   if (testGeminiliteBtn)  testGeminiliteBtn.addEventListener('click', testGeminilite);
-  if (saveLocalPathBtn)   saveLocalPathBtn.addEventListener('click', saveLocalPaths);
-  if (saveGdriveClientIdBtn) saveGdriveClientIdBtn.addEventListener('click', saveGdriveClientId);
 
   // ── Public getters ──
   window.StudioSettings = {

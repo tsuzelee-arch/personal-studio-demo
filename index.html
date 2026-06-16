@@ -657,18 +657,6 @@
                   📁 <strong>批次匯入</strong>：不需要填寫路徑或開啟伺服器。<br>
                   請至「<strong>資產庫</strong>」面板 → 點「📁 匯入資料夾」按鈕，選擇包含您檔案的本機資料夾。系統會自動將所有檔案（包含子資料夾）無縫匯入本地資料庫中，永久保存且免除重新授權。
                 </div>
-                <!-- hidden inputs kept for settings.js compat — no longer functional -->
-                <textarea id="localAssetPathInput" style="display:none"></textarea>
-                <button id="saveLocalPathBtn" style="display:none"></button>
-
-                <label class="form-label" style="margin-top:16px;">Google Drive OAuth 2.0 Client ID</label>
-                <div class="key-input-row">
-                  <input type="password" class="form-input key-input" id="gdriveClientIdInput"
-                    placeholder="xxxxx.apps.googleusercontent.com">
-                  <button class="btn-primary" id="saveGdriveClientIdBtn">儲存</button>
-                </div>
-                <div class="conn-status" id="gdriveStatus"></div>
-                <div class="settings-hint">請至 Google Cloud Console 建立「Web 應用程式」類型的 OAuth 2.0 憑證，並將 <code>http://localhost:3001</code> 加入已授權的 JavaScript 來源。</div>
               </div>
             </div>
 
