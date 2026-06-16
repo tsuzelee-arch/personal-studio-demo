@@ -807,6 +807,40 @@
       .sort((a, b) => a.x - b.x);
   }
 
+  /** 1-based pairing index of a node among its group's entry nodes, or null if
+   *  the node is not an entry node of any group. Shared by the order badge and
+   *  the auto-save filename so both always agree. */
+  function getNodeGroupNumber(node) {
+    for (const gid in groups) {
+      const idx = getGroupEntryNodes(gid).findIndex(m => m.id === node.id);
+      if (idx >= 0) return idx + 1;
+    }
+    return null;
+  }
+
+  /** Refresh the order badges on all nodes. Entry nodes of a group show their
+   *  1-based pairing index (left→right by X); everything else hides the badge.
+   *  Called from renderEdges() so it stays in sync as nodes move. */
+  function updateGroupNumbers() {
+    const numbered = new Set();
+    for (const gid in groups) {
+      getGroupEntryNodes(gid).forEach((n, i) => {
+        const badge = n.el.querySelector('.swf-order-badge');
+        if (badge) {
+          const txt = String(i + 1);
+          if (badge.textContent !== txt) badge.textContent = txt;
+          if (badge.style.display !== '') badge.style.display = '';
+        }
+        numbered.add(n.id);
+      });
+    }
+    for (const nid in nodes) {
+      if (numbered.has(nid)) continue;
+      const badge = nodes[nid].el.querySelector('.swf-order-badge');
+      if (badge && badge.style.display !== 'none') badge.style.display = 'none';
+    }
+  }
+
   function removeGroup(id) {
     const g = groups[id]; if (!g) return;
     g.el.remove();
@@ -901,6 +935,10 @@
       folderSel.innerHTML = buildNodeFolderOptionsHTML(curFolder);
     }
 
+    // Filename prefix: prefill from the first member's setting
+    const prefixInput = document.getElementById('swfSyncNamePrefix');
+    if (prefixInput) prefixInput.value = source.data.namePrefix || '';
+
     // Wire up inputs within the modal to keep track of changed params internally
     // We can just rely on the inputs being there, and scrape them when confirmed
     // But we need to make sure the selects work. The HTML structure from buildParamsHTML handles basic selects.
@@ -932,12 +970,15 @@
     
     // Folder chosen in the modal — applied to every member node's save-folder.
     const folder = document.getElementById('swfSyncFolderSel')?.value ?? '';
+    // Filename prefix — applied to every member node.
+    const namePrefix = (document.getElementById('swfSyncNamePrefix')?.value ?? '').trim();
 
     // Apply to all members
     for (let i = 0; i < members.length; i++) {
       const n = members[i];
       n.data.model = model;
       n.data.params = { ...newParams };
+      n.data.namePrefix = namePrefix;
       n.el.querySelector('.swf-model-sel').value = model;
       n.el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(model, newParams);
       wireParamInputs(n);
@@ -1017,6 +1058,7 @@
       <div class="swf-port swf-port-in" data-port="in" data-node="${id}" title="接收連線"></div>
       <div class="swf-port swf-port-out" data-port="out" data-node="${id}" title="發起連線"></div>
       <div class="swf-macro-header">
+        <span class="swf-order-badge" style="display:none"></span>
         <span>${headerTitle}</span>
         <div class="swf-macro-actions">
           <button class="swf-collapse-btn" title="摺疊/展開"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
@@ -1042,7 +1084,7 @@
     const nodeData = { 
       id, type, el, x: pos.x, y: pos.y, 
       width: 320, isCollapsed: false,
-      data: { model: defaultModel, images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {}, promptHeight: 0 }, 
+      data: { model: defaultModel, images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {}, promptHeight: 0, namePrefix: '' },
       resultImages: [] 
     };
     nodes[id] = nodeData;
@@ -1771,6 +1813,8 @@
     edgesSvg.querySelectorAll('path[data-edge-id]').forEach(p => {
       p.addEventListener('dblclick', () => removeEdge(p.dataset.edgeId));
     });
+
+    updateGroupNumbers();
   }
 
   let edgeRenderScheduled = false;
@@ -1962,7 +2006,15 @@
       }
       if (!targetFolder || targetFolder === '已完成') targetFolder = '根目錄';
 
-      if (window.AssetManager) window.AssetManager.saveAsset('SWF_' + Date.now(), imageUrl, targetFolder);
+      // Filename: slot-based on the node's group number (re-run overwrites its
+      // own slot), with a configurable prefix (per-node, else the global default).
+      const num = getNodeGroupNumber(node);
+      const prefix = (node.data.namePrefix || '').trim()
+                  || (window.StudioSettings?.getFilenamePattern?.() || '');
+      const baseName = (num != null)
+        ? `${prefix}${num}`
+        : `${prefix || 'SWF'}_${Date.now()}`;
+      if (window.AssetManager) window.AssetManager.saveAsset(baseName, imageUrl, targetFolder);
       if (window.showToast) window.showToast('✅ 生成完成');
     } catch (err) {
       console.error(err);
@@ -2164,6 +2216,7 @@
         fsaPaths: { ...n.data.fsaPaths },
         excludedIncomingImages: forStorage ? [] : [...n.data.excludedIncomingImages],
         folder: folderInput ? folderInput.value : '',
+        namePrefix: n.data.namePrefix || '',
         promptHTML: forStorage ? stripInlineImageData(promptHTML) : promptHTML
       };
     }
@@ -2313,6 +2366,7 @@
             if (fsaNeedsConnection && window.showToast) {
                window.showToast('⚠️ 工具流包含本機影像，請先在資產庫「恢復連線」', 4000);
             }
+            n.data.namePrefix = nd.namePrefix || '';
             n.el.querySelector('.swf-model-sel').value = n.data.model;
             const folderInput = n.el.querySelector('.swf-node-folder');
             if (folderInput) folderInput.value = nd.folder || '';

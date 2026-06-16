@@ -634,10 +634,25 @@
   cursor: grab;
 }
 .swf-macro-header:active { cursor: grabbing; }
+.swf-macro-header .swf-order-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  margin-right: 6px;
+  border-radius: 9px;
+  background: var(--warm);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
 .swf-macro-header .swf-macro-actions {
   display: flex;
   gap: 6px;
   align-items: center;
+  margin-left: auto;
 }
 .swf-macro-header .swf-macro-actions button {
   background: transparent;

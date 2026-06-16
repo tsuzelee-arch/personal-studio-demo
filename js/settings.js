@@ -19,10 +19,14 @@
     selectedModel:   'ps_selected_model',
     outputLanguage:  'ps_output_language',
     localAssetPaths: 'ps_local_asset_paths',
-    gdriveClientId:  'ps_gdrive_client_id'
+    gdriveClientId:  'ps_gdrive_client_id',
+    filenamePrefix:  'ps_swf_name_prefix'
   };
 
   // ── DOM refs ──
+  const swfNamePrefixInput = document.getElementById('swfNamePrefixInput');
+  const saveNamePrefixBtn  = document.getElementById('saveNamePrefixBtn');
+  const namePrefixStatus   = document.getElementById('namePrefixStatus');
   const openaiKeyInput  = document.getElementById('openaiKeyInput');
   const geminiKeyInput  = document.getElementById('geminiKeyInput');
   const geminiliteKeyInput = document.getElementById('geminiliteKeyInput');
@@ -56,6 +60,7 @@
     if (nanobananaKeyInput)   nanobananaKeyInput.value = nbKey;
     if (modelSelect)          modelSelect.value = model;
     if (languageSelect)       languageSelect.value = lang;
+    if (swfNamePrefixInput)   swfNamePrefixInput.value = localStorage.getItem(STORAGE_KEYS.filenamePrefix) || '';
   }
 
   // ── Save keys ──
@@ -85,6 +90,13 @@
     localStorage.setItem(STORAGE_KEYS.nanobananaKey, key);
     showToast(key ? 'Nano Banana API Key 已儲存' : 'Nano Banana API Key 已清除');
     updateStatusIndicator(nanobananaStatus, 'saved');
+  }
+
+  function saveNamePrefix() {
+    const prefix = (swfNamePrefixInput?.value || '').trim();
+    localStorage.setItem(STORAGE_KEYS.filenamePrefix, prefix);
+    showToast(prefix ? `檔名前綴已設為「${prefix}」` : '檔名前綴已清除（預設 1, 2, 3…）');
+    updateStatusIndicator(namePrefixStatus, 'saved');
   }
 
   // ── Test connections ──
@@ -198,6 +210,7 @@
   if (testOpenaiBtn)      testOpenaiBtn.addEventListener('click', testOpenAI);
   if (testGeminiBtn)      testGeminiBtn.addEventListener('click', testGemini);
   if (testGeminiliteBtn)  testGeminiliteBtn.addEventListener('click', testGeminilite);
+  if (saveNamePrefixBtn)  saveNamePrefixBtn.addEventListener('click', saveNamePrefix);
 
   // ── Public getters ──
   window.StudioSettings = {
@@ -213,6 +226,8 @@
       return raw.split('\n').map(p => p.trim()).filter(Boolean);
     },
     getGdriveClientId: () => localStorage.getItem(STORAGE_KEYS.gdriveClientId) || '',
+    // Default filename prefix for Simple Workflow auto-saves (per-group can override)
+    getFilenamePattern: () => localStorage.getItem(STORAGE_KEYS.filenamePrefix) || '',
     hasApiKey: function(model) {
       if (model.startsWith('openai')) return !!this.getOpenAIKey();
       if (model === 'gemini') return !!this.getGeminiKey();

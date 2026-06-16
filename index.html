@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="css/base.css?v=__BUILD_TS__">
   <link rel="stylesheet" href="css/prompts.css?v=__BUILD_TS__">
   <link rel="stylesheet" href="css/simple-workflow.css?v=__BUILD_TS__">
+  <link rel="stylesheet" href="css/image-process.css?v=__BUILD_TS__">
   <link rel="stylesheet" href="css/dark.css?v=__BUILD_TS__">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"
     integrity="sha384-6LFfkTKLRlzFtgx8xsWyBdKGpcMMQTkv+dB7rAbugeJAu1Ym2q1Aji1cjHBG12Xh" crossorigin="anonymous">
@@ -36,6 +37,7 @@
         <div class="nav-cat">工作室</div>
         <div class="nav-item" data-panel="simple-workflow">簡易工具流</div>
         <div class="nav-item active" data-panel="decode">圖像解構</div>
+        <div class="nav-item" data-panel="image-process">圖像處理</div>
         <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
         <div class="nav-item" data-panel="workflow" style="display: none;">自定工作流（暫時廢棄）</div>
         <div class="nav-item" data-panel="workflow-library" style="display: none;">🗂 工作流庫（暫時廢棄）</div>
@@ -407,6 +409,82 @@
           </div>
         </section>
 
+        <!-- Panel: 圖像處理 -->
+        <section class="panel" id="panel-image-process">
+          <div class="image-process-layout">
+            <!-- Configurations & Actions -->
+            <div class="ip-control-bar card">
+              <div class="control-group">
+                <label for="ipResolution">輸出解析度：</label>
+                <select id="ipResolution" class="form-select form-select-sm">
+                  <option value="512">512 × 512</option>
+                  <option value="1024_512">1024 × 512</option>
+                  <option value="512_1024">512 × 1024</option>
+                  <option value="1024" selected>1024 × 1024</option>
+                  <option value="2048">2048 × 2048</option>
+                  <option value="custom">自訂</option>
+                </select>
+              </div>
+              <!-- Custom Resolution Panel -->
+              <div class="control-group" id="ipCustomResGroup" style="display: none; align-items: center; gap: 8px;">
+                <input type="number" id="ipCustomWidth" class="form-input form-input-sm" value="1024" style="width: 70px;" placeholder="寬">
+                <span>×</span>
+                <input type="number" id="ipCustomHeight" class="form-input form-input-sm" value="1024" style="width: 70px;" placeholder="高">
+              </div>
+
+              <div class="control-group">
+                <label for="ipBgColor">預設背景填充：</label>
+                <select id="ipBgColor" class="form-select form-select-sm">
+                  <option value="#FFFFFF" selected>白色</option>
+                  <option value="#000000">黑色</option>
+                  <option value="#00FF00">綠幕</option>
+                  <option value="#0000FF">藍幕</option>
+                  <option value="transparent">透明</option>
+                </select>
+              </div>
+
+              <div class="control-group" style="margin-left: auto; display: flex; gap: 8px;">
+                <button id="ipBtnProcess" class="btn-primary" disabled>🚀 開始處理</button>
+                <button id="ipBtnExport" class="btn-primary" style="background: var(--success);" disabled>📦 匯出 ZIP</button>
+                <button id="ipBtnClear" class="btn-ghost" disabled>🗑️ 清除全部</button>
+              </div>
+            </div>
+
+            <!-- Upload Zone -->
+            <div id="ipDropzone" class="decode-upload-area card">
+              <div class="drop-icon">🖼️</div>
+              <div class="drop-text">拖放圖片至此，或點擊上傳</div>
+              <div class="drop-hint">支援 JPG、PNG、WebP，也支援包含圖片的 ZIP 壓縮包</div>
+              <input type="file" id="ipFileInput" accept="image/*,.zip" multiple hidden />
+            </div>
+
+            <!-- Progress Bar -->
+            <div id="ipProgressContainer" class="ip-progress-container card" style="display: none; margin-top: 10px; padding: 12px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                <span id="ipProgressText">正在處理...</span>
+                <span id="ipProgressPercent">0%</span>
+              </div>
+              <div class="loading-bar">
+                <div class="loading-bar-fill" id="ipProgressFill" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <!-- Gallery / Preview List -->
+            <div class="ip-gallery-container">
+              <div class="ip-gallery-header" style="margin: 16px 0 8px 0; display: flex; justify-content: space-between; font-weight: 500; font-size: 14px;">
+                <span>🖼️ 預覽畫布</span>
+                <span id="ipImageCount" style="color: var(--muted);">0 張圖片</span>
+              </div>
+              <div id="ipGallery" class="ip-gallery">
+                <div class="empty-state" id="ipEmptyState">
+                  <div class="empty-icon">📭</div>
+                  <p>尚未上傳任何圖片</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel" id="panel-prompts">
           <div class="prompts-ide-layout">
             <!-- Left Pane: Library -->
@@ -646,6 +724,23 @@
               </div>
             </div>
 
+            <!-- File Naming Settings -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <span class="settings-card-icon">🔤</span>
+                <span class="settings-card-title">檔案命名</span>
+              </div>
+              <div class="settings-card-body">
+                <label class="form-label">自動儲存檔名前綴（預設）</label>
+                <div class="key-input-row">
+                  <input type="text" class="form-input key-input" id="swfNamePrefixInput" placeholder="留空＝1, 2, 3…（如 shot → shot1, shot2）">
+                  <button class="btn-primary" id="saveNamePrefixBtn">儲存</button>
+                </div>
+                <div class="conn-status" id="namePrefixStatus"></div>
+                <div class="settings-hint">工作流自動儲存的檔名＝前綴＋群組編號。可在群組「統一參數」中為個別群組覆寫。</div>
+              </div>
+            </div>
+
             <!-- Asset Source Settings -->
             <div class="settings-card" id="assetSourceCard">
               <div class="settings-card-header">
@@ -842,6 +937,9 @@
         <label class="form-label" style="margin-top: 12px;">儲存資料夾</label>
         <select class="form-input" id="swfSyncFolderSel"></select>
 
+        <label class="form-label" style="margin-top: 12px;">檔案命名前綴</label>
+        <input type="text" class="form-input" id="swfSyncNamePrefix" placeholder="留空＝1, 2, 3…（如 shot → shot1, shot2）">
+
         <!-- Params container populated by JS -->
         <div id="swfSyncParamsContainer" style="margin-top: 12px;"></div>
       </div>
@@ -874,6 +972,10 @@
   <script src="js/workflow-library.js?v=__BUILD_TS__"></script>
   <script src="js/simple-workflow.js?v=__BUILD_TS__"></script>
   <script src="js/ide-agent.js?v=__BUILD_TS__"></script>
+  <!-- JSZip & FileSaver for Image Processing page -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="js/image-process.js?v=__BUILD_TS__"></script>
 </body>
 
 </html>
