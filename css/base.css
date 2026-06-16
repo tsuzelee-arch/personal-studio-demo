@@ -1,4 +1,11 @@
 /* ── Layout ── */
+/* Always reserve the scrollbar gutter so the sticky topbar's right edge — and the
+   IDE Agent button anchored to it — stays at the same position on every panel,
+   whether or not the active panel scrolls. Without this, panels that scroll show a
+   scrollbar that shifts the topbar (and the button) left relative to panels that
+   use overflow:hidden. */
+html { scrollbar-gutter: stable; }
+
 .shell { display: flex; min-height: 100vh; }
 
 .sidebar {
