@@ -466,9 +466,12 @@
 
   function createGroup(initialX, initialY, w, h, color, title) {
     const id = uid('grp');
-    const pos = (initialX !== undefined) ? { x: initialX, y: initialY } : calculateNextGroupPosition();
+    let pos = (initialX !== undefined) ? { x: initialX, y: initialY } : calculateNextGroupPosition();
     const gw = w || 480;
     const gh = h || 320;
+    // Place in free space so groups never spawn overlapping (skip during load,
+    // which positions groups explicitly and tolerates legacy overlaps).
+    if (!isLoadingWorkflow) pos = findFreeGroupSpot(pos.x, pos.y, gw, gh, id);
     const gc = color || GROUP_COLORS[Object.keys(groups).length % GROUP_COLORS.length];
     const gt = title || '群組 ' + (Object.keys(groups).length + 1);
 
@@ -529,12 +532,14 @@
         </div>
       </div>
       <div class="swf-group-header" style="background:${hexToRgba(gc, 0.15)};">
+        <button class="swf-grp-collapse-btn" title="摺疊/展開群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
         <input class="swf-group-title" value="${gt}" spellcheck="false" style="flex:1;">
         <span class="swf-grp-priority-wrap" title="下游接收優先級（參考圖=0，數字越小越前）">
           <span class="swf-grp-priority-label">接受優先級</span>
           <input type="number" class="swf-grp-priority" value="1" step="1">
         </span>
         <input type="color" class="swf-group-color-picker" value="${gc}" title="群組顏色">
+        <span class="swf-grp-divider"></span>
         <div class="swf-group-actions">
           <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>
           <button class="swf-grp-del-btn" title="刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -545,7 +550,7 @@
 
     nodesContainer.appendChild(el);
 
-    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, upstreamMode: 'all', receivePriority: 1 };
+    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, upstreamMode: 'all', receivePriority: 1, collapsed: false, expandedHeight: null, _collapsedMembers: null };
     groups[id] = groupData;
 
     // Entity Selection
@@ -592,6 +597,7 @@
     }
     el.querySelector('.swf-grp-del-btn').addEventListener('click', () => { saveUndoState(); promptRemoveGroup(group.id); });
     el.querySelector('.swf-grp-run-btn').addEventListener('click', () => executeGroup(group.id));
+    el.querySelector('.swf-grp-collapse-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleGroupCollapse(group); });
     el.querySelector('.swf-grp-dup-btn').addEventListener('click', () => { saveUndoState(); duplicateGroup(group.id); });
 
     // 統一參數 slide-out toggle (mutually exclusive with the 上游圖片 sidebar)
@@ -804,12 +810,36 @@
     });
   }
 
+  // True if the box (x,y,w,h) intersects any group other than exceptId. Used to
+  // keep groups from overlapping so geometric membership stays unambiguous.
+  function groupBoxOverlaps(x, y, w, h, exceptId) {
+    for (const gid in groups) {
+      if (gid === exceptId) continue;
+      const o = groups[gid];
+      if (x < o.x + o.width && x + w > o.x && y < o.y + o.height && y + h > o.y) return true;
+    }
+    return false;
+  }
+
+  // Find a non-overlapping position near (x,y) by nudging right/down in steps.
+  function findFreeGroupSpot(x, y, w, h, exceptId) {
+    if (!groupBoxOverlaps(x, y, w, h, exceptId)) return { x, y };
+    const step = 40;
+    for (let i = 1; i <= 200; i++) {
+      const nx = x + i * step;
+      if (!groupBoxOverlaps(nx, y, w, h, exceptId)) return { x: nx, y };
+      const ny = y + i * step;
+      if (!groupBoxOverlaps(x, ny, w, h, exceptId)) return { x, y: ny };
+    }
+    return { x, y };
+  }
+
   function setupGroupDrag(group) {
     const header = group.el.querySelector('.swf-group-header');
     let isDragging = false, offsetX = 0, offsetY = 0, memberOffsets = [];
 
     header.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.swf-group-actions') || e.target.tagName === 'INPUT') return;
+      if (e.target.closest('.swf-group-actions, .swf-grp-collapse-btn, .swf-grp-priority-wrap') || e.target.tagName === 'INPUT') return;
       isDragging = true;
       group.el.style.zIndex = '2';
       const rect = group.el.getBoundingClientRect();
@@ -828,8 +858,9 @@
       let newY = (e.clientY - wrapperRect.top) / zoomLevel - offsetY;
       newX = Math.round(newX / 20) * 20;
       newY = Math.round(newY / 20) * 20;
-      group.x = newX;
-      group.y = newY;
+      // Resolve per-axis so the group slides/stops against neighbors instead of overlapping.
+      if (!groupBoxOverlaps(newX, group.y, group.width, group.height, group.id)) group.x = newX;
+      if (!groupBoxOverlaps(group.x, newY, group.width, group.height, group.id)) group.y = newY;
       group.el.style.left = group.x + 'px';
       group.el.style.top = group.y + 'px';
       // Move members along
@@ -860,10 +891,13 @@
 
     window.addEventListener('mousemove', (e) => {
       if (!isResizing) return;
-      let newW = startW + (e.clientX - startX) / zoomLevel;
-      let newH = startH + (e.clientY - startY) / zoomLevel;
-      group.width = Math.max(300, newW);
-      group.height = Math.max(200, newH);
+      let newW = Math.max(300, startW + (e.clientX - startX) / zoomLevel);
+      let newH = Math.max(200, startH + (e.clientY - startY) / zoomLevel);
+      // Clamp growth so the group doesn't expand into a neighbor (keep current size on that axis).
+      if (newW > group.width && groupBoxOverlaps(group.x, group.y, newW, group.height, group.id)) newW = group.width;
+      if (newH > group.height && groupBoxOverlaps(group.x, group.y, group.width, newH, group.id)) newH = group.height;
+      group.width = newW;
+      group.height = newH;
       group.el.style.width = group.width + 'px';
       group.el.style.height = group.height + 'px';
       scheduleEdgeRender();
@@ -872,9 +906,14 @@
     window.addEventListener('mouseup', () => { isResizing = false; });
   }
 
-  /** Dynamic Membership: node is inside group if its center point is within group bounding box */
+  /** Dynamic Membership: node is inside group if its center point is within group bounding box.
+   *  While collapsed, members are hidden (display:none) so geometry is unreliable — return the
+   *  snapshot taken at collapse time instead (filtered to nodes that still exist). */
   function getGroupMembers(groupId) {
     const g = groups[groupId]; if (!g) return [];
+    if (g.collapsed && g._collapsedMembers) {
+      return g._collapsedMembers.filter(n => nodes[n.id]);
+    }
     const members = [];
     for (const nid in nodes) {
       const n = nodes[nid];
@@ -939,6 +978,30 @@
       const badge = nodes[nid].el.querySelector('.swf-order-badge');
       if (badge && badge.style.display !== 'none') badge.style.display = 'none';
     }
+  }
+
+  const GROUP_HEADER_H = 44;
+  // Collapse hides member nodes and shrinks the group to its header bar; expand restores.
+  function toggleGroupCollapse(group) {
+    group.collapsed = !group.collapsed;
+    if (group.collapsed) {
+      group._collapsedMembers = getGroupMembers(group.id);
+      group.expandedHeight = group.height;
+      group._collapsedMembers.forEach(n => { n.el.style.display = 'none'; });
+      group.el.classList.add('swf-group-collapsed');
+      group.height = GROUP_HEADER_H;
+      group.el.style.height = GROUP_HEADER_H + 'px';
+    } else {
+      group.el.classList.remove('swf-group-collapsed');
+      group.height = group.expandedHeight || 320;
+      group.el.style.height = group.height + 'px';
+      (group._collapsedMembers || []).forEach(n => { if (nodes[n.id]) n.el.style.display = ''; });
+      group._collapsedMembers = null;
+    }
+    // Reflect chevron state
+    const chev = group.el.querySelector('.swf-grp-collapse-btn');
+    if (chev) chev.classList.toggle('collapsed', group.collapsed);
+    scheduleEdgeRender();
   }
 
   function removeGroup(id) {
@@ -1828,7 +1891,10 @@
   function renderEdges() {
     const wrapperRect = zoomWrapper.getBoundingClientRect();
     let html = '';
+    const isNodeHidden = (id) => !isGroup(id) && nodes[id] && nodes[id].el.style.display === 'none';
     edges.forEach(edge => {
+      // Skip edges touching nodes hidden inside a collapsed group.
+      if (isNodeHidden(edge.source) || isNodeHidden(edge.target)) return;
       const sp = getPortEl(edge.source, 'out'), tp = getPortEl(edge.target, 'in');
       if (!sp || !tp) return;
       const r1 = sp.getBoundingClientRect(), r2 = tp.getBoundingClientRect();
@@ -2219,9 +2285,11 @@
       const g = groups[id];
       const folderInput = g.el.querySelector('.swf-group-folder');
       groupsData[id] = {
-        id: g.id, x: g.x, y: g.y, width: g.width, height: g.height, color: g.color, title: g.title,
+        id: g.id, x: g.x, y: g.y, width: g.width,
+        // Persist the expanded height even when collapsed, so geometry/membership restore correctly.
+        height: g.collapsed ? (g.expandedHeight || 320) : g.height, color: g.color, title: g.title,
         receiveUpstream: g.receiveUpstream, upstreamMode: g.upstreamMode || 'all', excludedImages: forStorage ? [] : [...g.excludedImages],
-        receivePriority: g.receivePriority ?? 1,
+        receivePriority: g.receivePriority ?? 1, collapsed: !!g.collapsed,
         folder: folderInput ? folderInput.value : ''
       };
     }
@@ -2260,7 +2328,9 @@
     }
   }
 
+  let isLoadingWorkflow = false;
   function loadWorkflowData(raw, isUndoRestore) {
+    isLoadingWorkflow = true;
     try {
       let state;
       try { state = JSON.parse(raw); } catch (parseErr) {
@@ -2305,6 +2375,7 @@
             g.el.querySelectorAll('.swf-gs-mode-radio').forEach(r => { r.checked = r.value === g.upstreamMode; });
             const prioInput = g.el.querySelector('.swf-grp-priority');
             if (prioInput) prioInput.value = g.receivePriority;
+            if (gd.collapsed) g._restoreCollapsed = true; // re-collapse after members exist
           } catch (e) { console.warn('Failed to restore group:', savedId, e); }
         }
       }
@@ -2397,6 +2468,15 @@
       requestAnimationFrame(scheduleEdgeRender);
       if (!isUndoRestore && window.showToast) window.showToast('✅ 已讀取儲存的工作流');
 
+      // Re-collapse groups that were saved collapsed (now that their members exist).
+      for (const gid in groups) {
+        if (groups[gid]._restoreCollapsed) {
+          delete groups[gid]._restoreCollapsed;
+          groups[gid].collapsed = false; // toggle will flip to true and snapshot members
+          toggleGroupCollapse(groups[gid]);
+        }
+      }
+
       // Visually propagate
       propagateVisualImages();
 
@@ -2421,6 +2501,8 @@
     } catch (err) {
       console.error('Load failed:', err);
       if (window.showToast) window.showToast('❌ 讀取失敗：' + err.message);
+    } finally {
+      isLoadingWorkflow = false;
     }
   }
 

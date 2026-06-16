@@ -392,6 +392,54 @@
 }
 .swf-group-header:active { cursor: grabbing; }
 
+/* Collapse toggle */
+.swf-grp-collapse-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text, #333);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 4px;
+  transition: background 0.15s, transform 0.2s;
+}
+.swf-grp-collapse-btn:hover { background: var(--border); }
+.swf-grp-collapse-btn svg { width: 16px; height: 16px; transition: transform 0.2s; }
+.swf-grp-collapse-btn.collapsed svg { transform: rotate(-90deg); }
+[data-theme="dark"] .swf-grp-collapse-btn { color: var(--node-text, #e0e0e0); }
+
+/* Vertical divider between secondary controls and the action buttons */
+.swf-grp-divider {
+  flex-shrink: 0;
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 2px;
+  background: var(--dyn-grp-color, var(--border, #ccc));
+  opacity: 0.4;
+}
+
+/* Collapsed: group shrinks to a header pill; hide everything but the header controls. */
+.swf-group.swf-group-collapsed {
+  min-height: 0 !important;
+  min-width: 320px;
+}
+.swf-group.swf-group-collapsed .swf-group-resize,
+.swf-group.swf-group-collapsed .swf-group-sidebar-toggle,
+.swf-group.swf-group-collapsed .swf-left-tab-btn,
+.swf-group.swf-group-collapsed .swf-group-sidebar,
+.swf-group.swf-group-collapsed .swf-group-params-sidebar,
+.swf-group.swf-group-collapsed .swf-grp-priority-wrap,
+.swf-group.swf-group-collapsed .swf-group-color-picker,
+.swf-group.swf-group-collapsed .swf-grp-divider {
+  display: none !important;
+}
+.swf-group.swf-group-collapsed .swf-group-header { border-radius: 12px; }
+
 .swf-group-title {
   font-size: 13px;
   font-weight: 600;
