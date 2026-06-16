@@ -233,6 +233,10 @@ window.AssetManager = (function() {
           renderSidebar(virtualTree, 'v2-swf-tree-root');
           await renderGrid('v2-swf-grid');
         }
+        if (document.getElementById('ipLeftAssets') && document.getElementById('ipLeftAssets').style.display !== 'none') {
+          renderSidebar(virtualTree, 'v2-ip-tree-root');
+          await renderGrid('v2-ip-grid');
+        }
       }
     } finally {
       isRefreshing = false;
@@ -252,6 +256,14 @@ window.AssetManager = (function() {
       if (tree2) tree2.innerHTML = '<li style="padding:10px;color:var(--muted);text-align:center;">讀取中...</li>';
     }
 
+    const ipPanel = document.getElementById('ipLeftAssets');
+    if (ipPanel && ipPanel.style.display !== 'none') {
+      const grid3 = document.getElementById('v2-ip-grid');
+      if (grid3) grid3.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);">掃描中...</div>';
+      const tree3 = document.getElementById('v2-ip-tree-root');
+      if (tree3) tree3.innerHTML = '<li style="padding:10px;color:var(--muted);text-align:center;">讀取中...</li>';
+    }
+
     await buildTree();
     renderSidebar(virtualTree, 'v2-tree-root');
     await renderGrid('v2-grid');
@@ -259,6 +271,11 @@ window.AssetManager = (function() {
     if (panel && panel.style.display !== 'none') {
       renderSidebar(virtualTree, 'v2-swf-tree-root');
       await renderGrid('v2-swf-grid');
+    }
+
+    if (ipPanel && ipPanel.style.display !== 'none') {
+      renderSidebar(virtualTree, 'v2-ip-tree-root');
+      await renderGrid('v2-ip-grid');
     }
   }
 
@@ -283,6 +300,13 @@ window.AssetManager = (function() {
       
       const itemDiv = document.createElement('div');
       itemDiv.className = 'v2-tree-item' + (activeFolder === node.path ? ' active' : '');
+      itemDiv.setAttribute('draggable', 'true');
+      itemDiv.addEventListener('dragstart', (e) => {
+        const payload = JSON.stringify({ type: 'fsa-folder', path: node.path, name: node.name });
+        e.dataTransfer.setData('text/ide-asset-folder', payload);
+        e.dataTransfer.setData('text/plain', `[@folder:${node.name}:${node.path}]`);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
       
       const toggleSpan = document.createElement('span');
       toggleSpan.className = 'v2-tree-toggle';
@@ -332,12 +356,22 @@ window.AssetManager = (function() {
         renderSidebar(virtualTree, containerId); // Fast update sidebar
         if (containerId === 'v2-swf-tree-root') {
             renderSidebar(virtualTree, 'v2-tree-root');
+            renderSidebar(virtualTree, 'v2-ip-tree-root');
             renderGrid('v2-swf-grid');
             renderGrid('v2-grid');
+            renderGrid('v2-ip-grid');
+        } else if (containerId === 'v2-ip-tree-root') {
+            renderSidebar(virtualTree, 'v2-tree-root');
+            renderSidebar(virtualTree, 'v2-swf-tree-root');
+            renderGrid('v2-ip-grid');
+            renderGrid('v2-grid');
+            renderGrid('v2-swf-grid');
         } else {
             renderSidebar(virtualTree, 'v2-swf-tree-root');
+            renderSidebar(virtualTree, 'v2-ip-tree-root');
             renderGrid('v2-grid');
             renderGrid('v2-swf-grid');
+            renderGrid('v2-ip-grid');
         }
       });
       
@@ -419,10 +453,12 @@ window.AssetManager = (function() {
       card._assetName = a.name;
       card._containerId = containerId;
 
+      const isIpGrid = containerId === 'v2-ip-grid';
       card.innerHTML = `
         <div class="v2-asset-img-wrap">
           <img alt="${a.name}" loading="lazy">
           <div class="v2-asset-actions">
+            ${isIpGrid ? `<button class="v2-btn-icon" title="新增至畫布" data-action="add-to-workspace" data-path="${a.path}" data-name="${a.name}">➕</button>` : ''}
             <button class="v2-btn-icon" title="複製標籤" data-action="copy" data-path="${a.path}" data-name="${a.name}">📋</button>
             <button class="v2-btn-icon danger" title="刪除檔案" data-action="delete" data-path="${a.path}" data-name="${a.name}">🗑️</button>
           </div>
@@ -450,6 +486,16 @@ window.AssetManager = (function() {
         if (url) openLightBox(url, a.path);
       });
 
+      card.addEventListener('dblclick', async (e) => {
+        if (containerId === 'v2-ip-grid') {
+          e.stopPropagation();
+          if (window.ImageProcess && window.ImageProcess.addFsaAsset) {
+            window.ImageProcess.addFsaAsset(a.path, a.name);
+            if (window.showToast) window.showToast(`已新增 ${a.name} 到預覽畫布`);
+          }
+        }
+      });
+
       grid.appendChild(card);
       observer.observe(card);
     }
@@ -458,7 +504,14 @@ window.AssetManager = (function() {
     grid.querySelectorAll('.v2-btn-icon').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (btn.dataset.action === 'copy') {
+        if (btn.dataset.action === 'add-to-workspace') {
+          const path = btn.dataset.path;
+          const name = btn.dataset.name;
+          if (window.ImageProcess && window.ImageProcess.addFsaAsset) {
+            window.ImageProcess.addFsaAsset(path, name);
+            if (window.showToast) window.showToast(`已新增 ${name} 到預覽畫布`);
+          }
+        } else if (btn.dataset.action === 'copy') {
           const path = btn.dataset.path;
           navigator.clipboard.writeText(`[@${btn.dataset.name}:${path}]`).then(() => {
             if (window.showToast) window.showToast('✅ 相對路徑標籤已複製');
@@ -515,6 +568,15 @@ window.AssetManager = (function() {
     if (swfRefreshBtn) swfRefreshBtn.addEventListener('click', refreshUI);
     if (swfLinkBtn) swfLinkBtn.addEventListener('click', linkWorkspace);
     if (swfRestoreBtn) swfRestoreBtn.addEventListener('click', requestRestorePermission);
+    
+    // IP specific buttons
+    const ipRefreshBtn = document.getElementById('ipAssetRefresh');
+    const ipLinkBtn = document.getElementById('ipAssetLink');
+    const ipRestoreBtn = document.getElementById('ipAssetRestore');
+    
+    if (ipRefreshBtn) ipRefreshBtn.addEventListener('click', refreshUI);
+    if (ipLinkBtn) ipLinkBtn.addEventListener('click', linkWorkspace);
+    if (ipRestoreBtn) ipRestoreBtn.addEventListener('click', requestRestorePermission);
     
     // Auto-Refresh on Window Focus
     window.addEventListener('focus', () => {
@@ -670,9 +732,18 @@ window.AssetManager = (function() {
     refreshUI,
     isConnected: () => !!workspaceHandle && permissionGranted,
     getFileBlobUrlByPath: getFileBlobUrl,
+    getFileHandleByPath: (path) => {
+      const fileObj = allImageFiles.find(f => f.path === path);
+      return fileObj ? fileObj.handle : null;
+    },
     getAllFolderPaths,
     saveAsset,
-    deleteAsset
+    deleteAsset,
+    getImagesInFolder: (folderPath) => allImageFiles.filter(f => f.folder === folderPath),
+    getImagesUnderFolder: (folderPath) => {
+      if (folderPath === '根目錄') return allImageFiles;
+      return allImageFiles.filter(f => f.path === folderPath || f.path.startsWith(folderPath + '/'));
+    }
   };
 
 })();

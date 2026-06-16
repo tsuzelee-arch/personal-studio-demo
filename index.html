@@ -411,85 +411,131 @@
 
         <!-- Panel: 圖像處理 -->
         <section class="panel" id="panel-image-process">
-          <div class="image-process-layout">
-            <!-- Configurations & Actions -->
-            <div class="ip-control-bar card">
-              <div class="control-group">
-                <label for="ipResolution">輸出解析度：</label>
-                <select id="ipResolution" class="form-select form-select-sm">
-                  <option value="512">512 × 512</option>
-                  <option value="1024_512">1024 × 512</option>
-                  <option value="512_1024">512 × 1024</option>
-                  <option value="1024" selected>1024 × 1024</option>
-                  <option value="2048">2048 × 2048</option>
-                  <option value="custom">自訂</option>
-                </select>
-              </div>
-              <!-- Custom Resolution Panel -->
-              <div class="control-group" id="ipCustomResGroup" style="display: none; align-items: center; gap: 8px;">
-                <input type="number" id="ipCustomWidth" class="form-input form-input-sm" value="1024" style="width: 70px;" placeholder="寬">
-                <span>×</span>
-                <input type="number" id="ipCustomHeight" class="form-input form-input-sm" value="1024" style="width: 70px;" placeholder="高">
-              </div>
+          <!-- Header Bar (Lightroom-like top toolbar) -->
+          <div class="ip-header">
+            <div class="ip-title">🖼️ 圖像批次處理 (Image Batch Processor)</div>
+            <div class="ip-toolbar">
+              <button class="btn-ghost btn-sm" id="ipBtnAssetToggle" title="資產瀏覽器">📂 本機資產</button>
+              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
+              <button id="ipBtnStitch" class="btn-ghost btn-sm" disabled>🔗 拼合選取</button>
+              <button id="ipBtnScript" class="btn-ghost btn-sm">🤖 自動化腳本</button>
+              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
+              <button id="ipBtnProcess" class="btn-primary btn-sm" disabled>🚀 開始處理</button>
+              <button id="ipBtnUpload" class="btn-primary btn-sm" style="background: var(--success); color: #fff;">📤 上傳圖片</button>
+              <button id="ipBtnClear" class="btn-ghost btn-sm" disabled>🗑️ 清除全部</button>
+            </div>
+          </div>
 
-              <div class="control-group">
-                <label for="ipBgColor">預設背景填充：</label>
-                <select id="ipBgColor" class="form-select form-select-sm">
-                  <option value="#FFFFFF" selected>白色</option>
-                  <option value="#000000">黑色</option>
-                  <option value="#00FF00">綠幕</option>
-                  <option value="#0000FF">藍幕</option>
-                  <option value="transparent">透明</option>
-                </select>
+          <!-- Main Layout (3-Column Layout with Right Inspector) -->
+          <div class="ip-ide-layout">
+            <!-- Left Pane: Local Asset Explorer -->
+            <div class="ip-left-assets assets-body-v2" id="ipLeftAssets" style="display:none; flex-direction: column;">
+              <div class="assets-header-v2" style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="font-weight: 600; font-size: 14px;">🗃️ 本機資產瀏覽器</div>
+                  <button id="ipAssetRefresh" class="v2-btn-icon" title="即時刷新" style="width: 24px; height: 24px; font-size: 12px;">🔄</button>
+                  <button id="ipAssetLink" class="v2-btn-icon" title="連結本機資料夾" style="width: 24px; height: 24px; font-size: 12px;">🔗</button>
+                  <button id="ipAssetRestore" class="v2-btn-icon" title="恢復連線" style="width: 24px; height: 24px; font-size: 12px; display: none; color: #f39c12;">🔌</button>
+                </div>
+                <button class="ip-pane-close" id="ipAssetClose" style="background: none; border: none; font-size: 16px; cursor: pointer;">✕</button>
               </div>
-
-              <div class="control-group">
-                <label for="ipRefLine">參考輔助線：</label>
-                <select id="ipRefLine" class="form-select form-select-sm">
-                  <option value="none" selected>無</option>
-                  <option value="crosshair">十字線</option>
-                  <option value="thirds">井字線</option>
-                </select>
-              </div>
-
-              <div class="control-group" style="margin-left: auto; display: flex; gap: 8px;">
-                <button id="ipBtnStitch" class="btn-ghost" disabled>🔗 拼合選取</button>
-                <button id="ipBtnScript" class="btn-ghost">🤖 自動化腳本</button>
-                <button id="ipBtnProcess" class="btn-primary" disabled>🚀 開始處理</button>
-                <button id="ipBtnExport" class="btn-primary" style="background: var(--success);" disabled>📦 匯出 ZIP</button>
-                <button id="ipBtnClear" class="btn-ghost" disabled>🗑️ 清除全部</button>
+              <div style="display: flex; flex: 1; min-height: 0;">
+                <div class="assets-sidebar-v2" style="width: 110px; border-right: 1px solid var(--border); background: var(--bg); overflow-y: auto; padding: 8px;">
+                  <ul id="v2-ip-tree-root" style="list-style: none; padding-left: 0; margin: 0;"></ul>
+                </div>
+                <div class="assets-main-v2" style="flex: 1; overflow-y: auto; background: var(--surface); padding: 12px;">
+                  <div id="v2-ip-grid" class="swf-assets-grid"></div>
+                </div>
               </div>
             </div>
 
-            <!-- Upload Zone -->
-            <div id="ipDropzone" class="decode-upload-area card">
-              <div class="drop-icon">🖼️</div>
-              <div class="drop-text">拖放圖片至此，或點擊上傳</div>
-              <div class="drop-hint">支援 JPG、PNG、WebP，也支援包含圖片的 ZIP 壓縮包</div>
+            <!-- Resizer -->
+            <div class="ip-pane-resizer" id="ipAssetResizer" style="display: none;"></div>
+
+            <!-- Center Pane: Canvas / Workspace (Takes remaining width) -->
+            <div class="ip-center-workspace">
+              <!-- Hidden File Input -->
               <input type="file" id="ipFileInput" accept="image/*,.zip" multiple hidden />
+
+              <!-- Gallery / Preview List -->
+              <div class="ip-gallery-container">
+                <div class="ip-gallery-header" style="margin: 0 0 12px 0; display: flex; justify-content: space-between; font-weight: 500; font-size: 14px;">
+                  <span>🖼️ 預覽畫布</span>
+                  <span id="ipImageCount" style="color: var(--muted);">0 張圖片</span>
+                </div>
+                <div id="ipGallery" class="ip-gallery">
+                  <div class="empty-state" id="ipEmptyState">
+                    <div class="empty-icon">📭</div>
+                    <p>尚未上傳任何圖片，請使用右上方上傳或由本機資產拖曳新增</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Progress Bar -->
+              <div id="ipProgressContainer" class="ip-progress-container card" style="display: none; padding: 12px; margin-top: auto;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                  <span id="ipProgressText">正在處理...</span>
+                  <span id="ipProgressPercent">0%</span>
+                </div>
+                <div class="loading-bar">
+                  <div class="loading-bar-fill" id="ipProgressFill" style="width: 0%;"></div>
+                </div>
+              </div>
             </div>
 
-            <!-- Progress Bar -->
-            <div id="ipProgressContainer" class="ip-progress-container card" style="display: none; margin-top: 10px; padding: 12px;">
-              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
-                <span id="ipProgressText">正在處理...</span>
-                <span id="ipProgressPercent">0%</span>
-              </div>
-              <div class="loading-bar">
-                <div class="loading-bar-fill" id="ipProgressFill" style="width: 0%;"></div>
-              </div>
-            </div>
+            <!-- Right Pane: Global Properties / Inspector -->
+            <div class="ip-right-inspector">
+              <button id="ipBtnUnify" class="btn-primary" style="width:100%; font-weight:600; padding:10px; margin-bottom:12px; background:var(--accent,#1783FF); border:none; border-radius:6px; color:#fff; cursor:pointer;">✨ 統一輸出參數</button>
+              <button id="ipBtnClearInspector" class="btn-ghost" style="width: 100%; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 8px; color: var(--danger, #ff4d4f); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; background: transparent;">🗑️ 清空工作區</button>
+              
+              <div class="ip-inspector-section">
+                <div class="ip-inspector-title">全域參數設定 (Global Settings)</div>
+                
+                <div class="control-group" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">
+                  <label for="ipGlobalResolution" style="font-weight: 500; font-size: 12px; color: var(--ink);">目標解析度</label>
+                  <select id="ipGlobalResolution" style="width:100%; padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--white); color: var(--ink); outline: none;">
+                    <option value="512">512 × 512</option>
+                    <option value="1024_512">1024 × 512</option>
+                    <option value="512_1024">512 × 1024</option>
+                    <option value="1024" selected>1024 × 1024</option>
+                    <option value="2048">2048 × 2048</option>
+                    <option value="custom">自訂</option>
+                  </select>
+                </div>
+                
+                <div class="control-group" id="ipGlobalCustomResGroup" style="display: none; flex-direction: row; gap: 6px; align-items: center; width: 100%; margin-top: 8px;">
+                  <input type="number" id="ipGlobalCustomWidth" value="1024" min="64" max="8192" placeholder="寬" style="width: calc(50% - 3px); padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--white); color: var(--ink); text-align: center;" />
+                  <span style="font-size:12px; color:var(--muted);">×</span>
+                  <input type="number" id="ipGlobalCustomHeight" value="1024" min="64" max="8192" placeholder="高" style="width: calc(50% - 3px); padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--white); color: var(--ink); text-align: center;" />
+                </div>
+                
+                <div class="control-group" style="display: flex; flex-direction: column; gap: 4px; margin-top: 12px;">
+                  <label for="ipGlobalBg" style="font-weight: 500; font-size: 12px; color: var(--ink);">背景填充顏色</label>
+                  <select id="ipGlobalBg" style="width:100%; padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--white); color: var(--ink); outline: none;">
+                    <option value="#FFFFFF" selected>白色</option>
+                    <option value="#000000">黑色</option>
+                    <option value="#00FF00">綠色</option>
+                    <option value="#0000FF">藍色</option>
+                    <option value="transparent">透明</option>
+                    <option value="custom">自訂顏色</option>
+                  </select>
+                  <input type="color" id="ipGlobalBgPicker" value="#FFFFFF" style="display: none; margin-top: 6px; width:100%; height: 32px; padding: 2px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer;" />
+                </div>
+                
+                <div class="control-group" style="display: flex; flex-direction: column; gap: 4px; margin-top: 12px;">
+                  <label for="ipGlobalRefLine" style="font-weight: 500; font-size: 12px; color: var(--ink);">對齊輔助線</label>
+                  <select id="ipGlobalRefLine" style="width:100%; padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--white); color: var(--ink); outline: none;">
+                    <option value="none" selected>無</option>
+                    <option value="crosshair">十字線</option>
+                    <option value="thirds">井字線</option>
+                  </select>
+                </div>
 
-            <!-- Gallery / Preview List -->
-            <div class="ip-gallery-container">
-              <div class="ip-gallery-header" style="margin: 16px 0 8px 0; display: flex; justify-content: space-between; font-weight: 500; font-size: 14px;">
-                <span>🖼️ 預覽畫布</span>
-                <span id="ipImageCount" style="color: var(--muted);">0 張圖片</span>
-              </div>
-              <div id="ipGallery" class="ip-gallery">
-                <div class="empty-state" id="ipEmptyState">
-                  <div class="empty-icon">📭</div>
-                  <p>尚未上傳任何圖片</p>
+                <div class="control-group" style="display: flex; flex-direction: column; gap: 4px; margin-top: 12px;">
+                  <label for="ipGlobalOutputDir" style="font-weight: 500; font-size: 12px; color: var(--ink);">輸出資料夾</label>
+                  <select id="ipGlobalOutputDir" style="width:100%; padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--white); color: var(--ink); outline: none;">
+                    <option value="根目錄">根目錄</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -996,6 +1042,28 @@
       <div class="modal-footer">
         <button class="btn-ghost" id="ipScriptModalCancel">取消</button>
         <button class="btn-primary" id="ipScriptBtnExecute">🚀 執行自動化</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: 匯入方式選擇 (替代或疊加) -->
+  <div class="modal-backdrop hidden" id="ipImportConflictModal">
+    <div class="modal" style="max-width: 380px;">
+      <div class="modal-header">
+        <span class="modal-title">📥 匯入影像</span>
+        <button class="modal-close" id="ipImportConflictClose">✕</button>
+      </div>
+      <div class="modal-body" style="text-align: center; padding: 24px 20px;">
+        <div style="font-size: 36px; margin-bottom: 12px;">📥</div>
+        <div style="font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 8px;">偵測到工作區已有圖片</div>
+        <div style="font-size: 13px; color: var(--muted); line-height: 1.5;">
+          您拖入了新影像，要<strong>覆蓋替代</strong>現有圖片，還是<strong>疊加追加</strong>到現有清單中？
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: center; gap: 12px; padding-bottom: 20px;">
+        <button class="btn-ghost" id="ipImportConflictCancel" style="border: 1px solid var(--border); padding: 6px 16px;">取消</button>
+        <button class="btn-primary" id="ipImportConflictReplace" style="background: var(--danger, #ff4d4f); color: white; border: none; padding: 6px 16px; cursor: pointer;">⚠️ 替代現有</button>
+        <button class="btn-primary" id="ipImportConflictAppend" style="background: var(--success, #28a745); color: white; border: none; padding: 6px 16px; cursor: pointer;">➕ 疊加追加</button>
       </div>
     </div>
   </div>

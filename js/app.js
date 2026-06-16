@@ -8,6 +8,7 @@ window.StudioState = {
 const panels = {
   'simple-workflow': '簡易工具流',
   decode: '圖像解構',
+  'image-process': '圖像處理',
   prompts: '提示詞庫與熔爐',
   workflow: '自定工作流',
   'assets-v2': '資產庫',

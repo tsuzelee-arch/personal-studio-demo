@@ -1,0 +1,644 @@
+/* ── 圖像處理 Layout V2 (Lightroom Pro) ── */
+#panel-image-process.active {
+  display: flex !important;
+  flex-direction: column;
+  margin: -24px -28px !important;
+  width: calc(100% + 56px) !important;
+  height: calc(100vh - 56px) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ip-header {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background: var(--surface, #f0f0f3);
+}
+
+.ip-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text, var(--ink));
+}
+
+.ip-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ip-ide-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg);
+}
+
+/* ── 左側本機資產欄 ── */
+.ip-left-assets {
+  width: 220px;
+  min-width: 160px;
+  max-width: 360px;
+  border-right: 1px solid var(--border);
+  background: var(--surface, #f0f0f3);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: opacity 0.2s ease;
+}
+
+.ip-pane-close {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.ip-pane-close:hover {
+  background: rgba(0,0,0,0.06);
+  color: var(--text);
+}
+[data-theme="dark"] .ip-pane-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* 拖曳調整分欄線 */
+.ip-pane-resizer {
+  width: 4px;
+  cursor: ew-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  z-index: 10;
+}
+.ip-pane-resizer:hover, .ip-pane-resizer.dragging {
+  background: var(--accent, #1783FF);
+}
+
+/* 全局調整寬度鎖定 */
+body.is-resizing {
+  user-select: none !important;
+  cursor: ew-resize !important;
+}
+
+/* ── 中間主工作畫布區 ── */
+.ip-center-workspace {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--bg-panel, #f4f4f7);
+}
+[data-theme="dark"] .ip-center-workspace {
+  background: #111115;
+}
+
+.ip-center-workspace .decode-upload-area {
+  margin: 0;
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  backdrop-filter: blur(10px);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+.ip-center-workspace .decode-upload-area:hover,
+.ip-center-workspace .decode-upload-area.dragover {
+  border-color: var(--warm);
+  background: var(--surface-hover, rgba(0,0,0,0.01));
+  box-shadow: 0 0 16px rgba(200, 169, 110, 0.15);
+  transform: scale(0.995);
+}
+
+.ip-gallery-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* ── 拖曳提示框樣式 ── */
+.ip-center-workspace {
+  transition: border 0.2s, background-color 0.2s, box-shadow 0.2s;
+  border: 2px dashed transparent;
+}
+
+.ip-center-workspace.dragover {
+  border-color: var(--warm, #c8a96e);
+  background-color: var(--surface-hover, rgba(200, 169, 110, 0.05)) !important;
+  box-shadow: inset 0 0 24px rgba(200, 169, 110, 0.12);
+}
+
+/* ── 右側屬性控制欄 ── */
+.ip-right-inspector {
+  width: 280px;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 16px;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 16px;
+}
+
+.ip-inspector-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ip-inspector-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+}
+
+.ip-right-inspector .control-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.ip-right-inspector .control-group label {
+  font-weight: 500;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.ip-right-inspector select,
+.ip-right-inspector input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--ink);
+  border-radius: 6px;
+  outline: none;
+}
+
+/* ── 響應式佈局 (Responsive Media Queries) ── */
+@media (max-width: 1200px) {
+  .ip-right-inspector {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    box-shadow: -4px 0 16px rgba(0,0,0,0.15);
+    height: 100%;
+  }
+}
+
+/* ── 進度條 ── */
+.ip-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── 預覽卡片網格 ── */
+.ip-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 10px;
+}
+
+.ip-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.ip-card:hover {
+  border-color: var(--warm);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.ip-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid var(--border);
+}
+
+[data-theme="dark"] .ip-card-header {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ip-card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ip-card-header-actions label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.ip-card-header-actions label input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.ip-card-header-actions select {
+  font-size: 11.5px;
+  padding: 2px 6px;
+  background: var(--white);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+}
+
+.ip-card-header-actions input[type="color"] {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+  vertical-align: middle;
+}
+
+.ip-card-header-actions .btn-eyedropper {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  font-size: 12px;
+  transition: transform 0.1s;
+}
+
+.ip-card-header-actions .btn-eyedropper:hover {
+  transform: scale(1.2);
+}
+
+.ip-card-header-actions .btn-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  font-size: 14px;
+  color: var(--danger);
+  transition: transform 0.1s;
+}
+
+.ip-card-header-actions .btn-delete:hover {
+  transform: scale(1.2);
+}
+
+/* ── Canvas 互動容器 ── */
+.ip-card-canvas-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #f0ebe4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+
+[data-theme="dark"] .ip-card-canvas-wrap {
+  background: #1a1a1a;
+}
+
+/* 透明背景時顯示的方格紋理棋盤格（Checkerboard） */
+.ip-card-canvas-wrap.checkerboard {
+  background-image: 
+    linear-gradient(45deg, #eaeaea 25%, transparent 25%), 
+    linear-gradient(-45deg, #eaeaea 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #eaeaea 75%), 
+    linear-gradient(-45deg, transparent 75%, #eaeaea 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+[data-theme="dark"] .ip-card-canvas-wrap.checkerboard {
+  background-image: 
+    linear-gradient(45deg, #2a2a2a 25%, transparent 25%), 
+    linear-gradient(-45deg, #2a2a2a 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #2a2a2a 75%), 
+    linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+}
+
+.ip-card-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.ip-card-canvas-wrap canvas:active {
+  cursor: grabbing;
+}
+
+/* ── 縮放控制滑桿 ── */
+.ip-card-zoom-controls {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  padding: 4px 10px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+}
+
+.ip-card-zoom-controls .zoom-icon {
+  font-size: 11px;
+  color: #fff;
+}
+
+.ip-card-zoom-controls input[type="range"] {
+  width: 80px;
+  height: 4px;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  outline: none;
+  margin: 0;
+  cursor: pointer;
+}
+
+.ip-card-zoom-controls input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--warm);
+  cursor: pointer;
+}
+
+/* ── 卡片資訊體 ── */
+.ip-card-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ip-card-filename {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+.ip-card-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.ip-card-dimensions {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ip-card-status {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ip-card-status.pending {
+  color: var(--muted);
+}
+
+.ip-card-status.processing {
+  color: var(--warm);
+}
+
+.ip-card-status.success {
+  color: var(--success);
+}
+
+.ip-card-status.error {
+  color: var(--danger);
+}
+
+.ip-card.disabled {
+  opacity: 0.5;
+}
+
+/* ── 鎖定處理狀態 ── */
+.ip-card.locked {
+  position: relative;
+}
+
+.ip-card.locked .ip-card-header,
+.ip-card.locked .ip-card-canvas-wrap,
+.ip-card.locked .ip-card-body {
+  pointer-events: none;
+}
+
+.ip-card.locked::after {
+  content: '🔒 處理中...';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 10;
+}
+
+/* ── 參考輔助對齊線 ── */
+.ip-grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  display: none;
+}
+
+.ip-grid-overlay.active {
+  display: block;
+}
+
+/* 十字線 (Crosshair) */
+.ip-grid-overlay.crosshair::before,
+.ip-grid-overlay.crosshair::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.ip-grid-overlay.crosshair::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.ip-grid-overlay.crosshair::after {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+/* 井字線 (Rule of Thirds Grid) */
+.ip-grid-overlay.thirds::before,
+.ip-grid-overlay.thirds::after {
+  content: '';
+  position: absolute;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* 兩條水平線 */
+.ip-grid-overlay.thirds::before {
+  left: 0;
+  right: 0;
+  top: 33.33%;
+  bottom: 33.33%;
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25), 0 1px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* 兩條垂直線 */
+.ip-grid-overlay.thirds::after {
+  top: 0;
+  bottom: 0;
+  left: 33.33%;
+  right: 33.33%;
+  border-left: 1px solid rgba(255, 255, 255, 0.45);
+  border-right: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: -1px 0 0 rgba(0, 0, 0, 0.25), 1px 0 0 rgba(0, 0, 0, 0.25);
+}
+
+/* ── 拼合與腳本專用元件 ── */
+#ipStitchBgPicker,
+#ipScriptBgPicker {
+  height: 38px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+/* ── 響應式佈局 (Responsive Media Queries) ── */
+@media (max-width: 1024px) {
+  .ip-left-assets {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    box-shadow: 4px 0 16px rgba(0,0,0,0.15);
+    height: 100%;
+  }
+}
+
+/* ── 預覽卡片底部控制項 ── */
+.ip-card-controls {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ip-control-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.ip-control-row label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  width: 50px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.ip-control-row select,
+.ip-control-row input {
+  flex: 1;
+  font-size: 11.5px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--ink);
+  border-radius: 4px;
+  outline: none;
+}
+.ip-control-row select:focus,
+.ip-control-row input:focus {
+  border-color: var(--warm);
+}
+
+.ip-card-custom-res {
+  padding-left: 58px;
+  box-sizing: border-box;
+}
+
+.ip-card-custom-res input {
+  text-align: center;
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
+#ipBtnClearInspector {
+  transition: all 0.2s ease;
+}
+#ipBtnClearInspector:hover {
+  background: rgba(255, 77, 79, 0.08) !important;
+  border-color: #ff4d4f !important;
+  color: #ff4d4f !important;
+}
