@@ -530,8 +530,10 @@
       </div>
       <div class="swf-group-header" style="background:${hexToRgba(gc, 0.15)};">
         <input class="swf-group-title" value="${gt}" spellcheck="false" style="flex:1;">
-        <span class="swf-grp-priority-label" title="下游接收優先級（參考圖=0，數字越小越前）">接受優先級</span>
-        <input type="number" class="swf-grp-priority" value="1" step="1" title="下游接收優先級（參考圖=0，數字越小越前）">
+        <span class="swf-grp-priority-wrap" title="下游接收優先級（參考圖=0，數字越小越前）">
+          <span class="swf-grp-priority-label">接受優先級</span>
+          <input type="number" class="swf-grp-priority" value="1" step="1">
+        </span>
         <input type="color" class="swf-group-color-picker" value="${gc}" title="群組顏色">
         <div class="swf-group-actions">
           <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>

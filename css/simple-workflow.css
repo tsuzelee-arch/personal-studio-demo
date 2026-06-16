@@ -413,6 +413,12 @@
   box-shadow: 0 0 0 2px var(--accent, #1783FF);
 }
 
+.swf-grp-priority-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
 .swf-grp-priority-label {
   flex-shrink: 0;
   font-size: 11px;
