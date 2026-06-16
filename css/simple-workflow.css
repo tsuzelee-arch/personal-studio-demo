@@ -413,6 +413,15 @@
   box-shadow: 0 0 0 2px var(--accent, #1783FF);
 }
 
+.swf-grp-priority-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted, #888);
+  white-space: nowrap;
+}
+[data-theme="dark"] .swf-grp-priority-label {
+  color: var(--node-text, #c0c0c0) !important;
+}
 .swf-grp-priority {
   width: 42px;
   flex-shrink: 0;
