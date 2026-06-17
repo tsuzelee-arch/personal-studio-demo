@@ -1,0 +1,5 @@
+{
+  "comfyui.startupArgs": [
+    "--enable-cors-header"
+  ]
+}

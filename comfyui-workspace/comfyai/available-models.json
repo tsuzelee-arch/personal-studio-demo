@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-06-16T12:03:18.039Z",
+  "note": "Model names the server knows about (same data as UI dropdowns). In hiddenswitch, includes models that will be downloaded on first use — not necessarily already on disk. Run ComfyUI: Refresh Node Catalog to update.",
+  "models": {
+    "checkpoints": [
+      "sam3.1_multiplex_fp16.safetensors",
+      "sd_xl_base_1.0.safetensors"
+    ],
+    "diffusion_models": [
+      "flux-2-klein-9b.safetensors",
+      "qwen_image_layered_control_bf16.safetensors",
+      "void_pass1.safetensors",
+      "void_pass2.safetensors"
+    ],
+    "vae": [
+      "cogvideox_vae.safetensors",
+      "diffusion_pytorch_model.safetensors",
+      "flux2-vae.safetensors",
+      "full_encoder_small_decoder.safetensors",
+      "qwen_image_layered_vae.safetensors",
+      "工业设计手绘草图_工业设计手绘草图1.0.safetensors",
+      "pixel_space"
+    ],
+    "loras": [
+      "Flux_2-Turbo-LoRA_comfyui.safetensors",
+      "kontext-turnaround-sheet-v1.safetensors",
+      "place_it.safetensors"
+    ],
+    "controlnet": [
+      "controlnet-canny-sdxl.safetensors"
+    ],
+    "ultralytics_bbox": [
+      "bbox/face_yolov8m.pt",
+      "bbox/hand_yolov8s.pt",
+      "segm/person_yolov8m-seg.pt"
+    ],
+    "ultralytics_segm": [
+      "bbox/face_yolov8m.pt",
+      "bbox/hand_yolov8s.pt",
+      "segm/person_yolov8m-seg.pt"
+    ]
+  }
+}

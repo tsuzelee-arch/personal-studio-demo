@@ -1,0 +1,67 @@
+{
+  "serverUrl": "http://localhost:8188",
+  "configuredStartupArgs": "--enable-manager",
+  "system": {
+    "os": "win32",
+    "ram_total": 33968439296,
+    "ram_free": 4579913728,
+    "comfyui_version": "0.24.1",
+    "required_frontend_version": "1.44.19",
+    "installed_templates_version": "0.9.98",
+    "required_templates_version": "0.9.98",
+    "comfy_package_versions": [
+      {
+        "name": "comfyui-frontend-package",
+        "installed": "1.44.19",
+        "required": "1.44.19"
+      },
+      {
+        "name": "comfyui-workflow-templates",
+        "installed": "0.9.98",
+        "required": "0.9.98"
+      },
+      {
+        "name": "comfyui-embedded-docs",
+        "installed": "0.5.2",
+        "required": "0.5.2"
+      },
+      {
+        "name": "comfy-kitchen",
+        "installed": "0.2.10",
+        "required": "0.2.10"
+      },
+      {
+        "name": "comfy-aimdo",
+        "installed": "0.4.8",
+        "required": "0.4.8"
+      }
+    ],
+    "python_version": "3.13.12 (main, Feb 12 2026, 00:38:53) [MSC v.1944 64 bit (AMD64)]",
+    "pytorch_version": "2.10.0+cu130",
+    "embedded_python": false,
+    "argv": [
+      "ComfyUI\\main.py",
+      "--feature-flag",
+      "show_signin_button=true",
+      "--enable-manager",
+      "--extra-model-paths-config",
+      "C:\\Users\\tsuze\\AppData\\Roaming\\Comfy Desktop\\shared_model_paths.yaml",
+      "--input-directory",
+      "D:\\input",
+      "--output-directory",
+      "D:\\output"
+    ]
+  },
+  "devices": [
+    {
+      "name": "cuda:0 NVIDIA GeForce RTX 4060 Laptop GPU : cudaMallocAsync",
+      "type": "cuda",
+      "index": 0,
+      "vram_total": 8585216000,
+      "vram_free": 7451181056,
+      "torch_vram_total": 0,
+      "torch_vram_free": 0
+    }
+  ],
+  "updatedAt": "2026-06-16T12:03:18.066Z"
+}
