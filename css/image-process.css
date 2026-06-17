@@ -725,33 +725,32 @@ body.is-resizing {
 }
 .ip-preset-card-del:hover { background: rgba(255,77,79,0.12); color: #ff4d4f; }
 
-/* ── 圖像處理：常駐左側「已儲存腳本」欄 ── */
-.ip-script-sidebar {
-  width: 210px;
-  min-width: 180px;
+/* ── 自動化模態框：左右兩欄（左＝參數、右＝已儲存腳本）── */
+.ip-script-cols { display: flex; gap: 16px; align-items: stretch; }
+.ip-script-col-main { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.ip-script-col-saved {
+  width: 240px;
   flex-shrink: 0;
-  border-right: 1px solid var(--border);
-  background: var(--surface, #f0f0f3);
+  border-left: 1px solid var(--border);
+  padding-left: 14px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 .ip-script-sidebar-head {
-  padding: 10px 12px;
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
   flex-shrink: 0;
 }
-.ip-script-sidebar .ip-preset-cards {
+.ip-script-col-saved .ip-preset-cards {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px;
   overflow-y: auto;
+  max-height: 60vh;
 }
-.ip-script-sidebar .ip-preset-card { padding: 8px 9px; }
+.ip-script-col-saved .ip-preset-card { padding: 8px 9px; }
 
 /* 卡片內：執行/自動執行控制列 */
 .ip-preset-card-actions {

@@ -429,14 +429,6 @@
 
           <!-- Main Layout (3-Column Layout with Right Inspector) -->
           <div class="ip-ide-layout">
-            <!-- Far-Left: Saved Automation Scripts (always-on) -->
-            <div class="ip-script-sidebar" id="ipScriptSidebar">
-              <div class="ip-script-sidebar-head">
-                <span>🤖 已儲存腳本 (<span id="ipScriptPresetCount">0</span>)</span>
-              </div>
-              <div class="ip-preset-cards" id="ipScriptPresetCards"></div>
-            </div>
-
             <!-- Left Pane: Local Asset Explorer -->
             <div class="ip-left-assets assets-body-v2" id="ipLeftAssets" style="display:none; flex-direction: column;">
               <div class="assets-header-v2" style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
@@ -988,12 +980,14 @@
 
   <!-- Modal: 自動化處理腳本 -->
   <div class="modal-backdrop hidden" id="ipScriptModal">
-    <div class="modal" style="max-width: 450px;">
+    <div class="modal" style="width: 820px; max-width: 95vw;">
       <div class="modal-header">
         <div class="modal-title">🤖 自動化裁切與編輯腳本</div>
         <button class="modal-close" id="ipScriptModalClose">✕</button>
       </div>
       <div class="modal-body">
+        <div class="ip-script-cols">
+        <div class="ip-script-col-main">
         <div style="font-size: 12.5px; color: var(--muted); margin-bottom: 12px; line-height: 1.5;">
           自動化腳本將讀取本機「資產庫」中指定資料夾的所有圖片，根據規則批次進行編輯與裁切，並將新產生的影像儲存至輸出資料夾。
         </div>
@@ -1114,6 +1108,12 @@
             <input type="text" class="form-input" id="ipScriptKeyword" placeholder="例如: trigger (檔名含此字眼時觸發)" style="padding: 4px; font-size: 12px;">
           </div>
         </div>
+        </div><!-- /.ip-script-col-main -->
+        <div class="ip-script-col-saved">
+          <div class="ip-script-sidebar-head"><span>🤖 已儲存腳本 (<span id="ipScriptPresetCount">0</span>)</span></div>
+          <div class="ip-preset-cards" id="ipScriptPresetCards"></div>
+        </div>
+        </div><!-- /.ip-script-cols -->
       </div>
       <div class="modal-footer">
         <button class="btn-ghost" id="ipScriptModalCancel">取消</button>
