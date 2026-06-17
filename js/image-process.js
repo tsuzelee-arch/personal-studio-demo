@@ -87,7 +87,10 @@
     scriptResBgParams: document.getElementById('ipScriptResBgParams'),
     scriptAlignBgParams: document.getElementById('ipScriptAlignBgParams'),
     scriptAutoRun: document.getElementById('ipScriptAutoRun'),
-    scriptKeyword: document.getElementById('ipScriptKeyword')
+    scriptKeyword: document.getElementById('ipScriptKeyword'),
+    scriptPresetCards: document.getElementById('ipScriptPresetCards'),
+    scriptPresetSave: document.getElementById('ipScriptPresetSave'),
+    scriptPresetCount: document.getElementById('ipScriptPresetCount')
   };
 
   // Helper: Escape HTML
@@ -1556,6 +1559,140 @@
   }
 
   // ──────────── Populate folders dropdown for Script Modal ────────────
+  // ──────────── 自動化腳本「檔案設定」預設集（卡片式，存於 localStorage） ────────────
+  const SCRIPT_PRESETS_KEY = 'ps_ip_automation_scripts';
+
+  function getSavedScripts() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(SCRIPT_PRESETS_KEY) || '[]');
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  }
+  function saveSavedScripts(arr) {
+    localStorage.setItem(SCRIPT_PRESETS_KEY, JSON.stringify(arr));
+  }
+
+  // 擷取目前腳本表單的所有欄位成一個設定物件。
+  function gatherScriptConfig() {
+    return {
+      sourceDir: dom.scriptSourceDir.value,
+      outputDir: dom.scriptOutputDir.value,
+      resolution: dom.scriptResolution.value,
+      fitMode: dom.scriptFitMode.value,
+      align: dom.scriptAlign.value,
+      bg: dom.scriptBg.value,
+      bgPicker: dom.scriptBgPicker.value,
+      stitchDir: dom.scriptStitchDir.value,
+      stitchGridCols: dom.scriptStitchGridCols.value,
+      stitchGap: dom.scriptStitchGap.value,
+      stitchAlign: dom.scriptStitchAlign.value,
+      stitchSize: dom.scriptStitchSize.value,
+      cropRefLine: dom.scriptCropRefLine.value,
+      prefixFilter: dom.scriptPrefixFilter.value,
+      keyword: dom.scriptKeyword.value,
+      autoRun: !!dom.scriptAutoRun.checked
+    };
+  }
+
+  // 只有當下拉選單仍有該選項時才設定資料夾（資料夾清單依連結而異）。
+  function setSelectIfOptionExists(sel, value) {
+    if (value == null) return;
+    if (Array.from(sel.options).some(o => o.value === value)) sel.value = value;
+  }
+
+  // 把設定物件寫回腳本表單，並派發 change 事件讓相依區塊正確顯示/隱藏。
+  function applyScriptConfig(cfg) {
+    if (!cfg) return;
+    setSelectIfOptionExists(dom.scriptSourceDir, cfg.sourceDir);
+    setSelectIfOptionExists(dom.scriptOutputDir, cfg.outputDir);
+    if (cfg.resolution != null) dom.scriptResolution.value = cfg.resolution;
+    if (cfg.fitMode != null) dom.scriptFitMode.value = cfg.fitMode;
+    if (cfg.align != null) dom.scriptAlign.value = cfg.align;
+    if (cfg.bg != null) dom.scriptBg.value = cfg.bg;
+    if (cfg.bgPicker != null) dom.scriptBgPicker.value = cfg.bgPicker;
+    if (cfg.stitchDir != null) dom.scriptStitchDir.value = cfg.stitchDir;
+    if (cfg.stitchGridCols != null) dom.scriptStitchGridCols.value = cfg.stitchGridCols;
+    if (cfg.stitchGap != null) dom.scriptStitchGap.value = cfg.stitchGap;
+    if (cfg.stitchAlign != null) dom.scriptStitchAlign.value = cfg.stitchAlign;
+    if (cfg.stitchSize != null) dom.scriptStitchSize.value = cfg.stitchSize;
+    if (cfg.cropRefLine != null) dom.scriptCropRefLine.value = cfg.cropRefLine;
+    if (cfg.prefixFilter != null) dom.scriptPrefixFilter.value = cfg.prefixFilter;
+    if (cfg.keyword != null) dom.scriptKeyword.value = cfg.keyword;
+    dom.scriptAutoRun.checked = !!cfg.autoRun;
+    dom.scriptFitMode.dispatchEvent(new Event('change'));
+    dom.scriptStitchDir.dispatchEvent(new Event('change'));
+    dom.scriptBg.dispatchEvent(new Event('change'));
+  }
+
+  // 人類可讀的腳本功能名稱（卡片副標題用）。
+  const SCRIPT_FIT_LABELS = {
+    contain: '縮放適配', cover: '縮放填充', stretch: '拉伸填充',
+    stitch: '圖片拼合', refcrop: '參考線裁切'
+  };
+
+  let activeScriptPresetName = null;
+
+  // 卡片式渲染：每張卡 = 一個已儲存腳本，點擊載入、右上角 ✕ 刪除。
+  function renderScriptPresets() {
+    const list = getSavedScripts();
+    if (dom.scriptPresetCount) dom.scriptPresetCount.textContent = list.length;
+    const box = dom.scriptPresetCards;
+    if (!box) return;
+    box.innerHTML = '';
+    if (list.length === 0) {
+      box.innerHTML = '<div class="ip-preset-empty">尚無已儲存腳本，設定好參數後按「💾 儲存目前設定」。</div>';
+      return;
+    }
+    list.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'ip-preset-card' + (item.name === activeScriptPresetName ? ' active' : '');
+      card.title = '點擊載入此腳本';
+      const fit = SCRIPT_FIT_LABELS[item.config?.fitMode] || item.config?.fitMode || '';
+      const res = item.config?.resolution || '';
+      card.innerHTML =
+        `<button class="ip-preset-card-del" title="刪除">✕</button>` +
+        `<div class="ip-preset-card-name"></div>` +
+        `<div class="ip-preset-card-meta">${escHtml(fit)}${res ? ' · ' + escHtml(String(res)) : ''}</div>`;
+      card.querySelector('.ip-preset-card-name').textContent = item.name;
+      card.addEventListener('click', () => loadScriptPreset(item.name));
+      card.querySelector('.ip-preset-card-del').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteScriptPreset(item.name);
+      });
+      box.appendChild(card);
+    });
+  }
+
+  function saveCurrentScriptPreset() {
+    const name = (prompt('請輸入腳本名稱（同名將覆寫）：', activeScriptPresetName || '') || '').trim();
+    if (!name) return;
+    const list = getSavedScripts();
+    const idx = list.findIndex(i => i.name === name);
+    const entry = { name, savedAt: Date.now(), config: gatherScriptConfig() };
+    if (idx >= 0) list[idx] = entry; else list.push(entry);
+    saveSavedScripts(list);
+    activeScriptPresetName = name;
+    renderScriptPresets();
+    if (window.showToast) window.showToast(`💾 已儲存腳本「${name}」`);
+  }
+
+  function loadScriptPreset(name) {
+    const item = getSavedScripts().find(i => i.name === name);
+    if (!item) return;
+    applyScriptConfig(item.config);
+    activeScriptPresetName = name;
+    renderScriptPresets();
+    if (window.showToast) window.showToast(`📤 已載入腳本「${name}」`);
+  }
+
+  function deleteScriptPreset(name) {
+    if (!confirm(`確定刪除腳本「${name}」？`)) return;
+    saveSavedScripts(getSavedScripts().filter(i => i.name !== name));
+    if (activeScriptPresetName === name) activeScriptPresetName = null;
+    renderScriptPresets();
+    if (window.showToast) window.showToast(`🗑 已刪除腳本「${name}」`);
+  }
+
   function populateScriptFolders() {
     if (!AssetManager.isConnected()) return;
 
@@ -1801,8 +1938,11 @@
         return;
       }
       populateScriptFolders();
+      renderScriptPresets();
       dom.scriptModal.classList.remove('hidden');
     });
+
+    if (dom.scriptPresetSave) dom.scriptPresetSave.addEventListener('click', saveCurrentScriptPreset);
 
     dom.scriptModalClose.addEventListener('click', () => {
       dom.scriptModal.classList.add('hidden');

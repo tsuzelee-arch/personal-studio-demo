@@ -990,6 +990,15 @@
           自動化腳本將讀取本機「資產庫」中指定資料夾的所有圖片，根據規則批次進行編輯與裁切，並將新產生的影像儲存至輸出資料夾。
         </div>
 
+        <!-- 已儲存腳本（卡片式） -->
+        <div class="ip-script-presets">
+          <div class="ip-presets-head">
+            <span class="form-label" style="margin:0;">📁 已儲存腳本 (<span id="ipScriptPresetCount">0</span>)</span>
+            <button class="btn-ghost ip-presets-save" id="ipScriptPresetSave">💾 儲存目前設定</button>
+          </div>
+          <div class="ip-preset-cards" id="ipScriptPresetCards"></div>
+        </div>
+
         <label class="form-label">來源資料夾 (Source Folder)</label>
         <select class="form-input" id="ipScriptSourceDir">
           <!-- 由 JS 動態填充 -->
