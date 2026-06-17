@@ -1646,18 +1646,35 @@
     list.forEach(item => {
       const card = document.createElement('div');
       card.className = 'ip-preset-card' + (item.name === activeScriptPresetName ? ' active' : '');
-      card.title = '點擊載入此腳本';
       const fit = SCRIPT_FIT_LABELS[item.config?.fitMode] || item.config?.fitMode || '';
       const res = item.config?.resolution || '';
+      const autoOn = !!item.config?.autoRun;
       card.innerHTML =
         `<button class="ip-preset-card-del" title="刪除">✕</button>` +
         `<div class="ip-preset-card-name"></div>` +
-        `<div class="ip-preset-card-meta">${escHtml(fit)}${res ? ' · ' + escHtml(String(res)) : ''}</div>`;
+        `<div class="ip-preset-card-meta">${escHtml(fit)}${res ? ' · ' + escHtml(String(res)) : ''}</div>` +
+        `<div class="ip-preset-card-actions">` +
+          `<button class="ip-preset-run" title="馬上用此腳本執行">▶ 馬上執行</button>` +
+          `<label class="ip-preset-auto" title="偵測到符合關鍵字的新圖片時自動執行此腳本"><input type="checkbox" class="ip-preset-auto-cb" ${autoOn ? 'checked' : ''}> 自動執行</label>` +
+        `</div>`;
       card.querySelector('.ip-preset-card-name').textContent = item.name;
-      card.addEventListener('click', () => loadScriptPreset(item.name));
+      card.title = '點擊載入並編輯此腳本';
+      // 點卡片本體（非按鈕/開關）→ 載入並開啟模態框編輯
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.ip-preset-card-del, .ip-preset-run, .ip-preset-auto')) return;
+        loadScriptPreset(item.name, true);
+      });
       card.querySelector('.ip-preset-card-del').addEventListener('click', (e) => {
         e.stopPropagation();
         deleteScriptPreset(item.name);
+      });
+      card.querySelector('.ip-preset-run').addEventListener('click', (e) => {
+        e.stopPropagation();
+        runScriptPreset(item.name);
+      });
+      card.querySelector('.ip-preset-auto-cb').addEventListener('change', (e) => {
+        e.stopPropagation();
+        setScriptPresetAutoRun(item.name, e.target.checked);
       });
       box.appendChild(card);
     });
@@ -1676,13 +1693,42 @@
     if (window.showToast) window.showToast(`💾 已儲存腳本「${name}」`);
   }
 
-  function loadScriptPreset(name) {
+  // 載入腳本到表單；openModal=true 時同時開啟模態框供編輯。
+  function loadScriptPreset(name, openModal) {
     const item = getSavedScripts().find(i => i.name === name);
     if (!item) return;
+    if (AssetManager.isConnected()) populateScriptFolders();
     applyScriptConfig(item.config);
     activeScriptPresetName = name;
     renderScriptPresets();
+    if (openModal && dom.scriptModal) dom.scriptModal.classList.remove('hidden');
     if (window.showToast) window.showToast(`📤 已載入腳本「${name}」`);
+  }
+
+  // 立即用指定腳本執行批次（不需先開模態框）。
+  async function runScriptPreset(name) {
+    const item = getSavedScripts().find(i => i.name === name);
+    if (!item) return;
+    if (!AssetManager.isConnected()) {
+      alert('請先至「資產庫」連結本機資料夾，此自動化腳本功能直讀本機硬碟檔案！');
+      return;
+    }
+    populateScriptFolders();
+    applyScriptConfig(item.config);
+    activeScriptPresetName = name;
+    renderScriptPresets();
+    await executeAutomation();
+  }
+
+  // 切換某腳本的「自動執行」並持久化（每張腳本獨立）。
+  function setScriptPresetAutoRun(name, on) {
+    const list = getSavedScripts();
+    const item = list.find(i => i.name === name);
+    if (!item) return;
+    item.config = item.config || {};
+    item.config.autoRun = !!on;
+    saveSavedScripts(list);
+    if (window.showToast) window.showToast(on ? `🔄 已開啟「${name}」自動執行` : `⏸ 已關閉「${name}」自動執行`);
   }
 
   function deleteScriptPreset(name) {
@@ -1982,39 +2028,40 @@
 
     dom.scriptBtnExecute.addEventListener('click', () => executeAutomation());
 
-    // --- Auto-trigger on Node Saved Asset ---
+    // 初始渲染側欄（頁面載入即顯示已儲存腳本）
+    renderScriptPresets();
+
+    // --- Auto-trigger on Node Saved Asset：逐一比對已儲存腳本（每張獨立 autoRun + keyword）---
     let autoRunTimeout = null;
-    let pendingTriggerFiles = [];
 
     window.addEventListener('node-saved-asset', (event) => {
       if (state.processing || state.isProcessingAutomation) return;
-      if (!dom.scriptAutoRun || !dom.scriptAutoRun.checked) return;
 
-      const { filename, folder, node } = event.detail;
+      const { filename, node } = event.detail;
       if (filename.includes('_processed') || filename.includes('_stitched') || filename.includes('_crop_')) {
         return; // Skip output files to prevent infinite loops
       }
 
-      const keyword = dom.scriptKeyword.value.trim();
-      if (!keyword || !filename.includes(keyword)) return;
-
-      pendingTriggerFiles.push({ filename, folder, node });
+      // 找出所有「開啟自動執行 + 關鍵字命中」的腳本
+      const matches = getSavedScripts().filter(s =>
+        s.config && s.config.autoRun && s.config.keyword && filename.includes(s.config.keyword.trim())
+      );
+      if (matches.length === 0) return;
 
       if (autoRunTimeout) clearTimeout(autoRunTimeout);
       autoRunTimeout = setTimeout(async () => {
         state.isProcessingAutomation = true;
         try {
-          if (window.showToast) window.showToast('🤖 自動偵測到圖片，啟動編輯腳本中...');
-          
-          let relativeSource = folder || '根目錄';
-          dom.scriptSourceDir.value = relativeSource;
-          
-          await executeAutomation(node);
+          for (const s of matches) {
+            if (window.showToast) window.showToast(`🤖 自動偵測到圖片，執行腳本「${s.name}」...`);
+            if (AssetManager.isConnected()) populateScriptFolders();
+            applyScriptConfig(s.config);
+            await executeAutomation(node);
+          }
         } catch (e) {
           console.error('Auto trigger execution failed:', e);
         } finally {
           state.isProcessingAutomation = false;
-          pendingTriggerFiles = [];
         }
       }, 800);
     });

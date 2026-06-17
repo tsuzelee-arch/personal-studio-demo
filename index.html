@@ -429,6 +429,14 @@
 
           <!-- Main Layout (3-Column Layout with Right Inspector) -->
           <div class="ip-ide-layout">
+            <!-- Far-Left: Saved Automation Scripts (always-on) -->
+            <div class="ip-script-sidebar" id="ipScriptSidebar">
+              <div class="ip-script-sidebar-head">
+                <span>🤖 已儲存腳本 (<span id="ipScriptPresetCount">0</span>)</span>
+              </div>
+              <div class="ip-preset-cards" id="ipScriptPresetCards"></div>
+            </div>
+
             <!-- Left Pane: Local Asset Explorer -->
             <div class="ip-left-assets assets-body-v2" id="ipLeftAssets" style="display:none; flex-direction: column;">
               <div class="assets-header-v2" style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
@@ -990,15 +998,6 @@
           自動化腳本將讀取本機「資產庫」中指定資料夾的所有圖片，根據規則批次進行編輯與裁切，並將新產生的影像儲存至輸出資料夾。
         </div>
 
-        <!-- 已儲存腳本（卡片式） -->
-        <div class="ip-script-presets">
-          <div class="ip-presets-head">
-            <span class="form-label" style="margin:0;">📁 已儲存腳本 (<span id="ipScriptPresetCount">0</span>)</span>
-            <button class="btn-ghost ip-presets-save" id="ipScriptPresetSave">💾 儲存目前設定</button>
-          </div>
-          <div class="ip-preset-cards" id="ipScriptPresetCards"></div>
-        </div>
-
         <label class="form-label">來源資料夾 (Source Folder)</label>
         <select class="form-input" id="ipScriptSourceDir">
           <!-- 由 JS 動態填充 -->
@@ -1118,6 +1117,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn-ghost" id="ipScriptModalCancel">取消</button>
+        <button class="btn-ghost" id="ipScriptPresetSave">💾 儲存為腳本</button>
         <button class="btn-primary" id="ipScriptBtnExecute">🚀 執行自動化</button>
       </div>
     </div>
