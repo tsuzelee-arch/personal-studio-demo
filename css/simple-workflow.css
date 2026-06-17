@@ -127,8 +127,8 @@
   color: var(--muted);
   transition: all 0.15s;
 }
-.swf-folder-item:hover { border-color: var(--accent, #1783FF); color: var(--accent); }
-.swf-folder-item.active { background: var(--accent, #1783FF); color: #fff; border-color: var(--accent); }
+.swf-folder-item:hover { border-color: var(--warm); color: var(--warm); }
+.swf-folder-item.active { background: var(--warm); color: var(--ink); border-color: var(--warm); }
 
 .swf-assets-grid {
   flex: 1;
@@ -250,10 +250,10 @@
   box-shadow: 0 3px 12px rgba(0,0,0,0.35);
 }
 .quickbar-cat-btn.active, .quickbar-cat-btn.pinned {
-  background: var(--accent, #1783FF);
-  color: #fff;
+  background: var(--warm);
+  color: var(--ink);
   border-color: transparent;
-  box-shadow: 0 3px 12px rgba(23,131,255,0.35);
+  box-shadow: 0 3px 12px rgba(200, 169, 110, 0.35);
 }
 .quickbar-cat-text {
   flex: 1;
@@ -275,7 +275,7 @@
   word-break: break-word;
 }
 .quickbar-prompt-item:hover {
-  border-color: var(--accent, #1783FF);
+  border-color: var(--warm);
 }
 .quickbar-prompt-title {
   font-weight: 600;
@@ -296,11 +296,11 @@
   line-height: 1.5;
   word-break: break-word;
 }
-.swf-prompt-qb-item:hover { border-color: var(--accent, #1783FF); }
+.swf-prompt-qb-item:hover { border-color: var(--warm); }
 .swf-prompt-qb-item .swf-prompt-tag {
   display: inline-block;
-  background: rgba(23, 131, 255, 0.1);
-  color: var(--accent, #1783FF);
+  background: rgba(200, 169, 110, 0.12);
+  color: var(--warm);
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 3px;
@@ -903,6 +903,52 @@
   user-select: none;
 }
 
+.swf-params-area input[type="text"],
+.swf-params-area select {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--node-input-bg, #fafafa);
+  color: var(--node-text, #333);
+  border: 1px solid var(--node-input-border, #d0d0d0);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 11.5px;
+  height: 26px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.swf-params-area input[type="text"]:focus,
+.swf-params-area textarea:focus {
+  border-color: var(--accent, #1783FF);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-alpha, rgba(23, 131, 255, 0.15));
+}
+.swf-params-area textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--node-input-bg, #fafafa);
+  color: var(--node-text, #333);
+  border: 1px solid var(--node-input-border, #d0d0d0);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-family: monospace;
+  resize: vertical;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.swf-comfy-autodetect {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.swf-comfy-autodetect:hover {
+  background: var(--accent, #1783FF) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+.swf-comfy-detection-status {
+  word-break: break-all;
+  line-height: 1.3;
+}
+
 /* ── Image Resource Area ── */
 .swf-images-area {
   min-height: 52px;
@@ -973,8 +1019,8 @@
   height: 16px;
   border-radius: 50%;
   border: none;
-  background: var(--accent, #1783FF);
-  color: #fff;
+  background: var(--warm);
+  color: var(--ink);
   font-size: 8px;
   cursor: pointer;
   opacity: 0;
@@ -1191,8 +1237,8 @@
   color: var(--muted, #888) !important;
 }
 [data-theme="dark"] .swf-folder-item.active {
-  background: var(--accent, #1783FF) !important;
-  color: #fff !important;
+  background: var(--warm) !important;
+  color: var(--ink) !important;
 }
 [data-theme="dark"] .swf-prompt-qb-item {
   background: var(--node-body-bg, #1e1e2e) !important;
@@ -1494,4 +1540,8 @@
 }
 [data-theme="dark"] .swf-gs-img {
   border-color: var(--border, #444);
+}
+
+.swf-gs-apply-btn:hover {
+  background: var(--warm-dark) !important;
 }

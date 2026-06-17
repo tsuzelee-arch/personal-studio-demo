@@ -430,8 +430,49 @@
   };
 
   function buildParamsHTML(modelKey, savedParams) {
-    const def = MODEL_PARAMS[modelKey]; if (!def) return '';
     const p = savedParams || {};
+    if (modelKey === 'comfyui') {
+      const serverUrl = p.serverUrl ?? 'http://127.0.0.1:8188';
+      const workflowJson = p.workflowJson ?? '';
+      const positivePromptNodeId = p.positivePromptNodeId ?? '';
+      const inputNodeIds = p.inputNodeIds ?? '';
+      const outputNodeId = p.outputNodeId ?? '';
+      return `
+        <div class="swf-param-row">
+          <label>ComfyUI API 地址</label>
+          <input type="text" data-param="serverUrl" value="${serverUrl}" placeholder="http://127.0.0.1:8188" style="width:100%;">
+        </div>
+        <div class="swf-param-row">
+          <label style="display:flex; justify-content:space-between; align-items:center;">
+            <span>API 工作流 JSON</span>
+            <span style="font-size:10px; font-weight:normal; color:var(--muted);">Dev Mode -> Save (API format)</span>
+          </label>
+          <textarea data-param="workflowJson" placeholder="貼上從 ComfyUI 匯出的 API JSON 格式..." style="width:100%; height:120px; font-family:monospace; font-size:11px; resize:vertical; background:var(--node-input-bg, #fafafa); border:1px solid var(--node-input-border, #d0d0d0); color:var(--node-text, #333); border-radius:4px; padding:4px; box-sizing:border-box;">${workflowJson}</textarea>
+        </div>
+        <div class="swf-param-row-group" style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px;">
+          <div class="swf-param-row" style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="font-weight:bold; margin-bottom:0;">節點對應設定</label>
+            <button class="btn-ghost btn-xs swf-comfy-autodetect" type="button" style="padding:2px 6px; font-size:11px; height:20px; border:1px solid var(--border); border-radius:4px; background:var(--bg-deep); cursor:pointer;">🪄 自動偵測</button>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">
+            <div class="swf-param-row">
+              <label title="提示詞所屬的 CLIPTextEncode 節點 ID">提示詞節點 ID</label>
+              <input type="text" data-param="positivePromptNodeId" value="${positivePromptNodeId}" placeholder="例如: 6" style="width:100%;">
+            </div>
+            <div class="swf-param-row">
+              <label title="最終輸出的 SaveImage/PreviewImage 節點 ID">輸出節點 ID</label>
+              <input type="text" data-param="outputNodeId" value="${outputNodeId}" placeholder="例如: 15" style="width:100%;">
+            </div>
+          </div>
+          <div class="swf-param-row" style="margin-top:6px;">
+            <label title="輸入參考圖片所對應的 LoadImage 節點 ID (多個以逗號分隔，順序對應)">輸入圖片節點 ID (多個以逗號隔開)</label>
+            <input type="text" data-param="inputNodeIds" value="${inputNodeIds}" placeholder="例如: 9, 12" style="width:100%;">
+          </div>
+          <div class="swf-comfy-detection-status" style="font-size:10px; color:var(--muted); margin-top:4px; min-height:14px;"></div>
+        </div>
+      `;
+    }
+    const def = MODEL_PARAMS[modelKey]; if (!def) return '';
     return def.params.map(param => {
       if (param.type === 'select') {
         const opts = param.options.map(o => {
@@ -505,9 +546,15 @@
             <label class="swf-gs-mode-opt"><input type="radio" class="swf-gs-mode-radio" name="gsmode_${id}" value="all" checked> 全部接收</label>
             <label class="swf-gs-mode-opt"><input type="radio" class="swf-gs-mode-radio" name="gsmode_${id}" value="ordered"> 順序配對</label>
           </div>
+          <div class="swf-gs-folder-row" style="margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 11px; display: block; color: var(--muted);">接收來自文件夾圖片</label>
+            <select class="swf-group-import-folder" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 4px; font-size: 11px; height: 26px;">
+              <option value="">(無)</option>
+            </select>
+          </div>
           <div style="margin-top: 6px; display: flex; gap: 4px; justify-content: space-between;">
             <button class="swf-gs-select-all" style="font-size: 10px; cursor: pointer; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface);">全選</button>
-            <button class="swf-gs-apply-btn" style="font-size: 10px; cursor: pointer; background: var(--accent, #1783FF); color: #fff; border: none; border-radius: 4px; padding: 2px 6px;">📥 全部套用</button>
+            <button class="swf-gs-apply-btn" style="font-size: 10px; cursor: pointer; background: var(--warm); color: var(--ink); border: none; border-radius: 4px; padding: 2px 6px;">📥 全部套用</button>
           </div>
         </div>
         <div class="swf-gs-images"></div>
@@ -552,7 +599,7 @@
 
     nodesContainer.appendChild(el);
 
-    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, upstreamMode: 'all', receivePriority: 1, collapsed: false, expandedHeight: null, _collapsedMembers: null, locked: false, lockedMemberIds: null };
+    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, upstreamMode: 'all', receivePriority: 1, collapsed: false, expandedHeight: null, _collapsedMembers: null, locked: false, lockedMemberIds: null, importFolder: '', _folderBlobUrls: [] };
     groups[id] = groupData;
 
     // Entity Selection
@@ -575,6 +622,29 @@
     const g = parseInt(c.substring(2, 4), 16);
     const b = parseInt(c.substring(4, 6), 16);
     return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function findComfyNodes(workflowJson) {
+    const loadImages = [];
+    const saveImages = [];
+    const promptNodes = [];
+    try {
+      const data = typeof workflowJson === 'string' ? JSON.parse(workflowJson) : workflowJson;
+      for (const [id, node] of Object.entries(data)) {
+        if (node.class_type === 'LoadImage') {
+          loadImages.push(id);
+        }
+        if (node.class_type === 'SaveImage' || node.class_type === 'PreviewImage') {
+          saveImages.push(id);
+        }
+        if (node.class_type === 'CLIPTextEncode') {
+          promptNodes.push(id);
+        }
+      }
+    } catch (e) {
+      // invalid json
+    }
+    return { loadImages, saveImages, promptNodes };
   }
 
   function setupGroupEvents(group) {
@@ -657,6 +727,15 @@
         if (e.target.checked) { group.upstreamMode = e.target.value; propagateVisualImages(); renderGroupSidebar(group); }
       });
     });
+
+    const importFolderSelect = el.querySelector('.swf-group-import-folder');
+    if (importFolderSelect) {
+      importFolderSelect.addEventListener('change', (e) => {
+        group.importFolder = e.target.value;
+        resolveGroupFolderImages();
+      });
+      importFolderSelect.addEventListener('mousedown', (e) => e.stopPropagation());
+    }
 
     // Select All
     el.querySelector('.swf-gs-select-all').addEventListener('click', () => {
@@ -1214,6 +1293,7 @@
   function createMacroNode(type, initialX, initialY) {
     const id = uid('n');
     const isI2I = type === 'i2i';
+    const isComfy = type === 'comfyui';
     let pos = (initialX !== undefined) ? { x: initialX, y: initialY } : calculateNextPosition();
 
     const el = document.createElement('div');
@@ -1222,8 +1302,8 @@
     el.style.left = pos.x + 'px';
     el.style.top = pos.y + 'px';
 
-    const headerTitle = isI2I ? '圖生圖 (I2I)' : '文生圖 (T2I)';
-    const defaultModel = 'nanobanana2';
+    const headerTitle = isComfy ? 'ComfyUI' : (isI2I ? '圖生圖 (I2I)' : '文生圖 (T2I)');
+    const defaultModel = isComfy ? 'comfyui' : 'nanobanana2';
     const modelOptionsHTML = Object.entries(MODEL_PARAMS).map(([k, v]) =>
       `<option value="${k}" ${k === defaultModel ? 'selected' : ''}>${v.label}</option>`
     ).join('');
@@ -1242,11 +1322,17 @@
       </div>
       <div class="swf-macro-body">
         <div style="display:flex; gap: 8px; margin-bottom: 8px;">
-          <div class="swf-model-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">模型</label><select class="swf-model-sel" style="width:100%; box-sizing:border-box;">${modelOptionsHTML}</select></div>
+          <div class="swf-model-section" style="flex:1; ${isComfy ? 'display:none;' : ''}"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">模型</label><select class="swf-model-sel" style="width:100%; box-sizing:border-box;">${modelOptionsHTML}</select></div>
+          ${isComfy ? `
+          <div class="swf-comfy-label-section" style="flex:1;">
+            <label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">類型</label>
+            <div style="width: 100%; box-sizing: border-box; background: var(--bg-deep, #eef2f7); border: 1px solid var(--border); color: var(--accent, #1783FF); border-radius: 4px; padding: 4px 8px; font-size: 12px; height: 26px; line-height: 16px; font-weight: bold; text-align: center;">ComfyUI API</div>
+          </div>
+          ` : ''}
           <div class="swf-folder-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">儲存資料夾</label><select class="swf-node-folder" title="選擇儲存資料夾" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 4px; font-size: 12px; height: 26px;"><option value="">預設 (根目錄)</option></select></div>
         </div>
         <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
-        ${isI2I ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
+        ${(isI2I || isComfy) ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
         <div><div class="swf-section-label swf-prompt-label">提示詞 (Prompt)</div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">📥</button></div>
         <button class="swf-run-btn" data-node="${id}">▶ 生成</button>
@@ -1377,12 +1463,57 @@
     });
 
     const modelSel = el.querySelector('.swf-model-sel');
-    modelSel.addEventListener('change', (e) => {
-      node.data.model = e.target.value; node.data.params = {};
-      el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(e.target.value, {});
-      wireParamInputs(node);
-    });
+    if (modelSel) {
+      modelSel.addEventListener('change', (e) => {
+        node.data.model = e.target.value; node.data.params = {};
+        el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(e.target.value, {});
+        wireParamInputs(node);
+      });
+    }
     wireParamInputs(node);
+
+    // ComfyUI autodetect wiring
+    const autodetectBtn = el.querySelector('.swf-comfy-autodetect');
+    if (autodetectBtn) {
+      autodetectBtn.addEventListener('click', () => {
+        const jsonText = node.data.params.workflowJson || '';
+        const statusEl = el.querySelector('.swf-comfy-detection-status');
+        try {
+          if (!jsonText.trim()) {
+            throw new Error('請先貼上 API 工作流 JSON');
+          }
+          const data = JSON.parse(jsonText);
+          const detected = findComfyNodes(data);
+          
+          const positiveInput = el.querySelector('input[data-param="positivePromptNodeId"]');
+          const outputInput = el.querySelector('input[data-param="outputNodeId"]');
+          const inputNodeInput = el.querySelector('input[data-param="inputNodeIds"]');
+          
+          if (positiveInput && detected.promptNodes.length > 0) {
+            positiveInput.value = detected.promptNodes[0];
+            node.data.params.positivePromptNodeId = detected.promptNodes[0];
+          }
+          if (outputInput && detected.saveImages.length > 0) {
+            outputInput.value = detected.saveImages[0];
+            node.data.params.outputNodeId = detected.saveImages[0];
+          }
+          if (inputNodeInput && detected.loadImages.length > 0) {
+            inputNodeInput.value = detected.loadImages.join(', ');
+            node.data.params.inputNodeIds = detected.loadImages.join(', ');
+          }
+          
+          if (statusEl) {
+            statusEl.style.color = 'var(--primary, #1783FF)';
+            statusEl.textContent = `偵測成功！提示詞節點: ${detected.promptNodes[0] || '無'}，輸出節點: ${detected.saveImages[0] || '無'}，輸入圖片節點: ${detected.loadImages.join(',') || '無'}`;
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.style.color = 'var(--danger, #ff4d4f)';
+            statusEl.textContent = '偵測失敗：' + err.message;
+          }
+        }
+      });
+    }
 
     const overwriteCb = el.querySelector('.swf-overwrite-cb');
     if (overwriteCb) {
@@ -1607,6 +1738,14 @@
     area.querySelectorAll('select[data-param]').forEach(inp => {
       inp.addEventListener('change', () => { node.data.params[inp.dataset.param] = inp.value; });
       node.data.params[inp.dataset.param] = inp.value;
+    });
+    area.querySelectorAll('input[type="text"][data-param], textarea[data-param]').forEach(inp => {
+      inp.addEventListener('input', () => { node.data.params[inp.dataset.param] = inp.value; });
+      if (node.data.params[inp.dataset.param] !== undefined) {
+        inp.value = node.data.params[inp.dataset.param];
+      } else {
+        node.data.params[inp.dataset.param] = inp.value;
+      }
     });
     area.querySelectorAll('input[type="range"][data-param]').forEach(slider => {
       slider.addEventListener('mousedown', (e) => {
@@ -1892,7 +2031,12 @@
     if (groupId) {
       const g = groups[groupId];
       const isEntry = !edges.some(e => e.target === nid && memberIds.has(e.source));
-      if (isEntry && g && g.receiveUpstream) {
+      if (isEntry && g) {
+        // Feed images from group's import folder if configured
+        if (g.importFolder && g._folderBlobUrls && g._folderBlobUrls.length > 0) {
+          contribs.push({ priority: g.receivePriority ?? 1, images: g._folderBlobUrls });
+        }
+        if (g.receiveUpstream) {
         if (g.upstreamMode === 'ordered') {
           const entryNodes = getGroupEntryNodes(groupId);
           const nodeIndex = entryNodes.findIndex(m => m.id === nid);
@@ -1916,6 +2060,7 @@
         }
       }
     }
+  }
 
     return contribs;
   }
@@ -1932,6 +2077,38 @@
     for (const gid in groups) {
       if (groups[gid].sidebarOpen) renderGroupSidebar(groups[gid]);
     }
+  }
+
+  async function resolveGroupFolderImages() {
+    if (!window.AssetManager || !window.AssetManager.isConnected()) return;
+    for (const gid in groups) {
+      const g = groups[gid];
+      if (g.importFolder && g.importFolder !== '') {
+        const files = window.AssetManager.getImagesInFolder(g.importFolder);
+        
+        // Revoke old folder blob URLs to prevent memory leaks
+        if (g._folderBlobUrls && g._folderBlobUrls.length > 0) {
+          g._folderBlobUrls.forEach(url => {
+            try { URL.revokeObjectURL(url); } catch(e){}
+          });
+        }
+        
+        const urls = [];
+        for (const file of files) {
+          const url = await window.AssetManager.getFileBlobUrlByPath(file.path);
+          if (url) urls.push(url);
+        }
+        g._folderBlobUrls = urls;
+      } else {
+        if (g._folderBlobUrls && g._folderBlobUrls.length > 0) {
+          g._folderBlobUrls.forEach(url => {
+            try { URL.revokeObjectURL(url); } catch(e){}
+          });
+        }
+        g._folderBlobUrls = [];
+      }
+    }
+    propagateVisualImages();
   }
 
   function renderEdges() {
@@ -2112,32 +2289,262 @@
 
     try {
       const { text, inlineImages } = extractPromptData(node);
-      if (!text.trim()) throw new Error('提示詞不能為空');
-
       const model = node.data.model || 'nanobanana2';
       const params = node.data.params || {};
-      let apiKey = '';
-      if (model === 'gptimage') apiKey = window.StudioSettings?.getOpenAIKey?.();
-      else apiKey = window.StudioSettings?.getNanobananaKey?.();
-      if (!apiKey) throw new Error('API Key 尚未設定 (' + model + ')');
+
+      if (!text.trim() && model !== 'comfyui') throw new Error('提示詞不能為空');
 
       // Use unified images array directly — order is exactly what user sees
       const allRefs = [...node.data.images, ...inlineImages];
       let imageUrl = '';
-      if (model === 'gptimage') {
-        imageUrl = await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', allRefs.length > 0 ? allRefs : null, {
-          quality: params.quality || 'low', background: params.gptBackground || 'auto', input_fidelity: params.gptFidelity || 'high'
-        });
-      } else if (model === 'nanobanana2') {
-        imageUrl = await window.AIService.generateWithNanoBanana2(text, apiKey, allRefs.length > 0 ? allRefs : null, null, {
-          aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
-          thinkingLevel: params.thinkingLevel || 'none',
+
+      if (model === 'comfyui') {
+        const serverUrl = params.serverUrl || 'http://127.0.0.1:8188';
+        const cleanUrl = serverUrl.trim().replace(/\/+$/, '');
+        const workflowJsonStr = params.workflowJson || '';
+        const positivePromptNodeId = params.positivePromptNodeId || '';
+        const outputNodeId = params.outputNodeId || '';
+        const inputNodeIdsStr = params.inputNodeIds || '';
+
+        if (!workflowJsonStr.trim()) throw new Error('API 工作流 JSON 不能為空');
+        if (!outputNodeId.trim()) throw new Error('輸出節點 ID 不能為空');
+
+        let workflowJson;
+        try {
+          workflowJson = JSON.parse(workflowJsonStr);
+        } catch (e) {
+          throw new Error('API 工作流 JSON 格式錯誤：' + e.message);
+        }
+
+        placeholder.textContent = `Uploading references...`;
+
+        if (!window.__swfComfyUploadCache) {
+          window.__swfComfyUploadCache = {};
+        }
+
+        const uploadImageToComfy = async (dataUrl, index) => {
+          const cacheKey = dataUrl.substring(0, 100) + '_' + dataUrl.length;
+          if (window.__swfComfyUploadCache[cacheKey]) {
+            return window.__swfComfyUploadCache[cacheKey];
+          }
+          try {
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
+            const formData = new FormData();
+            formData.append('image', blob, `swf_input_${Date.now()}_${index}_${Math.floor(Math.random()*1000)}.png`);
+            formData.append('overwrite', 'true');
+
+            const uploadRes = await fetch(`${cleanUrl}/upload/image`, {
+              method: 'POST',
+              body: formData
+            });
+            if (!uploadRes.ok) {
+              const errTxt = await uploadRes.text().catch(() => '');
+              throw new Error(`上傳失敗: ${uploadRes.statusText} ${errTxt}`);
+            }
+            const uploadData = await uploadRes.json();
+            window.__swfComfyUploadCache[cacheKey] = uploadData.name;
+            return uploadData.name;
+          } catch (err) {
+            throw new Error(`上傳圖片到 ComfyUI 失敗 (請確認 ComfyUI 開啟了 CORS --enable-cors-header): ${err.message}`);
+          }
+        };
+
+        const inputNodeIds = inputNodeIdsStr.split(',').map(s => s.trim()).filter(Boolean);
+        const limit = Math.min(allRefs.length, inputNodeIds.length);
+        for (let i = 0; i < limit; i++) {
+          const nodeId = inputNodeIds[i];
+          const filename = await uploadImageToComfy(allRefs[i], i);
+          if (workflowJson[nodeId]) {
+            if (!workflowJson[nodeId].inputs) workflowJson[nodeId].inputs = {};
+            workflowJson[nodeId].inputs.image = filename;
+          }
+        }
+
+        if (positivePromptNodeId.trim() && text.trim()) {
+          const promptNodeId = positivePromptNodeId.trim();
+          if (workflowJson[promptNodeId]) {
+            if (!workflowJson[promptNodeId].inputs) workflowJson[promptNodeId].inputs = {};
+            workflowJson[promptNodeId].inputs.text = text;
+          }
+        }
+
+        const clientId = window.crypto?.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).substring(2);
+
+        placeholder.textContent = `Queueing workflow...`;
+        let promptId = '';
+        try {
+          const promptRes = await fetch(`${cleanUrl}/prompt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: workflowJson,
+              client_id: clientId
+            })
+          });
+          if (!promptRes.ok) {
+            const errTxt = await promptRes.text().catch(() => '');
+            throw new Error(`${promptRes.statusText} ${errTxt}`);
+          }
+          const promptData = await promptRes.json();
+          promptId = promptData.prompt_id;
+        } catch (err) {
+          throw new Error(`ComfyUI 連線排程失敗 (請確認 ComfyUI 開啟了 CORS --enable-cors-header): ${err.message}`);
+        }
+
+        placeholder.textContent = `Generating... (${secs}s) - 佇列中`;
+
+        imageUrl = await new Promise((resolve, reject) => {
+          let ws;
+          let pollInterval;
+          let isDone = false;
+
+          const cleanUp = () => {
+            isDone = true;
+            if (ws) {
+              try { ws.close(); } catch(e){}
+            }
+            if (pollInterval) {
+              clearInterval(pollInterval);
+            }
+          };
+
+          try {
+            const wsProtocol = cleanUrl.startsWith('https://') ? 'wss://' : 'ws://';
+            const wsHost = cleanUrl.replace(/^https?:\/\//, '');
+            ws = new WebSocket(`${wsProtocol}${wsHost}/ws?clientId=${clientId}`);
+            
+            ws.onmessage = async (event) => {
+              try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'progress') {
+                  const val = msg.data.value;
+                  const max = msg.data.max;
+                  placeholder.textContent = `Generating... (${secs}s) - 步數: ${val}/${max}`;
+                }
+                if (msg.type === 'executing') {
+                  if (msg.data.node === null && msg.data.prompt_id === promptId) {
+                    cleanUp();
+                    fetchHistoryAndResolve();
+                  } else if (msg.data.prompt_id === promptId) {
+                    placeholder.textContent = `Generating... (${secs}s) - 執行節點: ${msg.data.node}`;
+                  }
+                }
+                if (msg.type === 'execution_error' && msg.data.prompt_id === promptId) {
+                  cleanUp();
+                  reject(new Error(`ComfyUI 執行出錯: ${msg.data.exception_message || '未知錯誤'}`));
+                }
+              } catch (e) {
+                console.warn('WS message parsing failed:', e);
+              }
+            };
+
+            ws.onerror = (e) => {
+              console.warn('ComfyUI WS connection error, falling back to HTTP Polling');
+              startPolling();
+            };
+
+            ws.onclose = () => {
+              if (!isDone) {
+                console.warn('ComfyUI WS closed prematurely, falling back to HTTP Polling');
+                startPolling();
+              }
+            };
+          } catch (e) {
+            console.warn('ComfyUI WS setup failed, falling back to HTTP Polling');
+            startPolling();
+          }
+
+          function startPolling() {
+            if (pollInterval) return;
+            pollInterval = setInterval(async () => {
+              try {
+                const res = await fetch(`${cleanUrl}/history/${promptId}`);
+                if (!res.ok) return;
+                const history = await res.json();
+                if (history && history[promptId]) {
+                  cleanUp();
+                  resolveHistoryImage(history[promptId]);
+                }
+              } catch (err) {
+                console.warn('Polling history error:', err);
+              }
+            }, 1500);
+          }
+
+          async function fetchHistoryAndResolve() {
+            try {
+              const res = await fetch(`${cleanUrl}/history/${promptId}`);
+              if (!res.ok) {
+                const errTxt = await res.text().catch(() => '');
+                reject(new Error(`取得歷史紀錄失敗: ${res.status} ${errTxt}`));
+                return;
+              }
+              const history = await res.json();
+              if (history && history[promptId]) {
+                resolveHistoryImage(history[promptId]);
+              } else {
+                reject(new Error('未在 ComfyUI 歷史紀錄中找到該次執行的結果'));
+              }
+            } catch (err) {
+              reject(err);
+            }
+          }
+
+          async function resolveHistoryImage(promptHistory) {
+            try {
+              const outputs = promptHistory.outputs;
+              if (!outputs || !outputs[outputNodeId]) {
+                const available = Object.keys(outputs || {}).join(', ') || '無';
+                reject(new Error(`找不到輸出節點 "${outputNodeId}"。該次執行產出的節點為: [${available}]，請確認節點對應設定是否正確。`));
+                return;
+              }
+              const outputNode = outputs[outputNodeId];
+              const images = outputNode.images;
+              if (!images || images.length === 0) {
+                reject(new Error(`節點 "${outputNodeId}" 的輸出圖片清單為空`));
+                return;
+              }
+
+              const imgInfo = images[0];
+              const viewUrl = `${cleanUrl}/view?filename=${encodeURIComponent(imgInfo.filename)}&subfolder=${encodeURIComponent(imgInfo.subfolder || '')}&type=${imgInfo.type || 'output'}`;
+              
+              const imgRes = await fetch(viewUrl);
+              if (!imgRes.ok) {
+                reject(new Error(`下載生成圖片失敗: ${imgRes.statusText}`));
+                return;
+              }
+              const imgBlob = await imgRes.blob();
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = () => reject(new Error('讀取圖片 Blob 失敗'));
+              reader.readAsDataURL(imgBlob);
+            } catch (err) {
+              reject(err);
+            }
+          }
         });
       } else {
-        imageUrl = await window.AIService.generateWithNanoBanana(text, apiKey, {
-          aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
-          thinkingLevel: params.thinkingLevel || 'none',
-        });
+        let apiKey = '';
+        if (model === 'gptimage') apiKey = window.StudioSettings?.getOpenAIKey?.();
+        else apiKey = window.StudioSettings?.getNanobananaKey?.();
+        if (!apiKey) throw new Error('API Key 尚未設定 (' + model + ')');
+
+        if (model === 'gptimage') {
+          imageUrl = await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', allRefs.length > 0 ? allRefs : null, {
+            quality: params.quality || 'low', background: params.gptBackground || 'auto', input_fidelity: params.gptFidelity || 'high'
+          });
+        } else if (model === 'nanobanana2') {
+          imageUrl = await window.AIService.generateWithNanoBanana2(text, apiKey, allRefs.length > 0 ? allRefs : null, null, {
+            aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
+            thinkingLevel: params.thinkingLevel || 'none',
+          });
+        } else {
+          imageUrl = await window.AIService.generateWithNanoBanana(text, apiKey, {
+            aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
+            thinkingLevel: params.thinkingLevel || 'none',
+          });
+        }
       }
 
       imgEl.src = imageUrl; imgEl.style.display = 'block';
@@ -2174,7 +2581,12 @@
       const baseName = (num != null)
         ? `${prefix}${num}`
         : `${prefix || 'SWF'}_${Date.now()}`;
-      if (window.AssetManager) window.AssetManager.saveAsset(baseName, imageUrl, targetFolder, node.data.overwrite !== false);
+      if (window.AssetManager) {
+        await window.AssetManager.saveAsset(baseName, imageUrl, targetFolder, node.data.overwrite !== false);
+        window.dispatchEvent(new CustomEvent('node-saved-asset', {
+          detail: { filename: baseName, folder: targetFolder, node }
+        }));
+      }
       if (window.showToast) window.showToast('✅ 生成完成');
     } catch (err) {
       console.error(err);
@@ -2330,13 +2742,15 @@
     for (const id in groups) {
       const g = groups[id];
       const folderInput = g.el.querySelector('.swf-group-folder');
+      const importFolderSelect = g.el.querySelector('.swf-group-import-folder');
       groupsData[id] = {
         id: g.id, x: g.x, y: g.y, width: g.width,
         // Persist the expanded height even when collapsed, so geometry/membership restore correctly.
         height: g.collapsed ? (g.expandedHeight || 320) : g.height, color: g.color, title: g.title,
         receiveUpstream: g.receiveUpstream, upstreamMode: g.upstreamMode || 'all', excludedImages: forStorage ? [] : [...g.excludedImages],
         receivePriority: g.receivePriority ?? 1, collapsed: !!g.collapsed, locked: !!g.locked,
-        folder: folderInput ? folderInput.value : ''
+        folder: folderInput ? folderInput.value : '',
+        importFolder: importFolderSelect ? importFolderSelect.value : (g.importFolder || '')
       };
     }
     return { nodes: nodesData, groups: groupsData, edges: edges.map(e => ({ ...e })), panX, panY, zoomLevel, version: 3 };
@@ -2411,10 +2825,15 @@
             // Restore v3 fields with backward compatibility
             g.receiveUpstream = gd.receiveUpstream !== undefined ? gd.receiveUpstream : true;
             g.upstreamMode = gd.upstreamMode || 'all';
+            g.importFolder = gd.importFolder || '';
             g.excludedImages = Array.isArray(gd.excludedImages) ? [...gd.excludedImages] : [];
             g.receivePriority = gd.receivePriority ?? 1;
             const folderInput = g.el.querySelector('.swf-group-folder');
             if (folderInput) folderInput.value = gd.folder || '';
+            
+            const importFolderSelect = g.el.querySelector('.swf-group-import-folder');
+            if (importFolderSelect) importFolderSelect.value = g.importFolder;
+            
             // Sync checkbox + mode radio state
             const cb = g.el.querySelector('.swf-gs-receive-cb');
             if (cb) cb.checked = g.receiveUpstream;
@@ -2890,6 +3309,7 @@
   // ═══════════════════════════════════════════
   document.getElementById('swfAddT2I')?.addEventListener('click', () => createMacroNode('t2i'));
   document.getElementById('swfAddI2I')?.addEventListener('click', () => createMacroNode('i2i'));
+  document.getElementById('swfAddComfyUI')?.addEventListener('click', () => createMacroNode('comfyui'));
   document.getElementById('swfAddGroup')?.addEventListener('click', () => createGroup());
   document.getElementById('swfRunAll')?.addEventListener('click', executeAll);
   document.getElementById('swfSaveBtn')?.addEventListener('click', saveWorkflow);
@@ -2929,12 +3349,15 @@
   }
 
   function updateSwfFolderSelects() {
-    document.querySelectorAll('.swf-node-folder, .swf-gps-folder').forEach(sel => {
+    document.querySelectorAll('.swf-node-folder, .swf-gps-folder, .swf-group-import-folder').forEach(sel => {
       sel.innerHTML = buildNodeFolderOptionsHTML(sel.value);
     });
   }
   
-  window.addEventListener('assets-tree-updated', updateSwfFolderSelects);
+  window.addEventListener('assets-tree-updated', () => {
+    updateSwfFolderSelects();
+    resolveGroupFolderImages();
+  });
 
   // ═══════════════════════════════════════════
   // ── AUTO-SAVE & INIT ──
@@ -3004,7 +3427,8 @@
     duplicateGroup,
     saveWorkflow, loadWorkflow,
     getNodes: () => nodes, getGroups: () => groups, getEdges: () => edges,
-    renderSwfAssets, initSwfPromptQuickBar
+    renderSwfAssets, initSwfPromptQuickBar,
+    propagateVisualImages, resolveGroupFolderImages
   };
 
 })();
