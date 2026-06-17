@@ -1331,6 +1331,7 @@
       wireParamInputs(newNode);
       const sp = srcNode.el.querySelector('.swf-prompt-editor'), tp = newNode.el.querySelector('.swf-prompt-editor');
       if (sp && tp) tp.innerHTML = sp.innerHTML;
+      copyNodeState(srcNode, newNode);
       renderImageThumbs(newNode);
     });
 
@@ -1536,7 +1537,7 @@
         <div><div class="swf-section-label swf-prompt-label">提示詞 (Prompt)</div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">📥</button></div>
         <button class="swf-run-btn" data-node="${id}">▶ 生成</button>
-        <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb" checked> 覆蓋同名檔案</label>
+        <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
       </div>
       <div class="swf-node-resize" title="調整大小"></div>
     `;
@@ -1545,7 +1546,7 @@
     const nodeData = { 
       id, type, el, x: pos.x, y: pos.y, 
       width: 320, isCollapsed: false,
-      data: { model: defaultModel, images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {}, promptHeight: 0, namePrefix: '', nameSuffix: '', overwrite: true },
+      data: { model: defaultModel, images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {}, promptHeight: 0, namePrefix: '', nameSuffix: '', overwrite: false },
       resultImages: [] 
     };
     nodes[id] = nodeData;
@@ -2384,6 +2385,45 @@
     scheduleEdgeRender();
   }
 
+  // Copy a node's current visual/operational state (collapse, width, folder,
+  // filename prefix/suffix, overwrite, per-section collapse) onto a freshly
+  // created duplicate. Shared by duplicateNode and duplicateGroup so both
+  // copy paths stay in sync. Does NOT copy prompt/model/params/images — those
+  // are handled by the callers.
+  function copyNodeState(srcNode, newNode) {
+    // Collapse state
+    newNode.isCollapsed = srcNode.isCollapsed;
+    newNode.el.classList.toggle('swf-collapsed', !!newNode.isCollapsed);
+
+    // Width
+    if (srcNode.width) {
+      newNode.width = srcNode.width;
+      newNode.el.style.width = newNode.width + 'px';
+    }
+
+    // Save folder / filename prefix-suffix / overwrite
+    newNode.data.namePrefix = srcNode.data.namePrefix || '';
+    newNode.data.nameSuffix = srcNode.data.nameSuffix || '';
+    newNode.data.overwrite = srcNode.data.overwrite === true;
+    const srcFolder = srcNode.el.querySelector('.swf-node-folder');
+    const dstFolder = newNode.el.querySelector('.swf-node-folder');
+    if (srcFolder && dstFolder) dstFolder.value = srcFolder.value;
+    const dstOverwrite = newNode.el.querySelector('.swf-overwrite-cb');
+    if (dstOverwrite) dstOverwrite.checked = newNode.data.overwrite;
+
+    // Per-section collapse state (prompt / reference-image sections)
+    const srcSections = srcNode.el.querySelectorAll('.swf-section-label');
+    const dstSections = newNode.el.querySelectorAll('.swf-section-label');
+    srcSections.forEach((srcLabel, i) => {
+      const dstLabel = dstSections[i];
+      if (!dstLabel) return;
+      const collapsed = srcLabel.parentElement.classList.contains('swf-section-collapsed');
+      dstLabel.parentElement.classList.toggle('swf-section-collapsed', collapsed);
+    });
+
+    scheduleEdgeRender();
+  }
+
   function duplicateNode(srcNode) {
     const newNode = createMacroNode(srcNode.type, srcNode.x, srcNode.y + srcNode.el.offsetHeight + 20);
     if (!newNode) return;
@@ -2402,6 +2442,7 @@
       });
       if (window.RichTextService) window.RichTextService.updatePlaceholder(tp);
     }
+    copyNodeState(srcNode, newNode);
     renderImageThumbs(newNode);
   }
 
