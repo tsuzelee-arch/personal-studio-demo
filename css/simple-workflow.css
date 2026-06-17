@@ -436,6 +436,7 @@
 .swf-group.swf-group-collapsed .swf-left-tab-btn,
 .swf-group.swf-group-collapsed .swf-group-sidebar,
 .swf-group.swf-group-collapsed .swf-group-params-sidebar,
+.swf-group.swf-group-collapsed .swf-group-automation-sidebar,
 .swf-group.swf-group-collapsed .swf-grp-priority-wrap,
 .swf-group.swf-group-collapsed .swf-group-color-picker,
 .swf-group.swf-group-collapsed .swf-grp-divider {
@@ -1301,6 +1302,7 @@
 .swf-grp-dup-btn.swf-left-tab-btn  { top: 104px; }
 .swf-grp-lock-btn.swf-left-tab-btn { top: 136px; }
 .swf-grp-fit-btn.swf-left-tab-btn  { top: 168px; }
+.swf-grp-automation-btn.swf-left-tab-btn { top: 200px; font-size: 13px; }
 .swf-group-sidebar-toggle svg,
 .swf-left-tab-btn svg { width: 14px; height: 14px; }
 
@@ -1362,6 +1364,35 @@
   box-shadow: -2px 0 8px rgba(0,0,0,0.08);
 }
 .swf-group.params-sidebar-open .swf-group-params-sidebar { display: flex; }
+
+/* 完成後自動化 slide-out — mirrors .swf-group-params-sidebar */
+.swf-group-automation-sidebar {
+  display: none;
+  position: absolute;
+  left: -230px;
+  top: 0;
+  width: 220px;
+  height: 100%;
+  min-height: 160px;
+  background: var(--surface, #f9f9fb);
+  border: 1px solid var(--dyn-grp-color, #00c8b4);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  z-index: 2;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.08);
+}
+.swf-group.automation-sidebar-open .swf-group-automation-sidebar { display: flex; }
+.swf-gas-note {
+  font-size: 11px;
+  color: var(--muted, #888);
+  line-height: 1.5;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px dashed var(--border, #ddd);
+  border-radius: 6px;
+}
 .swf-gps-body {
   flex: 1;
   overflow-y: auto;
@@ -1410,6 +1441,7 @@
 }
 .swf-gps-apply:hover { background: var(--warm-dark); }
 [data-theme="dark"] .swf-group-params-sidebar { background: var(--surface, #1e1e2e); }
+[data-theme="dark"] .swf-group-automation-sidebar { background: var(--surface, #1e1e2e); }
 [data-theme="dark"] .swf-gps-input {
   background: var(--node-input-bg, #2a2a3a) !important;
   color: var(--node-text, #e0e0e0) !important;

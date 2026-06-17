@@ -2233,7 +2233,80 @@
   init();
 
   // Expose public API
+  // ──────────── 記憶體內單張影像轉換 ────────────
+  // 供 Simple Workflow 群組「完成後自動化」呼叫：直接對一張 dataURL/blobURL 套用
+  // 腳本的影像轉換，回傳處理後的 dataURL 陣列。不讀來源資料夾、不寫輸出資料夾
+  // （存檔交給呼叫端，維持單一存檔路徑）。stitch（多圖合併）對單張不適用，原樣回傳。
+  function loadImageElement(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  async function processImageInMemory(srcUrl, config) {
+    config = config || {};
+    const fitMode = config.fitMode || 'contain';
+    if (fitMode === 'stitch') return [srcUrl]; // 多圖合併不適用單張節點輸出
+
+    const img = await loadImageElement(srcUrl);
+
+    if (fitMode === 'refcrop') {
+      const W = img.naturalWidth, H = img.naturalHeight;
+      const cropParts = [];
+      if ((config.cropRefLine || 'crosshair') === 'crosshair') {
+        const halfW = Math.round(W / 2), halfH = Math.round(H / 2);
+        cropParts.push({ x: 0, y: 0, w: halfW, h: halfH });
+        cropParts.push({ x: halfW, y: 0, w: W - halfW, h: halfH });
+        cropParts.push({ x: 0, y: halfH, w: halfW, h: H - halfH });
+        cropParts.push({ x: halfW, y: halfH, w: W - halfW, h: H - halfH });
+      } else {
+        const xs = [0, Math.round(W / 3), Math.round(2 * W / 3), W];
+        const ys = [0, Math.round(H / 3), Math.round(2 * H / 3), H];
+        for (let r = 0; r < 3; r++)
+          for (let c = 0; c < 3; c++)
+            cropParts.push({ x: xs[c], y: ys[r], w: xs[c + 1] - xs[c], h: ys[r + 1] - ys[r] });
+      }
+      return cropParts.map(part => {
+        const canvas = document.createElement('canvas');
+        canvas.width = part.w; canvas.height = part.h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, part.x, part.y, part.w, part.h, 0, 0, part.w, part.h);
+        return canvas.toDataURL('image/png');
+      });
+    }
+
+    // contain / cover / stretch → 縮放適配到目標解析度 + 背景填充
+    let targetW = 1024, targetH = 1024;
+    const resVal = config.resolution;
+    if (resVal === '512') { targetW = 512; targetH = 512; }
+    else if (resVal === '1024_512') { targetW = 1024; targetH = 512; }
+    else if (resVal === '512_1024') { targetW = 512; targetH = 1024; }
+    else if (resVal === '2048') { targetW = 2048; targetH = 2048; }
+
+    let bgColor = config.bg;
+    if (bgColor === 'custom') bgColor = config.bgPicker || '#FFFFFF';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW; canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (bgColor === 'transparent') ctx.clearRect(0, 0, targetW, targetH);
+    else { ctx.fillStyle = bgColor || '#FFFFFF'; ctx.fillRect(0, 0, targetW, targetH); }
+
+    const layout = calculateFitLayout(img.naturalWidth, img.naturalHeight, targetW, targetH, fitMode, config.align || 'center');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, layout.dx, layout.dy, layout.dw, layout.dh);
+    return [canvas.toDataURL('image/png')];
+  }
+
   window.ImageProcess = {
-    addFsaAsset: handleFsaAsset
+    addFsaAsset: handleFsaAsset,
+    getSavedScripts,
+    ensureScriptPresetsLoaded,
+    processImageInMemory
   };
 })();

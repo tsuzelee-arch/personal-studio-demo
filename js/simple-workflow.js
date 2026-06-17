@@ -535,6 +535,7 @@
       <button class="swf-grp-dup-btn swf-left-tab-btn" title="複製群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
       <button class="swf-grp-lock-btn swf-left-tab-btn" title="鎖定群組成員（不再接收/帶走其他節點）"><svg class="swf-lock-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg><svg class="swf-lock-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
       <button class="swf-grp-fit-btn swf-left-tab-btn" title="自動調整範圍以囊括所有節點"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
+      <button class="swf-grp-automation-btn swf-left-tab-btn" title="完成後自動化">🤖</button>
       <div class="swf-group-sidebar">
         <div class="swf-gs-header">
           <span>📁 上游圖片</span>
@@ -575,9 +576,25 @@
           <select class="swf-gps-folder swf-gps-input"></select>
           <label class="swf-gps-label">檔案命名前綴</label>
           <input type="text" class="swf-gps-prefix swf-gps-input" placeholder="留空＝1, 2, 3…">
+          <label class="swf-gps-label">檔案命名後綴</label>
+          <input type="text" class="swf-gps-suffix swf-gps-input" placeholder="留空＝無">
           <label class="swf-gps-check"><input type="checkbox" class="swf-gps-overwrite" checked> 覆蓋同名檔案</label>
+          <label class="swf-gps-label">統一提示詞</label>
+          <textarea class="swf-gps-prompt swf-gps-input" rows="3" placeholder="留空＝不變更各節點文本"></textarea>
           <div class="swf-gps-params"></div>
           <button class="swf-gps-apply">套用至所有節點</button>
+        </div>
+      </div>
+      <div class="swf-group-automation-sidebar">
+        <div class="swf-gs-header">
+          <span>🤖 完成後自動化</span>
+          <button class="swf-gas-close">✕</button>
+        </div>
+        <div class="swf-gps-body">
+          <label class="swf-gps-label">選擇自動化腳本</label>
+          <select class="swf-gas-script swf-gps-input"><option value="">(不執行)</option></select>
+          <label class="swf-gps-check"><input type="checkbox" class="swf-gas-enable"> 生成完成後自動執行此腳本</label>
+          <div class="swf-gas-note">生成的每張圖會先在記憶體套用此腳本，再由本群組節點的儲存路徑存檔；腳本本身的輸出/存檔資料夾會被忽略。</div>
         </div>
       </div>
       <div class="swf-group-header" style="background:${hexToRgba(gc, 0.15)};">
@@ -600,7 +617,7 @@
 
     nodesContainer.appendChild(el);
 
-    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, upstreamMode: 'all', receivePriority: 1, collapsed: false, expandedHeight: null, _collapsedMembers: null, locked: false, lockedMemberIds: null, importFolder: '', _folderBlobUrls: [] };
+    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, automationSidebarOpen: false, upstreamMode: 'all', receivePriority: 1, collapsed: false, expandedHeight: null, _collapsedMembers: null, locked: false, lockedMemberIds: null, importFolder: '', postAutomationScript: '', postAutomationEnabled: false, _folderBlobUrls: [] };
     groups[id] = groupData;
 
     // Entity Selection
@@ -684,6 +701,7 @@
       group.paramsSidebarOpen = !group.paramsSidebarOpen;
       if (group.paramsSidebarOpen) {
         group.sidebarOpen = false; el.classList.remove('sidebar-open');
+        group.automationSidebarOpen = false; el.classList.remove('automation-sidebar-open');
         renderGroupParamsSidebar(group);
       }
       el.classList.toggle('params-sidebar-open', group.paramsSidebarOpen);
@@ -703,12 +721,40 @@
       applyGroupParamsSidebar(group);
     });
 
-    // 上游圖片 sidebar toggle (mutually exclusive with the 統一參數 panel)
+    // 完成後自動化 slide-out toggle (mutually exclusive with the other two panels)
+    el.querySelector('.swf-grp-automation-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      group.automationSidebarOpen = !group.automationSidebarOpen;
+      if (group.automationSidebarOpen) {
+        group.sidebarOpen = false; el.classList.remove('sidebar-open');
+        group.paramsSidebarOpen = false; el.classList.remove('params-sidebar-open');
+        renderGroupAutomationSidebar(group);
+        // Presets load lazily from disk; once ready, refresh the dropdown.
+        window.ImageProcess?.ensureScriptPresetsLoaded?.().then(() => {
+          if (group.automationSidebarOpen) renderGroupAutomationSidebar(group);
+        });
+      }
+      el.classList.toggle('automation-sidebar-open', group.automationSidebarOpen);
+    });
+    el.querySelector('.swf-gas-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      group.automationSidebarOpen = false;
+      el.classList.remove('automation-sidebar-open');
+    });
+    el.querySelector('.swf-gas-script').addEventListener('change', (e) => {
+      group.postAutomationScript = e.target.value;
+    });
+    el.querySelector('.swf-gas-enable').addEventListener('change', (e) => {
+      group.postAutomationEnabled = e.target.checked;
+    });
+
+    // 上游圖片 sidebar toggle (mutually exclusive with the 統一參數 / 自動化 panels)
     el.querySelector('.swf-group-sidebar-toggle').addEventListener('click', (e) => {
       e.stopPropagation();
       group.sidebarOpen = !group.sidebarOpen;
       if (group.sidebarOpen) {
         group.paramsSidebarOpen = false; el.classList.remove('params-sidebar-open');
+        group.automationSidebarOpen = false; el.classList.remove('automation-sidebar-open');
         renderGroupSidebar(group);
       }
       el.classList.toggle('sidebar-open', group.sidebarOpen);
@@ -1045,6 +1091,22 @@
     return null;
   }
 
+  /** If this node belongs to a group with a bound + enabled "完成後自動化"
+   *  script, return that script's config object; else null. The script's own
+   *  output/save folder is intentionally ignored — the caller saves through the
+   *  node's own save path so the group keeps a single save location. */
+  function getNodePostAutomationConfig(node) {
+    for (const gid in groups) {
+      const g = groups[gid];
+      if (!g.postAutomationEnabled || !g.postAutomationScript) continue;
+      if (getGroupMembers(gid).some(m => m.id === node.id)) {
+        const scripts = window.ImageProcess?.getSavedScripts?.() || [];
+        return scripts.find(s => s.name === g.postAutomationScript)?.config || null;
+      }
+    }
+    return null;
+  }
+
   /** Refresh the order badges on all nodes. Entry nodes of a group show their
    *  1-based pairing index (left→right by X); everything else hides the badge.
    *  Called from renderEdges() so it stays in sync as nodes move. */
@@ -1195,6 +1257,8 @@
 
     // Create new group
     const newGroup = createGroup(g.x + offsetX, g.y + offsetY, g.width, g.height, g.color, g.title + ' (複本)');
+    newGroup.postAutomationScript = g.postAutomationScript || '';
+    newGroup.postAutomationEnabled = !!g.postAutomationEnabled;
 
     // Clone member nodes and build old→new ID map
     const idMap = {};
@@ -1247,8 +1311,12 @@
     }
     const prefixInput = el.querySelector('.swf-gps-prefix');
     if (prefixInput) prefixInput.value = source ? (source.data.namePrefix || '') : '';
+    const suffixInput = el.querySelector('.swf-gps-suffix');
+    if (suffixInput) suffixInput.value = source ? (source.data.nameSuffix || '') : '';
     const overwriteInput = el.querySelector('.swf-gps-overwrite');
     if (overwriteInput) overwriteInput.checked = source ? (source.data.overwrite !== false) : true;
+    const promptInput = el.querySelector('.swf-gps-prompt');
+    if (promptInput) promptInput.value = source ? extractPromptData(source).text : '';
   }
 
   // Apply the 統一參數 panel's values to every member node of the group.
@@ -1265,12 +1333,17 @@
 
     const folder = el.querySelector('.swf-gps-folder')?.value ?? '';
     const namePrefix = (el.querySelector('.swf-gps-prefix')?.value ?? '').trim();
+    const nameSuffix = (el.querySelector('.swf-gps-suffix')?.value ?? '').trim();
     const overwrite = el.querySelector('.swf-gps-overwrite')?.checked !== false;
+    // Unified prompt: only overwrite member text when non-empty, so an empty
+    // field doesn't wipe everyone's prompts.
+    const unifiedPrompt = el.querySelector('.swf-gps-prompt')?.value ?? '';
 
     for (const n of members) {
       n.data.model = model;
       n.data.params = { ...newParams };
       n.data.namePrefix = namePrefix;
+      n.data.nameSuffix = nameSuffix;
       n.data.overwrite = overwrite;
       n.el.querySelector('.swf-model-sel').value = model;
       n.el.querySelector('.swf-params-area').innerHTML = buildParamsHTML(model, newParams);
@@ -1279,9 +1352,37 @@
       if (nf) nf.value = folder;
       const owCb = n.el.querySelector('.swf-overwrite-cb');
       if (owCb) owCb.checked = overwrite;
+      if (unifiedPrompt.trim()) {
+        const pEl = n.el.querySelector('.swf-prompt-editor');
+        if (pEl) {
+          pEl.textContent = unifiedPrompt;
+          pEl.dispatchEvent(new Event('input'));
+        }
+      }
     }
 
     if (window.showToast) window.showToast(`✅ 已將 ${members.length} 個節點統一為 ${MODEL_PARAMS[model]?.label || model}`);
+  }
+
+  // Populate the 完成後自動化 panel: list saved automation scripts and reflect
+  // the group's current binding + enabled state.
+  function renderGroupAutomationSidebar(group) {
+    const el = group.el;
+    const sel = el.querySelector('.swf-gas-script');
+    if (sel) {
+      const scripts = window.ImageProcess?.getSavedScripts?.() || [];
+      const cur = group.postAutomationScript || '';
+      let html = '<option value="">(不執行)</option>';
+      scripts.forEach(s => {
+        const name = s.name || '';
+        const safe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        html += `<option value="${safe}"${name === cur ? ' selected' : ''}>${safe}</option>`;
+      });
+      sel.innerHTML = html;
+      sel.value = cur;
+    }
+    const cb = el.querySelector('.swf-gas-enable');
+    if (cb) cb.checked = !!group.postAutomationEnabled;
   }
 
   // Wire range sliders inside a params panel. Uses manual pointer
@@ -1381,7 +1482,7 @@
     const nodeData = { 
       id, type, el, x: pos.x, y: pos.y, 
       width: 320, isCollapsed: false,
-      data: { model: defaultModel, images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {}, promptHeight: 0, namePrefix: '', overwrite: true },
+      data: { model: defaultModel, images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {}, promptHeight: 0, namePrefix: '', nameSuffix: '', overwrite: true },
       resultImages: [] 
     };
     nodes[id] = nodeData;
@@ -2584,9 +2685,25 @@
         }
       }
 
-      imgEl.src = imageUrl; imgEl.style.display = 'block';
+      // Post-generation automation: if this node belongs to a group with a bound
+      // "完成後自動化" script, transform the freshly generated image in-memory NOW —
+      // before it is displayed / propagated / saved — so the node's own save path
+      // stays the single save location (the script's output folder is ignored).
+      let savedImages = [imageUrl];
+      const autoCfg = getNodePostAutomationConfig(node);
+      if (autoCfg && window.ImageProcess?.processImageInMemory) {
+        try {
+          const results = await window.ImageProcess.processImageInMemory(imageUrl, autoCfg);
+          if (Array.isArray(results) && results.length) savedImages = results;
+        } catch (e) {
+          console.error('Post-automation failed:', e);
+          if (window.showToast) window.showToast('⚠️ 完成後自動化失敗，存原圖：' + e.message, 3000);
+        }
+      }
+
+      imgEl.src = savedImages[0]; imgEl.style.display = 'block';
       placeholder.style.display = 'none'; dlBtn.style.display = 'block';
-      node.resultImages = [imageUrl];
+      node.resultImages = [...savedImages];
 
       let targetFolder = '';
       const nodeInput = node.el.querySelector('.swf-node-folder');
@@ -2611,18 +2728,23 @@
       if (!targetFolder || targetFolder === '已完成') targetFolder = '根目錄';
 
       // Filename: slot-based on the node's group number (re-run overwrites its
-      // own slot), with a configurable prefix (per-node, else the global default).
+      // own slot), with a configurable prefix + suffix (per-node, else the global default).
       const num = getNodeGroupNumber(node);
       const prefix = (node.data.namePrefix || '').trim()
                   || (window.StudioSettings?.getFilenamePattern?.() || '');
+      const suffix = (node.data.nameSuffix || '').trim();
       const baseName = (num != null)
-        ? `${prefix}${num}`
-        : `${prefix || 'SWF'}_${Date.now()}`;
+        ? `${prefix}${num}${suffix}`
+        : `${prefix || 'SWF'}_${Date.now()}${suffix}`;
       if (window.AssetManager) {
-        await window.AssetManager.saveAsset(baseName, imageUrl, targetFolder, node.data.overwrite !== false);
-        window.dispatchEvent(new CustomEvent('node-saved-asset', {
-          detail: { filename: baseName, folder: targetFolder, node }
-        }));
+        // When automation produced multiple parts (e.g. refcrop), suffix each file _1.._N.
+        for (let i = 0; i < savedImages.length; i++) {
+          const outName = savedImages.length === 1 ? baseName : `${baseName}_${i + 1}`;
+          await window.AssetManager.saveAsset(outName, savedImages[i], targetFolder, node.data.overwrite !== false);
+          window.dispatchEvent(new CustomEvent('node-saved-asset', {
+            detail: { filename: outName, folder: targetFolder, node }
+          }));
+        }
       }
       if (window.showToast) window.showToast('✅ 生成完成');
     } catch (err) {
@@ -2772,6 +2894,7 @@
         excludedIncomingImages: forStorage ? [] : [...n.data.excludedIncomingImages],
         folder: folderInput ? folderInput.value : '',
         namePrefix: n.data.namePrefix || '',
+        nameSuffix: n.data.nameSuffix || '',
         overwrite: n.data.overwrite !== false,
         promptHTML: forStorage ? stripInlineImageData(promptHTML) : promptHTML
       };
@@ -2787,6 +2910,7 @@
         height: g.collapsed ? (g.expandedHeight || 320) : g.height, color: g.color, title: g.title,
         receiveUpstream: g.receiveUpstream, upstreamMode: g.upstreamMode || 'all', excludedImages: forStorage ? [] : [...g.excludedImages],
         receivePriority: g.receivePriority ?? 1, collapsed: !!g.collapsed, locked: !!g.locked,
+        postAutomationScript: g.postAutomationScript || '', postAutomationEnabled: !!g.postAutomationEnabled,
         folder: folderInput ? folderInput.value : '',
         importFolder: importFolderSelect ? importFolderSelect.value : (g.importFolder || '')
       };
@@ -2866,6 +2990,8 @@
             g.importFolder = gd.importFolder || '';
             g.excludedImages = Array.isArray(gd.excludedImages) ? [...gd.excludedImages] : [];
             g.receivePriority = gd.receivePriority ?? 1;
+            g.postAutomationScript = gd.postAutomationScript || '';
+            g.postAutomationEnabled = !!gd.postAutomationEnabled;
             const folderInput = g.el.querySelector('.swf-group-folder');
             if (folderInput) folderInput.value = gd.folder || '';
             
@@ -2940,6 +3066,7 @@
                window.showToast('⚠️ 工具流包含本機影像，請先在資產庫「恢復連線」', 4000);
             }
             n.data.namePrefix = nd.namePrefix || '';
+            n.data.nameSuffix = nd.nameSuffix || '';
             n.data.overwrite = nd.overwrite !== false;
             const owCb = n.el.querySelector('.swf-overwrite-cb');
             if (owCb) owCb.checked = n.data.overwrite;
