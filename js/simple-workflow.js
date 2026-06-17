@@ -594,6 +594,7 @@
           <button class="swf-grp-del-btn" title="關閉/刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
       </div>
+      <div class="swf-group-collapsed-thumbs" title="此群組已完成的圖片"></div>
       <div class="swf-group-resize"></div>
     `;
 
@@ -1068,7 +1069,43 @@
   }
 
   const GROUP_HEADER_H = 44;
-  // Collapse hides member nodes and shrinks the group to its header bar; expand restores.
+  const COLLAPSED_THUMBS_H = 64; // extra height for the completed-image strip when collapsed
+
+  // The group's completed (generated) images: its aggregated results + each member's results.
+  function getGroupResultImages(group) {
+    const out = [...(group.resultImages || [])];
+    getGroupMembers(group.id).forEach(n => { if (n.resultImages) out.push(...n.resultImages); });
+    return [...new Set(out)];
+  }
+
+  // Render the completed-image thumbnail strip shown under the header while collapsed,
+  // and size the collapsed group to fit it (header only when there are no results).
+  function renderCollapsedGroupThumbs(group) {
+    const box = group.el.querySelector('.swf-group-collapsed-thumbs');
+    if (!box) return;
+    const imgs = getGroupResultImages(group);
+    box.innerHTML = '';
+    imgs.forEach(src => {
+      const im = document.createElement('img');
+      im.src = src;
+      im.className = 'swf-grp-collapsed-thumb';
+      im.title = '點擊放大';
+      im.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (window.AssetManager && window.AssetManager.openLightBox) window.AssetManager.openLightBox(src, '群組結果', false);
+      });
+      box.appendChild(im);
+    });
+    group.el.classList.toggle('swf-grp-has-thumbs', imgs.length > 0);
+    if (group.collapsed) {
+      const h = GROUP_HEADER_H + (imgs.length ? COLLAPSED_THUMBS_H : 0);
+      group.height = h;
+      group.el.style.height = h + 'px';
+    }
+  }
+
+  // Collapse hides member nodes and shrinks the group to its header bar (plus a strip
+  // of completed images); expand restores.
   function toggleGroupCollapse(group) {
     group.collapsed = !group.collapsed;
     if (group.collapsed) {
@@ -1076,8 +1113,7 @@
       group.expandedHeight = group.height;
       group._collapsedMembers.forEach(n => { n.el.style.display = 'none'; });
       group.el.classList.add('swf-group-collapsed');
-      group.height = GROUP_HEADER_H;
-      group.el.style.height = GROUP_HEADER_H + 'px';
+      renderCollapsedGroupThumbs(group); // sets height to fit header + result strip
     } else {
       group.el.classList.remove('swf-group-collapsed');
       group.height = group.expandedHeight || 320;
@@ -2073,9 +2109,10 @@
       renderImageThumbs(n);
     }
 
-    // Also refresh any open group sidebars
+    // Also refresh any open group sidebars and collapsed groups' completed-image strips
     for (const gid in groups) {
       if (groups[gid].sidebarOpen) renderGroupSidebar(groups[gid]);
+      if (groups[gid].collapsed) renderCollapsedGroupThumbs(groups[gid]);
     }
   }
 
@@ -2636,6 +2673,7 @@
     exitNodes.forEach(n => { if (n.resultImages && n.resultImages.length > 0) group.resultImages.push(...n.resultImages); });
 
     group.el.classList.remove('swf-group-executing');
+    if (group.collapsed) renderCollapsedGroupThumbs(group); // refresh completed-image strip
     if (window.showToast) window.showToast(`✅ 群組 "${group.title}" 執行完畢 (${group.resultImages.length} 張圖片)`);
     propagateVisualImages(); // visually push the group's aggregated images to downstream nodes immediately
   }

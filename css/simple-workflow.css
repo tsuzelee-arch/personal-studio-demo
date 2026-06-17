@@ -441,7 +441,34 @@
 .swf-group.swf-group-collapsed .swf-grp-divider {
   display: none !important;
 }
+/* Collapsed header: full pill normally; rounded top-only when a result strip is shown */
 .swf-group.swf-group-collapsed .swf-group-header { border-radius: 12px; }
+.swf-group.swf-group-collapsed.swf-grp-has-thumbs .swf-group-header { border-radius: 12px 12px 0 0; }
+
+/* Completed-image strip: only visible while collapsed AND there are results */
+.swf-group-collapsed-thumbs { display: none; }
+.swf-group.swf-group-collapsed.swf-grp-has-thumbs .swf-group-collapsed-thumbs {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 6px 8px;
+  height: 64px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 0 0 12px 12px;
+}
+.swf-grp-collapsed-thumb {
+  height: 48px;
+  width: 48px;
+  object-fit: cover;
+  border-radius: 5px;
+  border: 1px solid var(--border, #ddd);
+  flex-shrink: 0;
+  cursor: zoom-in;
+  transition: transform 0.12s;
+}
+.swf-grp-collapsed-thumb:hover { transform: scale(1.06); }
 
 .swf-group-title {
   font-size: 13px;
