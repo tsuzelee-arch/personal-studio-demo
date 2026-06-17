@@ -1302,7 +1302,7 @@
 .swf-grp-dup-btn.swf-left-tab-btn  { top: 104px; }
 .swf-grp-lock-btn.swf-left-tab-btn { top: 136px; }
 .swf-grp-fit-btn.swf-left-tab-btn  { top: 168px; }
-.swf-grp-automation-btn.swf-left-tab-btn { top: 200px; font-size: 13px; }
+.swf-grp-automation-btn.swf-left-tab-btn { top: 200px; }
 .swf-group-sidebar-toggle svg,
 .swf-left-tab-btn svg { width: 14px; height: 14px; }
 

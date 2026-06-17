@@ -535,7 +535,7 @@
       <button class="swf-grp-dup-btn swf-left-tab-btn" title="複製群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
       <button class="swf-grp-lock-btn swf-left-tab-btn" title="鎖定群組成員（不再接收/帶走其他節點）"><svg class="swf-lock-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg><svg class="swf-lock-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
       <button class="swf-grp-fit-btn swf-left-tab-btn" title="自動調整範圍以囊括所有節點"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
-      <button class="swf-grp-automation-btn swf-left-tab-btn" title="完成後自動化">🤖</button>
+      <button class="swf-grp-automation-btn swf-left-tab-btn" title="完成後自動化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 4v4M9 13h.01M15 13h.01M2 14h2M20 14h2"/></svg></button>
       <div class="swf-group-sidebar">
         <div class="swf-gs-header">
           <span>📁 上游圖片</span>
@@ -591,10 +591,54 @@
           <button class="swf-gas-close">✕</button>
         </div>
         <div class="swf-gps-body">
-          <label class="swf-gps-label">選擇自動化腳本</label>
-          <select class="swf-gas-script swf-gps-input"><option value="">(不執行)</option></select>
-          <label class="swf-gps-check"><input type="checkbox" class="swf-gas-enable"> 生成完成後自動執行此腳本</label>
-          <div class="swf-gas-note">生成的每張圖會先在記憶體套用此腳本，再由本群組節點的儲存路徑存檔；腳本本身的輸出/存檔資料夾會被忽略。</div>
+          <label class="swf-gps-check"><input type="checkbox" class="swf-gas-enable"> 生成完成後自動執行</label>
+          <label class="swf-gps-label">處理功能</label>
+          <select class="swf-gas-fitmode swf-gps-input">
+            <option value="contain">縮放適配 (Contain - 背景色填充)</option>
+            <option value="cover">縮放填充 (Cover - 裁切溢出)</option>
+            <option value="stretch">拉伸填充 (Stretch - 非等比例)</option>
+            <option value="refcrop">參考線裁切 (Reference Crop)</option>
+          </select>
+          <div class="swf-gas-fit-params">
+            <label class="swf-gps-label">目標解析度</label>
+            <select class="swf-gas-resolution swf-gps-input">
+              <option value="512">512 × 512</option>
+              <option value="1024_512">1024 × 512</option>
+              <option value="512_1024">512 × 1024</option>
+              <option value="1024">1024 × 1024</option>
+              <option value="2048">2048 × 2048</option>
+            </select>
+            <label class="swf-gps-label">對齊基準</label>
+            <select class="swf-gas-align swf-gps-input">
+              <option value="center">Center (居中)</option>
+              <option value="top">Top (靠上)</option>
+              <option value="bottom">Bottom (靠下)</option>
+              <option value="left">Left (靠左)</option>
+              <option value="right">Right (靠右)</option>
+              <option value="top-left">Top-Left</option>
+              <option value="top-right">Top-Right</option>
+              <option value="bottom-left">Bottom-Left</option>
+              <option value="bottom-right">Bottom-Right</option>
+            </select>
+            <label class="swf-gps-label">背景填充顏色</label>
+            <select class="swf-gas-bg swf-gps-input">
+              <option value="#FFFFFF">白色</option>
+              <option value="#000000">黑色</option>
+              <option value="#00FF00">綠色</option>
+              <option value="#0000FF">藍色</option>
+              <option value="transparent">透明</option>
+              <option value="custom">自訂顏色</option>
+            </select>
+            <input type="color" class="swf-gas-bgpicker swf-gps-input" value="#FFFFFF" style="display:none;">
+          </div>
+          <div class="swf-gas-crop-params" style="display:none;">
+            <label class="swf-gps-label">裁切參考線類型</label>
+            <select class="swf-gas-cropref swf-gps-input">
+              <option value="crosshair">十字線 (裁切為 4 等份)</option>
+              <option value="thirds">井字線 (裁切為 9 等份)</option>
+            </select>
+          </div>
+          <div class="swf-gas-note">每張生成圖會先在記憶體套用以上處理，再由本群組節點的儲存路徑存檔（不另存到其他資料夾）。</div>
         </div>
       </div>
       <div class="swf-group-header" style="background:${hexToRgba(gc, 0.15)};">
@@ -617,7 +661,7 @@
 
     nodesContainer.appendChild(el);
 
-    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, automationSidebarOpen: false, upstreamMode: 'all', receivePriority: 1, collapsed: false, expandedHeight: null, _collapsedMembers: null, locked: false, lockedMemberIds: null, importFolder: '', postAutomationScript: '', postAutomationEnabled: false, _folderBlobUrls: [] };
+    const groupData = { id, el, x: pos.x, y: pos.y, width: gw, height: gh, color: gc, title: gt, resultImages: [], receiveUpstream: true, excludedImages: [], sidebarOpen: false, paramsSidebarOpen: false, automationSidebarOpen: false, upstreamMode: 'all', receivePriority: 1, collapsed: false, expandedHeight: null, _collapsedMembers: null, locked: false, lockedMemberIds: null, importFolder: '', postAutomationConfig: { fitMode: 'contain', resolution: '1024', align: 'center', bg: '#FFFFFF', bgPicker: '#FFFFFF', cropRefLine: 'crosshair' }, postAutomationEnabled: false, _folderBlobUrls: [] };
     groups[id] = groupData;
 
     // Entity Selection
@@ -729,10 +773,6 @@
         group.sidebarOpen = false; el.classList.remove('sidebar-open');
         group.paramsSidebarOpen = false; el.classList.remove('params-sidebar-open');
         renderGroupAutomationSidebar(group);
-        // Presets load lazily from disk; once ready, refresh the dropdown.
-        window.ImageProcess?.ensureScriptPresetsLoaded?.().then(() => {
-          if (group.automationSidebarOpen) renderGroupAutomationSidebar(group);
-        });
       }
       el.classList.toggle('automation-sidebar-open', group.automationSidebarOpen);
     });
@@ -741,11 +781,28 @@
       group.automationSidebarOpen = false;
       el.classList.remove('automation-sidebar-open');
     });
-    el.querySelector('.swf-gas-script').addEventListener('change', (e) => {
-      group.postAutomationScript = e.target.value;
-    });
     el.querySelector('.swf-gas-enable').addEventListener('change', (e) => {
       group.postAutomationEnabled = e.target.checked;
+    });
+    el.querySelector('.swf-gas-fitmode').addEventListener('change', (e) => {
+      group.postAutomationConfig.fitMode = e.target.value;
+      updateAutomationParamVisibility(el);
+    });
+    el.querySelector('.swf-gas-resolution').addEventListener('change', (e) => {
+      group.postAutomationConfig.resolution = e.target.value;
+    });
+    el.querySelector('.swf-gas-align').addEventListener('change', (e) => {
+      group.postAutomationConfig.align = e.target.value;
+    });
+    el.querySelector('.swf-gas-bg').addEventListener('change', (e) => {
+      group.postAutomationConfig.bg = e.target.value;
+      updateAutomationParamVisibility(el);
+    });
+    el.querySelector('.swf-gas-bgpicker').addEventListener('input', (e) => {
+      group.postAutomationConfig.bgPicker = e.target.value;
+    });
+    el.querySelector('.swf-gas-cropref').addEventListener('change', (e) => {
+      group.postAutomationConfig.cropRefLine = e.target.value;
     });
 
     // 上游圖片 sidebar toggle (mutually exclusive with the 統一參數 / 自動化 panels)
@@ -1091,17 +1148,15 @@
     return null;
   }
 
-  /** If this node belongs to a group with a bound + enabled "完成後自動化"
-   *  script, return that script's config object; else null. The script's own
-   *  output/save folder is intentionally ignored — the caller saves through the
-   *  node's own save path so the group keeps a single save location. */
+  /** If this node belongs to a group with "完成後自動化" enabled, return that
+   *  group's inline automation config; else null. The image is transformed
+   *  in-memory and saved through the node's own save path (single save location). */
   function getNodePostAutomationConfig(node) {
     for (const gid in groups) {
       const g = groups[gid];
-      if (!g.postAutomationEnabled || !g.postAutomationScript) continue;
+      if (!g.postAutomationEnabled || !g.postAutomationConfig) continue;
       if (getGroupMembers(gid).some(m => m.id === node.id)) {
-        const scripts = window.ImageProcess?.getSavedScripts?.() || [];
-        return scripts.find(s => s.name === g.postAutomationScript)?.config || null;
+        return g.postAutomationConfig;
       }
     }
     return null;
@@ -1257,7 +1312,7 @@
 
     // Create new group
     const newGroup = createGroup(g.x + offsetX, g.y + offsetY, g.width, g.height, g.color, g.title + ' (複本)');
-    newGroup.postAutomationScript = g.postAutomationScript || '';
+    newGroup.postAutomationConfig = { ...(g.postAutomationConfig || {}) };
     newGroup.postAutomationEnabled = !!g.postAutomationEnabled;
 
     // Clone member nodes and build old→new ID map
@@ -1364,25 +1419,33 @@
     if (window.showToast) window.showToast(`✅ 已將 ${members.length} 個節點統一為 ${MODEL_PARAMS[model]?.label || model}`);
   }
 
-  // Populate the 完成後自動化 panel: list saved automation scripts and reflect
-  // the group's current binding + enabled state.
+  // Show/hide the 完成後自動化 param blocks: fit params for contain/cover/stretch,
+  // crop params for refcrop; custom-colour picker only when bg = custom.
+  function updateAutomationParamVisibility(el) {
+    const fitMode = el.querySelector('.swf-gas-fitmode')?.value || 'contain';
+    const fitBox = el.querySelector('.swf-gas-fit-params');
+    const cropBox = el.querySelector('.swf-gas-crop-params');
+    if (fitBox) fitBox.style.display = fitMode === 'refcrop' ? 'none' : '';
+    if (cropBox) cropBox.style.display = fitMode === 'refcrop' ? '' : 'none';
+    const bg = el.querySelector('.swf-gas-bg')?.value;
+    const picker = el.querySelector('.swf-gas-bgpicker');
+    if (picker) picker.style.display = bg === 'custom' ? '' : 'none';
+  }
+
+  // Populate the 完成後自動化 panel from the group's inline automation config.
   function renderGroupAutomationSidebar(group) {
     const el = group.el;
-    const sel = el.querySelector('.swf-gas-script');
-    if (sel) {
-      const scripts = window.ImageProcess?.getSavedScripts?.() || [];
-      const cur = group.postAutomationScript || '';
-      let html = '<option value="">(不執行)</option>';
-      scripts.forEach(s => {
-        const name = s.name || '';
-        const safe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        html += `<option value="${safe}"${name === cur ? ' selected' : ''}>${safe}</option>`;
-      });
-      sel.innerHTML = html;
-      sel.value = cur;
-    }
+    const cfg = group.postAutomationConfig || {};
+    const setVal = (sel, v) => { const n = el.querySelector(sel); if (n != null && v != null) n.value = v; };
+    setVal('.swf-gas-fitmode', cfg.fitMode || 'contain');
+    setVal('.swf-gas-resolution', cfg.resolution || '1024');
+    setVal('.swf-gas-align', cfg.align || 'center');
+    setVal('.swf-gas-bg', cfg.bg || '#FFFFFF');
+    setVal('.swf-gas-bgpicker', cfg.bgPicker || '#FFFFFF');
+    setVal('.swf-gas-cropref', cfg.cropRefLine || 'crosshair');
     const cb = el.querySelector('.swf-gas-enable');
     if (cb) cb.checked = !!group.postAutomationEnabled;
+    updateAutomationParamVisibility(el);
   }
 
   // Wire range sliders inside a params panel. Uses manual pointer
@@ -2910,7 +2973,7 @@
         height: g.collapsed ? (g.expandedHeight || 320) : g.height, color: g.color, title: g.title,
         receiveUpstream: g.receiveUpstream, upstreamMode: g.upstreamMode || 'all', excludedImages: forStorage ? [] : [...g.excludedImages],
         receivePriority: g.receivePriority ?? 1, collapsed: !!g.collapsed, locked: !!g.locked,
-        postAutomationScript: g.postAutomationScript || '', postAutomationEnabled: !!g.postAutomationEnabled,
+        postAutomationConfig: { ...(g.postAutomationConfig || {}) }, postAutomationEnabled: !!g.postAutomationEnabled,
         folder: folderInput ? folderInput.value : '',
         importFolder: importFolderSelect ? importFolderSelect.value : (g.importFolder || '')
       };
@@ -2990,7 +3053,7 @@
             g.importFolder = gd.importFolder || '';
             g.excludedImages = Array.isArray(gd.excludedImages) ? [...gd.excludedImages] : [];
             g.receivePriority = gd.receivePriority ?? 1;
-            g.postAutomationScript = gd.postAutomationScript || '';
+            g.postAutomationConfig = gd.postAutomationConfig || { fitMode: 'contain', resolution: '1024', align: 'center', bg: '#FFFFFF', bgPicker: '#FFFFFF', cropRefLine: 'crosshair' };
             g.postAutomationEnabled = !!gd.postAutomationEnabled;
             const folderInput = g.el.querySelector('.swf-group-folder');
             if (folderInput) folderInput.value = gd.folder || '';
