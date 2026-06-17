@@ -9,13 +9,17 @@
  * server-backed deployment but is not used by this static frontend.
  * Implication: keys are only as safe as this device/browser; clear them here to
  * remove them. Do not enter keys on a shared or untrusted machine.
+ *
+ * Multi-key model: each provider holds an ordered list of { key, priority }
+ * (smaller priority number = tried first) plus a usage mode:
+ *   - 'single'     : always use the highest-priority key
+ *   - 'failover'   : use highest-priority key; on error/quota, auto-switch to next
+ *   - 'roundrobin' : rotate keys on each request to spread usage
+ * Failover requires the consumer to loop over getApiKeys(provider); single and
+ * round-robin are honored transparently by the getXxxKey() getters.
  */
 (function() {
   const STORAGE_KEYS = {
-    openaiKey:       'ps_openai_key',
-    geminiKey:       'ps_gemini_key',
-    geminiliteKey:   'ps_geminilite_key',
-    nanobananaKey:   'ps_nanobanana_key',
     selectedModel:   'ps_selected_model',
     outputLanguage:  'ps_output_language',
     localAssetPaths: 'ps_local_asset_paths',
@@ -23,145 +27,214 @@
     filenamePrefix:  'ps_swf_name_prefix'
   };
 
-  // ── DOM refs ──
+  // Legacy single-key storage — migrated into the per-provider arrays on first
+  // load, and kept in sync (top-priority key) for any old reader.
+  const LEGACY_KEY = {
+    openai:     'ps_openai_key',
+    gemini:     'ps_gemini_key',
+    geminilite: 'ps_geminilite_key',
+    nanobanana: 'ps_nanobanana_key'
+  };
+
+  const PROVIDERS = {
+    openai:     { label: 'OpenAI',           placeholder: 'sk-...',         testFn: 'testOpenAI' },
+    gemini:     { label: 'Gemini',           placeholder: 'AIza...',        testFn: 'testGemini' },
+    geminilite: { label: 'Gemini 2.5 Lite',  placeholder: 'AIza...',        testFn: 'testGeminilite' },
+    nanobanana: { label: 'Nano Banana Pro',  placeholder: 'AIza... / nb-...', testFn: 'testNanobanana' }
+  };
+  const PROVIDER_IDS = Object.keys(PROVIDERS);
+  const keysStorageKey = (p) => `ps_keys_${p}`;
+  const modeStorageKey = (p) => `ps_keymode_${p}`;
+  const rrIndex = {}; // round-robin rotation cursor (in-memory, per session)
+
+  const toast = (msg, dur) => { if (window.showToast) window.showToast(msg, dur); };
+
+  // ── Storage helpers ──
+  function loadKeys(provider) {
+    let arr = null;
+    try { arr = JSON.parse(localStorage.getItem(keysStorageKey(provider))); } catch (e) {}
+    if (!Array.isArray(arr)) {
+      // Migrate from the legacy single-key slot.
+      const legacy = (localStorage.getItem(LEGACY_KEY[provider]) || '').trim();
+      arr = legacy ? [{ key: legacy, priority: 1 }] : [];
+    }
+    return arr.map((k, i) => ({ key: String(k.key || ''), priority: Number(k.priority) || (i + 1) }));
+  }
+
+  function saveKeys(provider, arr) {
+    const clean = arr.map((k, i) => ({ key: String(k.key || ''), priority: Number(k.priority) || (i + 1) }));
+    localStorage.setItem(keysStorageKey(provider), JSON.stringify(clean));
+    // Keep the legacy single-key slot in sync (highest-priority non-empty key).
+    const top = clean.filter(k => k.key.trim()).sort((a, b) => a.priority - b.priority)[0];
+    localStorage.setItem(LEGACY_KEY[provider], top ? top.key.trim() : '');
+  }
+
+  function getMode(provider) { return localStorage.getItem(modeStorageKey(provider)) || 'single'; }
+  function setMode(provider, mode) { localStorage.setItem(modeStorageKey(provider), mode); }
+
+  // Ordered list of non-empty key strings (highest priority first).
+  function sortedKeys(provider) {
+    return loadKeys(provider)
+      .filter(k => k.key && k.key.trim())
+      .sort((a, b) => (a.priority || 1) - (b.priority || 1))
+      .map(k => k.key.trim());
+  }
+
+  // The single key to use for one request, honoring single / round-robin mode.
+  // (Failover is handled by consumers that loop over getApiKeys.)
+  function activeKey(provider) {
+    const keys = sortedKeys(provider);
+    if (!keys.length) return '';
+    if (getMode(provider) === 'roundrobin') {
+      rrIndex[provider] = ((rrIndex[provider] ?? -1) + 1) % keys.length;
+      return keys[rrIndex[provider]];
+    }
+    return keys[0];
+  }
+
+  // ── UI rendering ──
+  function buildKeyRow(provider, k, idx) {
+    const row = document.createElement('div');
+    row.className = 'key-row';
+
+    const input = document.createElement('input');
+    input.type = 'password';
+    input.className = 'form-input key-input';
+    input.placeholder = PROVIDERS[provider].placeholder;
+    input.value = k.key || '';
+
+    const prio = document.createElement('input');
+    prio.type = 'number';
+    prio.className = 'key-priority';
+    prio.min = '1';
+    prio.step = '1';
+    prio.value = Number(k.priority) || (idx + 1);
+    prio.title = '優先級（數字越小越優先）';
+
+    const testBtn = document.createElement('button');
+    testBtn.type = 'button';
+    testBtn.className = 'btn-ghost btn-sm key-test-btn';
+    testBtn.textContent = '測試';
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-ghost btn-sm key-del-btn';
+    delBtn.title = '刪除此金鑰';
+    delBtn.textContent = '✕';
+
+    const status = document.createElement('span');
+    status.className = 'conn-status key-status';
+
+    row.append(input, prio, testBtn, delBtn, status);
+    return row;
+  }
+
+  function renderProvider(provider) {
+    const listEl = document.getElementById(`keyList_${provider}`);
+    if (!listEl) return;
+    const keys = loadKeys(provider);
+    if (keys.length === 0) keys.push({ key: '', priority: 1 });
+    listEl.innerHTML = '';
+    keys.forEach((k, i) => listEl.appendChild(buildKeyRow(provider, k, i)));
+    const modeSel = document.querySelector(`.key-mode-select[data-provider="${provider}"]`);
+    if (modeSel) modeSel.value = getMode(provider);
+  }
+
+  function collectKeys(provider) {
+    const listEl = document.getElementById(`keyList_${provider}`);
+    if (!listEl) return [];
+    return [...listEl.querySelectorAll('.key-row')].map((r, i) => ({
+      key: r.querySelector('.key-input').value.trim(),
+      priority: Number(r.querySelector('.key-priority').value) || (i + 1)
+    })).filter(k => k.key);
+  }
+
+  function saveProvider(provider) {
+    const keys = collectKeys(provider);
+    saveKeys(provider, keys);
+    const modeSel = document.querySelector(`.key-mode-select[data-provider="${provider}"]`);
+    if (modeSel) setMode(provider, modeSel.value);
+    renderProvider(provider);
+    const n = keys.length;
+    toast(n ? `${PROVIDERS[provider].label}：已儲存 ${n} 把金鑰` : `${PROVIDERS[provider].label}：金鑰已清除`);
+  }
+
+  async function testRow(provider, row) {
+    const key = row.querySelector('.key-input').value.trim();
+    const statusEl = row.querySelector('.key-status');
+    const btn = row.querySelector('.key-test-btn');
+    if (!key) { toast(`請先輸入 ${PROVIDERS[provider].label} API Key`); return; }
+    const fn = window.AIService && window.AIService[PROVIDERS[provider].testFn];
+    if (!fn) { toast('測試功能尚未就緒'); return; }
+
+    updateStatusIndicator(statusEl, 'testing');
+    btn.disabled = true; const old = btn.textContent; btn.textContent = '測試中...';
+    try {
+      await fn(key);
+      updateStatusIndicator(statusEl, 'success');
+      toast(`✅ ${PROVIDERS[provider].label} 連線成功！`);
+    } catch (err) {
+      updateStatusIndicator(statusEl, 'error', err.message);
+      toast(`❌ ${PROVIDERS[provider].label} 連線失敗：` + err.message, 4000);
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  }
+
+  // ── Event delegation for all provider cards ──
+  PROVIDER_IDS.forEach(provider => {
+    const card = document.getElementById(`keyList_${provider}`)?.closest('.settings-card');
+    if (!card) return;
+
+    card.addEventListener('click', (e) => {
+      const addBtn = e.target.closest('.key-add-btn');
+      if (addBtn) {
+        const listEl = document.getElementById(`keyList_${provider}`);
+        const nextPriority = listEl.querySelectorAll('.key-row').length + 1;
+        listEl.appendChild(buildKeyRow(provider, { key: '', priority: nextPriority }, nextPriority - 1));
+        return;
+      }
+      const saveBtn = e.target.closest('.key-save-btn');
+      if (saveBtn) { saveProvider(provider); return; }
+      const delBtn = e.target.closest('.key-del-btn');
+      if (delBtn) {
+        const row = delBtn.closest('.key-row');
+        const listEl = document.getElementById(`keyList_${provider}`);
+        row.remove();
+        if (listEl.querySelectorAll('.key-row').length === 0) {
+          listEl.appendChild(buildKeyRow(provider, { key: '', priority: 1 }, 0));
+        }
+        return;
+      }
+      const testBtn = e.target.closest('.key-test-btn');
+      if (testBtn) { testRow(provider, testBtn.closest('.key-row')); return; }
+    });
+
+    const modeSel = document.querySelector(`.key-mode-select[data-provider="${provider}"]`);
+    if (modeSel) modeSel.addEventListener('change', () => setMode(provider, modeSel.value));
+  });
+
+  // ── File-name prefix (unchanged) ──
   const swfNamePrefixInput = document.getElementById('swfNamePrefixInput');
   const saveNamePrefixBtn  = document.getElementById('saveNamePrefixBtn');
   const namePrefixStatus   = document.getElementById('namePrefixStatus');
-  const openaiKeyInput  = document.getElementById('openaiKeyInput');
-  const geminiKeyInput  = document.getElementById('geminiKeyInput');
-  const geminiliteKeyInput = document.getElementById('geminiliteKeyInput');
-  const nanobananaKeyInput = document.getElementById('nanobananaKeyInput');
-  const saveOpenaiBtn   = document.getElementById('saveOpenaiBtn');
-  const saveGeminiBtn   = document.getElementById('saveGeminiBtn');
-  const saveGeminiliteBtn = document.getElementById('saveGeminiliteBtn');
-  const saveNanobananaBtn = document.getElementById('saveNanobananaBtn');
-  const testOpenaiBtn   = document.getElementById('testOpenaiBtn');
-  const testGeminiBtn   = document.getElementById('testGeminiBtn');
-  const testGeminiliteBtn = document.getElementById('testGeminiliteBtn');
-  const openaiStatus    = document.getElementById('openaiStatus');
-  const geminiStatus    = document.getElementById('geminiStatus');
-  const geminiliteStatus = document.getElementById('geminiliteStatus');
-  const nanobananaStatus = document.getElementById('nanobananaStatus');
-  const modelSelect     = document.getElementById('modelSelect');
-  const languageSelect  = document.getElementById('languageSelect');
-
-  // ── Load saved keys ──
-  function loadSettings() {
-    const oKey  = localStorage.getItem(STORAGE_KEYS.openaiKey) || '';
-    const gKey  = localStorage.getItem(STORAGE_KEYS.geminiKey) || '';
-    const glKey = localStorage.getItem(STORAGE_KEYS.geminiliteKey) || '';
-    const nbKey = localStorage.getItem(STORAGE_KEYS.nanobananaKey) || '';
-    const model = localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini';
-    const lang  = localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文';
-
-    if (openaiKeyInput)       openaiKeyInput.value = oKey;
-    if (geminiKeyInput)       geminiKeyInput.value = gKey;
-    if (geminiliteKeyInput)   geminiliteKeyInput.value = glKey;
-    if (nanobananaKeyInput)   nanobananaKeyInput.value = nbKey;
-    if (modelSelect)          modelSelect.value = model;
-    if (languageSelect)       languageSelect.value = lang;
-    if (swfNamePrefixInput)   swfNamePrefixInput.value = localStorage.getItem(STORAGE_KEYS.filenamePrefix) || '';
-  }
-
-  // ── Save keys ──
-  function saveOpenaiKey() {
-    const key = openaiKeyInput.value.trim();
-    localStorage.setItem(STORAGE_KEYS.openaiKey, key);
-    showToast(key ? 'OpenAI API Key 已儲存' : 'OpenAI API Key 已清除');
-    updateStatusIndicator(openaiStatus, 'saved');
-  }
-
-  function saveGeminiKey() {
-    const key = geminiKeyInput.value.trim();
-    localStorage.setItem(STORAGE_KEYS.geminiKey, key);
-    showToast(key ? 'Gemini API Key 已儲存' : 'Gemini API Key 已清除');
-    updateStatusIndicator(geminiStatus, 'saved');
-  }
-
-  function saveGeminiliteKey() {
-    const key = geminiliteKeyInput.value.trim();
-    localStorage.setItem(STORAGE_KEYS.geminiliteKey, key);
-    showToast(key ? 'Gemini 2.5 Lite API Key 已儲存' : 'Gemini 2.5 Lite API Key 已清除');
-    updateStatusIndicator(geminiliteStatus, 'saved');
-  }
-
-  function saveNanobananaKey() {
-    const key = nanobananaKeyInput.value.trim();
-    localStorage.setItem(STORAGE_KEYS.nanobananaKey, key);
-    showToast(key ? 'Nano Banana API Key 已儲存' : 'Nano Banana API Key 已清除');
-    updateStatusIndicator(nanobananaStatus, 'saved');
-  }
-
   function saveNamePrefix() {
     const prefix = (swfNamePrefixInput?.value || '').trim();
     localStorage.setItem(STORAGE_KEYS.filenamePrefix, prefix);
-    showToast(prefix ? `檔名前綴已設為「${prefix}」` : '檔名前綴已清除（預設 1, 2, 3…）');
+    toast(prefix ? `檔名前綴已設為「${prefix}」` : '檔名前綴已清除（預設 1, 2, 3…）');
     updateStatusIndicator(namePrefixStatus, 'saved');
   }
+  if (saveNamePrefixBtn) saveNamePrefixBtn.addEventListener('click', saveNamePrefix);
 
-  // ── Test connections ──
-  async function testOpenAI() {
-    const key = openaiKeyInput.value.trim();
-    if (!key) { showToast('請先輸入 OpenAI API Key'); return; }
-
-    updateStatusIndicator(openaiStatus, 'testing');
-    testOpenaiBtn.disabled = true;
-    testOpenaiBtn.textContent = '測試中...';
-
-    try {
-      await window.AIService.testOpenAI(key);
-      updateStatusIndicator(openaiStatus, 'success');
-      showToast('✅ OpenAI 連線成功！');
-    } catch (err) {
-      updateStatusIndicator(openaiStatus, 'error', err.message);
-      showToast('❌ OpenAI 連線失敗：' + err.message, 4000);
-    } finally {
-      testOpenaiBtn.disabled = false;
-      testOpenaiBtn.textContent = '測試連線';
-    }
-  }
-
-  async function testGemini() {
-    const key = geminiKeyInput.value.trim();
-    if (!key) { showToast('請先輸入 Gemini API Key'); return; }
-
-    updateStatusIndicator(geminiStatus, 'testing');
-    testGeminiBtn.disabled = true;
-    testGeminiBtn.textContent = '測試中...';
-
-    try {
-      await window.AIService.testGemini(key);
-      updateStatusIndicator(geminiStatus, 'success');
-      showToast('✅ Gemini 連線成功！');
-    } catch (err) {
-      updateStatusIndicator(geminiStatus, 'error', err.message);
-      showToast('❌ Gemini 連線失敗：' + err.message, 4000);
-    } finally {
-      testGeminiBtn.disabled = false;
-      testGeminiBtn.textContent = '測試連線';
-    }
-  }
-
-  async function testGeminilite() {
-    const key = geminiliteKeyInput.value.trim();
-    if (!key) { showToast('請先輸入 Gemini 2.5 Lite API Key'); return; }
-
-    updateStatusIndicator(geminiliteStatus, 'testing');
-    testGeminiliteBtn.disabled = true;
-    testGeminiliteBtn.textContent = '測試中...';
-
-    try {
-      await window.AIService.testGeminilite(key);
-      updateStatusIndicator(geminiliteStatus, 'success');
-      showToast('✅ Gemini Lite 連線成功！');
-    } catch (err) {
-      updateStatusIndicator(geminiliteStatus, 'error', err.message);
-      showToast('❌ Gemini Lite 連線失敗：' + err.message, 4000);
-    } finally {
-      testGeminiliteBtn.disabled = false;
-      testGeminiliteBtn.textContent = '測試連線';
-    }
-  }
+  // ── Model / language selectors (unchanged) ──
+  const modelSelect    = document.getElementById('modelSelect');
+  const languageSelect = document.getElementById('languageSelect');
+  if (modelSelect) modelSelect.addEventListener('change', () => {
+    localStorage.setItem(STORAGE_KEYS.selectedModel, modelSelect.value);
+  });
+  if (languageSelect) languageSelect.addEventListener('change', () => {
+    localStorage.setItem(STORAGE_KEYS.outputLanguage, languageSelect.value);
+  });
 
   // ── Status indicator ──
   function updateStatusIndicator(el, state, message) {
@@ -189,65 +262,49 @@
     }
   }
 
-  // ── Model selection ──
-  if (modelSelect) {
-    modelSelect.addEventListener('change', () => {
-      localStorage.setItem(STORAGE_KEYS.selectedModel, modelSelect.value);
-    });
+  // ── Load saved values into the UI ──
+  function loadSettings() {
+    PROVIDER_IDS.forEach(renderProvider);
+    if (modelSelect)    modelSelect.value = localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini';
+    if (languageSelect) languageSelect.value = localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文';
+    if (swfNamePrefixInput) swfNamePrefixInput.value = localStorage.getItem(STORAGE_KEYS.filenamePrefix) || '';
   }
-
-  if (languageSelect) {
-    languageSelect.addEventListener('change', () => {
-      localStorage.setItem(STORAGE_KEYS.outputLanguage, languageSelect.value);
-    });
-  }
-
-  // ── Button event listeners ──
-  if (saveOpenaiBtn)      saveOpenaiBtn.addEventListener('click', saveOpenaiKey);
-  if (saveGeminiBtn)      saveGeminiBtn.addEventListener('click', saveGeminiKey);
-  if (saveGeminiliteBtn)  saveGeminiliteBtn.addEventListener('click', saveGeminiliteKey);
-  if (saveNanobananaBtn)  saveNanobananaBtn.addEventListener('click', saveNanobananaKey);
-  if (testOpenaiBtn)      testOpenaiBtn.addEventListener('click', testOpenAI);
-  if (testGeminiBtn)      testGeminiBtn.addEventListener('click', testGemini);
-  if (testGeminiliteBtn)  testGeminiliteBtn.addEventListener('click', testGeminilite);
-  if (saveNamePrefixBtn)  saveNamePrefixBtn.addEventListener('click', saveNamePrefix);
 
   // ── Public getters ──
   window.StudioSettings = {
-    getOpenAIKey:      () => localStorage.getItem(STORAGE_KEYS.openaiKey) || '',
-    getGeminiKey:      () => localStorage.getItem(STORAGE_KEYS.geminiKey) || '',
-    getGeminiliteKey:  () => localStorage.getItem(STORAGE_KEYS.geminiliteKey) || '',
-    getNanobananaKey:  () => localStorage.getItem(STORAGE_KEYS.nanobananaKey) || '',
+    // Active-key getters honor single / round-robin mode (back-compat names).
+    getOpenAIKey:      () => activeKey('openai'),
+    getGeminiKey:      () => activeKey('gemini'),
+    getGeminiliteKey:  () => activeKey('geminilite'),
+    getNanobananaKey:  () => activeKey('nanobanana'),
+    // Multi-key extensions: ordered key list (for failover loops) + the mode.
+    getApiKeys:        (provider) => sortedKeys(provider),
+    getKeyMode:        (provider) => getMode(provider),
     getSelectedModel:  () => localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini',
     getOutputLanguage: () => localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文',
-    // Returns array of absolute path strings configured for the local asset source
     getLocalAssetPaths: () => {
       const raw = localStorage.getItem(STORAGE_KEYS.localAssetPaths) || '';
       return raw.split('\n').map(p => p.trim()).filter(Boolean);
     },
     getGdriveClientId: () => localStorage.getItem(STORAGE_KEYS.gdriveClientId) || '',
-    // Default filename prefix for Simple Workflow auto-saves (per-group can override)
     getFilenamePattern: () => localStorage.getItem(STORAGE_KEYS.filenamePrefix) || '',
     hasApiKey: function(model) {
-      if (model.startsWith('openai')) return !!this.getOpenAIKey();
-      if (model === 'gemini') return !!this.getGeminiKey();
-      if (model === 'geminilite') return !!this.getGeminiliteKey();
-      if (model === 'groq') return false;
-      if (model === 'nanobanana') return !!this.getNanobananaKey();
-      if (model === 'gptimage') return !!this.getOpenAIKey();
+      if (model.startsWith('openai')) return sortedKeys('openai').length > 0;
+      if (model === 'gemini')      return sortedKeys('gemini').length > 0;
+      if (model === 'geminilite')  return sortedKeys('geminilite').length > 0;
+      if (model === 'groq')        return false;
+      if (model === 'nanobanana')  return sortedKeys('nanobanana').length > 0;
+      if (model === 'gptimage')    return sortedKeys('openai').length > 0;
       return false;
     }
   };
 
-  // ── Theme toggle ──
+  // ── Theme toggle (unchanged) ──
   const themeToggleBtn = document.getElementById('themeToggleBtn');
   function updateThemeUI() {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (themeToggleBtn) {
-      themeToggleBtn.innerHTML = isDark ? '☀️ 切換日間模式' : '🌙 切換夜間模式';
-    }
+    if (themeToggleBtn) themeToggleBtn.innerHTML = isDark ? '☀️ 切換日間模式' : '🌙 切換夜間模式';
   }
-  
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', () => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';

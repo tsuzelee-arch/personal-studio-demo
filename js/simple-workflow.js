@@ -1023,11 +1023,12 @@
 
   function setupGroupDrag(group) {
     const header = group.el.querySelector('.swf-group-header');
-    let isDragging = false, offsetX = 0, offsetY = 0, memberOffsets = [];
+    let isDragging = false, offsetX = 0, offsetY = 0, memberOffsets = [], dragSnapshotted = false;
 
     header.addEventListener('mousedown', (e) => {
       if (e.target.closest('.swf-group-actions, .swf-grp-collapse-btn, .swf-grp-priority-wrap') || e.target.tagName === 'INPUT') return;
       isDragging = true;
+      dragSnapshotted = false;
       group.el.style.zIndex = '2';
       const rect = group.el.getBoundingClientRect();
       offsetX = (e.clientX - rect.left) / zoomLevel;
@@ -1045,6 +1046,9 @@
       let newY = (e.clientY - wrapperRect.top) / zoomLevel - offsetY;
       newX = Math.round(newX / 20) * 20;
       newY = Math.round(newY / 20) * 20;
+      if (newX === group.x && newY === group.y) return; // no grid-position change yet
+      // Snapshot once, on the first actual move, capturing the pre-drag positions.
+      if (!dragSnapshotted) { saveUndoState(); dragSnapshotted = true; }
       // Resolve per-axis so the group slides/stops against neighbors instead of overlapping.
       if (!groupBoxOverlaps(newX, group.y, group.width, group.height, group.id)) group.x = newX;
       if (!groupBoxOverlaps(group.x, newY, group.width, group.height, group.id)) group.y = newY;
@@ -1575,11 +1579,12 @@
   // ═══════════════════════════════════════════
   function setupNodeDrag(node) {
     const header = node.el.querySelector('.swf-macro-header');
-    let isDraggingNode = false, offsetX = 0, offsetY = 0;
+    let isDraggingNode = false, offsetX = 0, offsetY = 0, dragSnapshotted = false;
 
     header.addEventListener('mousedown', (e) => {
       if (e.target.closest('.swf-macro-actions')) return;
       isDraggingNode = true;
+      dragSnapshotted = false;
       node.el.classList.add('swf-dragging-node');
       const rect = node.el.getBoundingClientRect();
       offsetX = (e.clientX - rect.left) / zoomLevel;
@@ -1594,6 +1599,9 @@
       let newY = (e.clientY - wrapperRect.top) / zoomLevel - offsetY;
       newX = Math.round(newX / 20) * 20;
       newY = Math.round(newY / 20) * 20;
+      if (newX === node.x && newY === node.y) return; // no grid-position change yet
+      // Snapshot once, on the first actual move, capturing the pre-drag position.
+      if (!dragSnapshotted) { saveUndoState(); dragSnapshotted = true; }
       node.x = newX; node.y = newY;
       node.el.style.left = node.x + 'px'; node.el.style.top = node.y + 'px';
       scheduleEdgeRender();
@@ -2139,7 +2147,7 @@
         e.stopPropagation();
         if (window.__swfTempEdge && port.dataset.port === 'in') {
           if (window.__swfTempEdge.sourceNodeId !== entityId) {
-            addEdge(window.__swfTempEdge.sourceNodeId, entityId);
+            addEdge(window.__swfTempEdge.sourceNodeId, entityId, true);
           }
         }
         window.__swfTempEdge = null; scheduleEdgeRender();
@@ -2161,7 +2169,7 @@
       if (!activeOutPort) { if (window.showToast) window.showToast('請先點擊發出端口 (右側)', 1500); return; }
       const outId = activeOutPort.dataset.node;
       if (outId === entityId) { if (window.showToast) window.showToast('無法連接自己', 1500); return; }
-      addEdge(outId, entityId);
+      addEdge(outId, entityId, true);
       activeOutPort.classList.remove('swf-port-active'); activeOutPort = null;
     }
   }
@@ -2175,7 +2183,7 @@
     window.__swfSelectedImage = null;
   });
 
-  function addEdge(source, target) {
+  function addEdge(source, target, recordUndo = false) {
     // Prevent duplicates
     if (edges.find(e => e.source === source && e.target === target)) return;
     // Prevent self-loop
@@ -2193,6 +2201,9 @@
         if (window.showToast) window.showToast('❌ 無法將群組連接到其內部的節點', 2000); return;
       }
     }
+    // Snapshot once, only for user-initiated connects that actually add an edge
+    // (internal callers — duplicate/load — pass recordUndo=false).
+    if (recordUndo) saveUndoState();
     edges.push({ id: `e_${source}_${target}`, source, target });
     scheduleEdgeRender();
     propagateVisualImages();
@@ -2200,7 +2211,7 @@
 
   function removeEdge(edgeId) {
     const idx = edges.findIndex(e => e.id === edgeId);
-    if (idx >= 0) edges.splice(idx, 1);
+    if (idx >= 0) { saveUndoState(); edges.splice(idx, 1); }
     scheduleEdgeRender();
     propagateVisualImages();
   }
@@ -2767,26 +2778,54 @@
           }
         });
       } else {
-        let apiKey = '';
-        if (model === 'gptimage') apiKey = window.StudioSettings?.getOpenAIKey?.();
-        else apiKey = window.StudioSettings?.getNanobananaKey?.();
-        if (!apiKey) throw new Error('API Key 尚未設定 (' + model + ')');
-
-        if (model === 'gptimage') {
-          imageUrl = await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', allRefs.length > 0 ? allRefs : null, {
-            quality: params.quality || 'low', background: params.gptBackground || 'auto', input_fidelity: params.gptFidelity || 'high'
-          });
-        } else if (model === 'nanobanana2') {
-          imageUrl = await window.AIService.generateWithNanoBanana2(text, apiKey, allRefs.length > 0 ? allRefs : null, null, {
-            aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
-            thinkingLevel: params.thinkingLevel || 'none',
-          });
+        const keyProvider = (model === 'gptimage') ? 'openai' : 'nanobanana';
+        const keyMode = window.StudioSettings?.getKeyMode?.(keyProvider) || 'single';
+        // single / round-robin → one active key (rotation handled inside the getter);
+        // failover → try every key in priority order until one succeeds.
+        let attemptKeys;
+        if (keyMode === 'failover') {
+          attemptKeys = window.StudioSettings?.getApiKeys?.(keyProvider) || [];
         } else {
-          imageUrl = await window.AIService.generateWithNanoBanana(text, apiKey, {
-            aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
-            thinkingLevel: params.thinkingLevel || 'none',
-          });
+          const active = (model === 'gptimage')
+            ? window.StudioSettings?.getOpenAIKey?.()
+            : window.StudioSettings?.getNanobananaKey?.();
+          attemptKeys = active ? [active] : [];
         }
+        if (!attemptKeys.length) throw new Error('API Key 尚未設定 (' + model + ')');
+
+        const genOnce = async (apiKey) => {
+          if (model === 'gptimage') {
+            return await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', allRefs.length > 0 ? allRefs : null, {
+              quality: params.quality || 'low', background: params.gptBackground || 'auto', input_fidelity: params.gptFidelity || 'high'
+            });
+          } else if (model === 'nanobanana2') {
+            return await window.AIService.generateWithNanoBanana2(text, apiKey, allRefs.length > 0 ? allRefs : null, null, {
+              aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
+              thinkingLevel: params.thinkingLevel || 'none',
+            });
+          } else {
+            return await window.AIService.generateWithNanoBanana(text, apiKey, {
+              aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
+              thinkingLevel: params.thinkingLevel || 'none',
+            });
+          }
+        };
+
+        // Try keys in order; on failure, fall back to the next (failover mode).
+        let lastErr = null;
+        for (let ki = 0; ki < attemptKeys.length; ki++) {
+          try {
+            imageUrl = await genOnce(attemptKeys[ki]);
+            lastErr = null;
+            break;
+          } catch (err) {
+            lastErr = err;
+            if (ki < attemptKeys.length - 1 && window.showToast) {
+              window.showToast(`⚠️ 金鑰 ${ki + 1} 失敗，改用金鑰 ${ki + 2}…`, 2000);
+            }
+          }
+        }
+        if (lastErr) throw lastErr;
       }
 
       // Post-generation automation: if this node belongs to a group with a bound
@@ -2844,7 +2883,7 @@
         // When automation produced multiple parts (e.g. refcrop), suffix each file _1.._N.
         for (let i = 0; i < savedImages.length; i++) {
           const outName = savedImages.length === 1 ? baseName : `${baseName}_${i + 1}`;
-          await window.AssetManager.saveAsset(outName, savedImages[i], targetFolder, node.data.overwrite !== false);
+          await window.AssetManager.saveAsset(outName, savedImages[i], targetFolder, node.data.overwrite === true);
           window.dispatchEvent(new CustomEvent('node-saved-asset', {
             detail: { filename: outName, folder: targetFolder, node }
           }));
@@ -2999,7 +3038,11 @@
         folder: folderInput ? folderInput.value : '',
         namePrefix: n.data.namePrefix || '',
         nameSuffix: n.data.nameSuffix || '',
-        overwrite: n.data.overwrite !== false,
+        overwrite: n.data.overwrite === true,
+        // Generated result images: kept for in-memory undo/redo snapshots so that
+        // undoing an unrelated edit does NOT wipe already-generated images.
+        // Dropped for localStorage (forStorage) to avoid the quota error.
+        resultImages: forStorage ? [] : [...(n.resultImages || [])],
         promptHTML: forStorage ? stripInlineImageData(promptHTML) : promptHTML
       };
     }
@@ -3014,6 +3057,7 @@
         height: g.collapsed ? (g.expandedHeight || 320) : g.height, color: g.color, title: g.title,
         receiveUpstream: g.receiveUpstream, upstreamMode: g.upstreamMode || 'all', excludedImages: forStorage ? [] : [...g.excludedImages],
         receivePriority: g.receivePriority ?? 1, collapsed: !!g.collapsed, locked: !!g.locked,
+        resultImages: forStorage ? [] : [...(g.resultImages || [])],
         postAutomationConfig: { ...(g.postAutomationConfig || {}) }, postAutomationEnabled: !!g.postAutomationEnabled,
         folder: folderInput ? folderInput.value : '',
         importFolder: importFolderSelect ? importFolderSelect.value : (g.importFolder || '')
@@ -3051,6 +3095,22 @@
     } catch (err) {
       console.error('Save failed:', err);
       if (window.showToast) window.showToast('❌ 儲存失敗：' + err.message);
+    }
+  }
+
+  // Re-display a node's generated result image (preview + download button) from
+  // node.resultImages. Used when restoring undo/redo snapshots so already-generated
+  // images survive a restore instead of being wiped.
+  function showNodeResultPreview(node) {
+    const imgEl = node.el.querySelector('.swf-preview-img');
+    const placeholder = node.el.querySelector('.swf-preview-placeholder');
+    const dlBtn = node.el.querySelector('.swf-download-btn');
+    if (!imgEl) return;
+    if (node.resultImages && node.resultImages.length > 0) {
+      imgEl.src = node.resultImages[0];
+      imgEl.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+      if (dlBtn) dlBtn.style.display = 'block';
     }
   }
 
@@ -3096,6 +3156,7 @@
             g.receivePriority = gd.receivePriority ?? 1;
             g.postAutomationConfig = gd.postAutomationConfig || { fitMode: 'contain', resolution: '1024', align: 'center', bg: '#FFFFFF', bgPicker: '#FFFFFF', cropRefLine: 'crosshair' };
             g.postAutomationEnabled = !!gd.postAutomationEnabled;
+            g.resultImages = Array.isArray(gd.resultImages) ? [...gd.resultImages] : [];
             const folderInput = g.el.querySelector('.swf-group-folder');
             if (folderInput) folderInput.value = gd.folder || '';
             
@@ -3171,7 +3232,7 @@
             }
             n.data.namePrefix = nd.namePrefix || '';
             n.data.nameSuffix = nd.nameSuffix || '';
-            n.data.overwrite = nd.overwrite !== false;
+            n.data.overwrite = nd.overwrite === true;
             const owCb = n.el.querySelector('.swf-overwrite-cb');
             if (owCb) owCb.checked = n.data.overwrite;
             n.el.querySelector('.swf-model-sel').value = n.data.model;
@@ -3184,6 +3245,9 @@
               pEl.innerHTML = nd.promptHTML;
               if (window.RichTextService) window.RichTextService.updatePlaceholder(pEl);
             }
+            // Restore generated result images + preview (in-memory undo/redo snapshots).
+            n.resultImages = Array.isArray(nd.resultImages) ? [...nd.resultImages] : [];
+            showNodeResultPreview(n);
           } catch (e) { console.warn('Failed to restore node:', savedId, e); }
         }
       }
@@ -3576,10 +3640,10 @@
   // ═══════════════════════════════════════════
   // ── TOOLBAR BINDINGS ──
   // ═══════════════════════════════════════════
-  document.getElementById('swfAddT2I')?.addEventListener('click', () => createMacroNode('t2i'));
-  document.getElementById('swfAddI2I')?.addEventListener('click', () => createMacroNode('i2i'));
-  document.getElementById('swfAddComfyUI')?.addEventListener('click', () => createMacroNode('comfyui'));
-  document.getElementById('swfAddGroup')?.addEventListener('click', () => createGroup());
+  document.getElementById('swfAddT2I')?.addEventListener('click', () => { saveUndoState(); createMacroNode('t2i'); });
+  document.getElementById('swfAddI2I')?.addEventListener('click', () => { saveUndoState(); createMacroNode('i2i'); });
+  document.getElementById('swfAddComfyUI')?.addEventListener('click', () => { saveUndoState(); createMacroNode('comfyui'); });
+  document.getElementById('swfAddGroup')?.addEventListener('click', () => { saveUndoState(); createGroup(); });
   document.getElementById('swfRunAll')?.addEventListener('click', executeAll);
   document.getElementById('swfSaveBtn')?.addEventListener('click', saveWorkflow);
   document.getElementById('swfLoadBtn')?.addEventListener('click', loadWorkflow);

@@ -69,7 +69,7 @@
             <div class="swf-toolbar" id="swfToolbar">
               <button class="btn-ghost btn-sm" id="swfAddT2I">➕ 文生圖</button>
               <button class="btn-ghost btn-sm" id="swfAddI2I">➕ 圖生圖</button>
-              <button class="btn-ghost btn-sm" id="swfAddComfyUI">➕ ComfyUI</button>
+              <button class="btn-ghost btn-sm" id="swfAddComfyUI" disabled title="開發中，敬請期待" style="opacity:0.5; cursor:not-allowed;">➕ ComfyUI（開發中）</button>
               <button class="btn-ghost btn-sm" id="swfAddGroup">🗂 新增群組</button>
               <div style="width:1px; background:var(--border); margin:0 5px;"></div>
               <button class="btn-ghost btn-sm" id="swfSaveBtn" title="儲存當前畫布">💾 儲存</button>
@@ -716,13 +716,19 @@
                 <span class="settings-card-title">OpenAI (ChatGPT)</span>
               </div>
               <div class="settings-card-body">
-                <label class="form-label">API KEY</label>
-                <div class="key-input-row">
-                  <input type="password" class="form-input key-input" id="openaiKeyInput" placeholder="sk-...">
-                  <button class="btn-primary" id="saveOpenaiBtn">儲存</button>
-                  <button class="btn-ghost" id="testOpenaiBtn">測試連線</button>
+                <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
+                <div class="key-list" id="keyList_openai" data-provider="openai"></div>
+                <div class="key-toolbar">
+                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="openai">＋ 新增金鑰</button>
+                  <label class="key-mode-wrap">多金鑰模式
+                    <select class="key-mode-select" data-provider="openai">
+                      <option value="single">只用第一把</option>
+                      <option value="failover">容錯自動切換</option>
+                      <option value="roundrobin">輪流分流</option>
+                    </select>
+                  </label>
+                  <button class="btn-primary key-save-btn" type="button" data-provider="openai">儲存</button>
                 </div>
-                <div class="conn-status" id="openaiStatus"></div>
                 <div class="settings-hint">模型：chatgpt-5.5 · 需要有 Vision 存取權限</div>
               </div>
             </div>
@@ -734,13 +740,19 @@
                 <span class="settings-card-title">Google Gemini</span>
               </div>
               <div class="settings-card-body">
-                <label class="form-label">API KEY</label>
-                <div class="key-input-row">
-                  <input type="password" class="form-input key-input" id="geminiKeyInput" placeholder="AIza...">
-                  <button class="btn-primary" id="saveGeminiBtn">儲存</button>
-                  <button class="btn-ghost" id="testGeminiBtn">測試連線</button>
+                <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
+                <div class="key-list" id="keyList_gemini" data-provider="gemini"></div>
+                <div class="key-toolbar">
+                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="gemini">＋ 新增金鑰</button>
+                  <label class="key-mode-wrap">多金鑰模式
+                    <select class="key-mode-select" data-provider="gemini">
+                      <option value="single">只用第一把</option>
+                      <option value="failover">容錯自動切換</option>
+                      <option value="roundrobin">輪流分流</option>
+                    </select>
+                  </label>
+                  <button class="btn-primary key-save-btn" type="button" data-provider="gemini">儲存</button>
                 </div>
-                <div class="conn-status" id="geminiStatus"></div>
                 <div class="settings-hint">模型：gemini-3.5-flash · 使用 Google AI Studio 金鑰</div>
               </div>
             </div>
@@ -752,13 +764,19 @@
                 <span class="settings-card-title">Google Gemini 2.5 Lite</span>
               </div>
               <div class="settings-card-body">
-                <label class="form-label">API KEY</label>
-                <div class="key-input-row">
-                  <input type="password" class="form-input key-input" id="geminiliteKeyInput" placeholder="AIza...">
-                  <button class="btn-primary" id="saveGeminiliteBtn">儲存</button>
-                  <button class="btn-ghost" id="testGeminiliteBtn">測試連線</button>
+                <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
+                <div class="key-list" id="keyList_geminilite" data-provider="geminilite"></div>
+                <div class="key-toolbar">
+                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="geminilite">＋ 新增金鑰</button>
+                  <label class="key-mode-wrap">多金鑰模式
+                    <select class="key-mode-select" data-provider="geminilite">
+                      <option value="single">只用第一把</option>
+                      <option value="failover">容錯自動切換</option>
+                      <option value="roundrobin">輪流分流</option>
+                    </select>
+                  </label>
+                  <button class="btn-primary key-save-btn" type="button" data-provider="geminilite">儲存</button>
                 </div>
-                <div class="conn-status" id="geminiliteStatus"></div>
                 <div class="settings-hint">模型：gemini-2.5-lite · 快速輕量版分析模型</div>
               </div>
             </div>
@@ -772,13 +790,20 @@
                 <span class="settings-card-title">Nano Banana Pro</span>
               </div>
               <div class="settings-card-body">
-                <label class="form-label">API KEY</label>
-                <div class="key-input-row">
-                  <input type="password" class="form-input key-input" id="nanobananaKeyInput" placeholder="nb-...">
-                  <button class="btn-primary" id="saveNanobananaBtn">儲存</button>
+                <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
+                <div class="key-list" id="keyList_nanobanana" data-provider="nanobanana"></div>
+                <div class="key-toolbar">
+                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="nanobanana">＋ 新增金鑰</button>
+                  <label class="key-mode-wrap">多金鑰模式
+                    <select class="key-mode-select" data-provider="nanobanana">
+                      <option value="single">只用第一把</option>
+                      <option value="failover">容錯自動切換</option>
+                      <option value="roundrobin">輪流分流</option>
+                    </select>
+                  </label>
+                  <button class="btn-primary key-save-btn" type="button" data-provider="nanobanana">儲存</button>
                 </div>
-                <div class="conn-status" id="nanobananaStatus"></div>
-                <div class="settings-hint">模型：gemini-3-pro-image (Nano Banana Pro) · 用於工作流的高階圖像生成</div>
+                <div class="settings-hint">模型：gemini-3-pro-image (Nano Banana Pro) · 用於工作流的高階圖像生成 · 容錯/輪流模式可在多把金鑰間切換</div>
               </div>
             </div>
 

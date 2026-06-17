@@ -395,6 +395,14 @@ ${JSON.stringify(analysis)}`;
     return true;
   }
 
+  // Nano Banana Pro runs on the same Google Generative Language API as Gemini,
+  // so a key validity check hits the same models endpoint.
+  async function testNanobanana(apiKey) {
+    const res = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {}, 15000);
+    if (!res.ok) throw new Error(`Nano Banana HTTP ${res.status}`);
+    return true;
+  }
+
 
   // ── File to Base64 ──
   function fileToBase64(file) {
@@ -710,6 +718,7 @@ ${JSON.stringify(analysis)}`;
     testOpenAI,
     testGemini,
     testGeminilite,
+    testNanobanana,
     fileToBase64,
     resolveApiKey,
     analyze,
