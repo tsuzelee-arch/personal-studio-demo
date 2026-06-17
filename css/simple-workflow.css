@@ -1425,6 +1425,13 @@
   user-select: none;
   margin: 10px 0 4px;
 }
+/* 統一提示詞 reuses the node rich editor (.swf-prompt-editor); constrain it to the
+   narrow 統一參數 panel so padding/border don't overflow horizontally. */
+.swf-gps-body .swf-gps-prompt.swf-prompt-editor {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 4px;
+}
 .swf-gps-check input[type="checkbox"] { accent-color: var(--dyn-grp-color, #00c8b4); }
 .swf-gps-params { margin-top: 6px; }
 .swf-gps-apply {

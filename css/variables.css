@@ -24,6 +24,7 @@
   --node-input-bg: #ffffff;
   --node-input-border: #cccccc;
   --node-edge-color: #a0a0a0;
+  --group-edge-color: rgba(34, 211, 238, 0.7);
   --node-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
 
@@ -54,6 +55,7 @@
   --node-input-bg: #2a2a2a;
   --node-input-border: #555555;
   --node-edge-color: #555555;
+  --group-edge-color: rgba(34, 211, 238, 0.6);
   --node-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
 

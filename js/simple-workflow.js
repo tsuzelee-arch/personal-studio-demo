@@ -580,7 +580,7 @@
           <input type="text" class="swf-gps-suffix swf-gps-input" placeholder="留空＝無">
           <label class="swf-gps-check"><input type="checkbox" class="swf-gps-overwrite" checked> 覆蓋同名檔案</label>
           <label class="swf-gps-label">統一提示詞</label>
-          <textarea class="swf-gps-prompt swf-gps-input" rows="3" placeholder="留空＝不變更各節點文本"></textarea>
+          <div class="swf-gps-prompt swf-prompt-editor" contenteditable="true" data-placeholder="留空＝不變更各節點文本"></div>
           <div class="swf-gps-params"></div>
           <button class="swf-gps-apply">套用至所有節點</button>
         </div>
@@ -764,6 +764,8 @@
       e.stopPropagation();
       applyGroupParamsSidebar(group);
     });
+    // 統一提示詞 — same rich-text editor as node prompts (color tags, inline thumbs, paste from prompt library)
+    setupPromptEditor(el.querySelector('.swf-gps-prompt'));
 
     // 完成後自動化 slide-out toggle (mutually exclusive with the other two panels)
     el.querySelector('.swf-grp-automation-btn').addEventListener('click', (e) => {
@@ -1375,8 +1377,14 @@
     if (suffixInput) suffixInput.value = source ? (source.data.nameSuffix || '') : '';
     const overwriteInput = el.querySelector('.swf-gps-overwrite');
     if (overwriteInput) overwriteInput.checked = source ? (source.data.overwrite !== false) : true;
-    const promptInput = el.querySelector('.swf-gps-prompt');
-    if (promptInput) promptInput.value = source ? extractPromptData(source).text : '';
+    // Mirror the first member's prompt as rich content (color tags + inline thumbs).
+    const promptEd = el.querySelector('.swf-gps-prompt');
+    if (promptEd) {
+      promptEd.innerHTML = '';
+      const sp = source ? source.el.querySelector('.swf-prompt-editor') : null;
+      if (sp) sp.childNodes.forEach(c => { const safe = sanitizePromptNode(c); if (safe) promptEd.appendChild(safe); });
+      if (window.RichTextService) window.RichTextService.updatePlaceholder(promptEd);
+    }
   }
 
   // Apply the 統一參數 panel's values to every member node of the group.
@@ -1395,9 +1403,11 @@
     const namePrefix = (el.querySelector('.swf-gps-prefix')?.value ?? '').trim();
     const nameSuffix = (el.querySelector('.swf-gps-suffix')?.value ?? '').trim();
     const overwrite = el.querySelector('.swf-gps-overwrite')?.checked !== false;
-    // Unified prompt: only overwrite member text when non-empty, so an empty
-    // field doesn't wipe everyone's prompts.
-    const unifiedPrompt = el.querySelector('.swf-gps-prompt')?.value ?? '';
+    // Unified prompt: copy rich content (color tags / inline thumbs) into each member
+    // only when non-empty, so an empty field doesn't wipe everyone's prompts.
+    const unifiedPromptEd = el.querySelector('.swf-gps-prompt');
+    const unifiedPromptHasContent = !!unifiedPromptEd && (unifiedPromptEd.textContent.trim() ||
+      unifiedPromptEd.querySelector('img, .editor-color-tag, .editor-img-tag'));
 
     for (const n of members) {
       n.data.model = model;
@@ -1412,10 +1422,12 @@
       if (nf) nf.value = folder;
       const owCb = n.el.querySelector('.swf-overwrite-cb');
       if (owCb) owCb.checked = overwrite;
-      if (unifiedPrompt.trim()) {
+      if (unifiedPromptHasContent) {
         const pEl = n.el.querySelector('.swf-prompt-editor');
         if (pEl) {
-          pEl.textContent = unifiedPrompt;
+          pEl.innerHTML = '';
+          unifiedPromptEd.childNodes.forEach(c => { const safe = sanitizePromptNode(c); if (safe) pEl.appendChild(safe); });
+          if (window.RichTextService) window.RichTextService.updatePlaceholder(pEl);
           pEl.dispatchEvent(new Event('input'));
         }
       }
@@ -1793,8 +1805,34 @@
       setupImageSorting(node);
     }
 
-    // Prompt editor — enhance：placeholder (data-empty) 維護 + 貼上強制純文字
-    const promptEditor = el.querySelector('.swf-prompt-editor');
+    // Prompt editor — rich-text wiring (placeholder + paste sanitize + image/prompt drop)
+    setupPromptEditor(el.querySelector('.swf-prompt-editor'));
+
+    el.querySelector('.swf-download-btn').addEventListener('click', () => {
+      const img = el.querySelector('.swf-preview-img');
+      if (!img.src) return;
+      const a = document.createElement('a'); a.href = img.src; a.download = 'swf_' + Date.now() + '.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    });
+    const previewImg = el.querySelector('.swf-preview-img');
+    previewImg.addEventListener('click', function () {
+      if (this.src && window.AssetManager?.openLightBox) window.AssetManager.openLightBox(this.src, 'Generated', false);
+    });
+    // Route result-image drags through our clean image path (sets a custom type)
+    // so dropping into a prompt inserts a thumbnail rather than a base64 text dump.
+    previewImg.addEventListener('dragstart', (e) => {
+      if (!previewImg.src) return;
+      e.dataTransfer.setData('text/swf-image-src', previewImg.src);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    el.querySelector('.swf-run-btn').addEventListener('click', async () => await executeSingleNode(node));
+  }
+
+  // Wire a contenteditable prompt editor with the rich-text behaviour shared by
+  // node prompts and the group's 統一提示詞: placeholder + paste sanitize (enhance),
+  // plus accepting image/prompt drops as clean inline thumbnails / text.
+  function setupPromptEditor(promptEditor) {
+    if (!promptEditor) return;
     if (window.EditorService && window.EditorService.enhanceRichEditor) {
       window.EditorService.enhanceRichEditor(promptEditor);
     } else if (window.RichTextService) {
@@ -1855,25 +1893,6 @@
         promptEditor.dispatchEvent(new Event('input'));
       }
     });
-
-    el.querySelector('.swf-download-btn').addEventListener('click', () => {
-      const img = el.querySelector('.swf-preview-img');
-      if (!img.src) return;
-      const a = document.createElement('a'); a.href = img.src; a.download = 'swf_' + Date.now() + '.png';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    });
-    const previewImg = el.querySelector('.swf-preview-img');
-    previewImg.addEventListener('click', function () {
-      if (this.src && window.AssetManager?.openLightBox) window.AssetManager.openLightBox(this.src, 'Generated', false);
-    });
-    // Route result-image drags through our clean image path (sets a custom type)
-    // so dropping into a prompt inserts a thumbnail rather than a base64 text dump.
-    previewImg.addEventListener('dragstart', (e) => {
-      if (!previewImg.src) return;
-      e.dataTransfer.setData('text/swf-image-src', previewImg.src);
-      e.dataTransfer.effectAllowed = 'copy';
-    });
-    el.querySelector('.swf-run-btn').addEventListener('click', async () => await executeSingleNode(node));
   }
 
   // Insert an image as a non-editable inline thumbnail tag into a prompt editor at
@@ -2340,11 +2359,13 @@
       const y2 = (r2.top - wrapperRect.top + r2.height / 2) / zoomLevel;
       const offset = Math.max(Math.abs(x2 - x1) * 0.4, 60);
       const isGroupEdge = isGroup(edge.source) || isGroup(edge.target);
-      const color = isGroupEdge ? '#22d3ee' : 'var(--node-edge-color, #a0a0a0)';
-      const sw = isGroupEdge ? 4 / zoomLevel : 3 / zoomLevel;
+      const color = isGroupEdge ? 'var(--group-edge-color, rgba(34,211,238,0.7))' : 'var(--node-edge-color, #a0a0a0)';
+      // Thinner lines; scale down when zoomed out (Math.max(zoomLevel,1)) so they don't
+      // dominate the overview, but stay a constant readable width once zoomed in.
+      const sw = (isGroupEdge ? 2 : 1.5) / Math.max(zoomLevel, 1);
       const d = `M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}`;
       // Wide transparent hit area (easy to double-click) + thin visible line on top.
-      const hitSw = Math.max(22 / zoomLevel, sw);
+      const hitSw = Math.max(18 / zoomLevel, sw);
       html += `<path d="${d}" fill="none" stroke="transparent" stroke-width="${hitSw}" stroke-linecap="round"
         data-edge-id="${edge.id}" style="pointer-events:stroke; cursor:pointer;" />`;
       html += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"
@@ -2362,7 +2383,7 @@
         const y2 = (window.__swfTempEdge.currentY - wrapperRect.top) / zoomLevel;
         const offset = Math.max(Math.abs(x2 - x1) * 0.4, 60);
         html += `<path d="M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}"
-          fill="none" stroke="#4ade80" stroke-width="${3 / zoomLevel}" stroke-dasharray="${6/zoomLevel},${4/zoomLevel}" stroke-linecap="round" />`;
+          fill="none" stroke="#4ade80" stroke-width="${2 / Math.max(zoomLevel, 1)}" stroke-dasharray="${6/zoomLevel},${4/zoomLevel}" stroke-linecap="round" />`;
       }
     }
 
