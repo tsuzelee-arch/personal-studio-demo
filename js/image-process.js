@@ -73,7 +73,21 @@
     scriptFitMode: document.getElementById('ipScriptFitMode'),
     scriptAlign: document.getElementById('ipScriptAlign'),
     scriptBg: document.getElementById('ipScriptBg'),
-    scriptBgPicker: document.getElementById('ipScriptBgPicker')
+    scriptBgPicker: document.getElementById('ipScriptBgPicker'),
+    scriptStitchParams: document.getElementById('ipScriptStitchParams'),
+    scriptStitchDir: document.getElementById('ipScriptStitchDir'),
+    scriptStitchGridColsGroup: document.getElementById('ipScriptStitchGridColsGroup'),
+    scriptStitchGridCols: document.getElementById('ipScriptStitchGridCols'),
+    scriptStitchGap: document.getElementById('ipScriptStitchGap'),
+    scriptStitchAlign: document.getElementById('ipScriptStitchAlign'),
+    scriptStitchSize: document.getElementById('ipScriptStitchSize'),
+    scriptCropParams: document.getElementById('ipScriptCropParams'),
+    scriptCropRefLine: document.getElementById('ipScriptCropRefLine'),
+    scriptPrefixFilter: document.getElementById('ipScriptPrefixFilter'),
+    scriptResBgParams: document.getElementById('ipScriptResBgParams'),
+    scriptAlignBgParams: document.getElementById('ipScriptAlignBgParams'),
+    scriptAutoRun: document.getElementById('ipScriptAutoRun'),
+    scriptKeyword: document.getElementById('ipScriptKeyword')
   };
 
   // Helper: Escape HTML
@@ -1138,7 +1152,7 @@
     return { dx, dy, dw, dh };
   }
 
-  async function executeAutomation() {
+  async function executeAutomation(triggerNode = null) {
     if (!AssetManager.isConnected()) {
       alert('請先至左側「資產庫」點擊「連結本機工作夾」並提供讀寫授權！');
       return;
@@ -1152,124 +1166,392 @@
       return;
     }
 
-    // Retrieve all files in the source folder
     const files = AssetManager.getImagesInFolder(sourceDir);
     if (files.length === 0) {
-      alert(`資料夾「${sourceDir}」中沒有找到任何影像檔案！`);
+      if (!triggerNode) {
+        alert(`資料夾「${sourceDir}」中沒有找到任何影像檔案！`);
+      }
       return;
     }
 
-    // Resolution parameters
-    const resVal = dom.scriptResolution.value;
-    let targetW = 1024, targetH = 1024;
-    if (resVal === '512') { targetW = 512; targetH = 512; }
-    else if (resVal === '1024_512') { targetW = 1024; targetH = 512; }
-    else if (resVal === '512_1024') { targetW = 512; targetH = 1024; }
-    else if (resVal === '2048') { targetW = 2048; targetH = 2048; }
-
     const fitMode = dom.scriptFitMode.value;
-    const align = dom.scriptAlign.value;
-    let bgColor = dom.scriptBg.value;
-    if (bgColor === 'custom') {
-      bgColor = dom.scriptBgPicker.value;
-    }
 
-    // Hide Modal and show progress
-    dom.scriptModal.classList.add('hidden');
+    if (dom.scriptModal && !dom.scriptModal.classList.contains('hidden')) {
+      dom.scriptModal.classList.add('hidden');
+    }
     showProgress(true);
     updateProgress('正在啟動自動化處理...', 0);
 
-    const total = files.length;
     let successCount = 0;
-
-    // Get flat existing image names in target output directory to prevent duplicates
     const existingImages = AssetManager.getImagesInFolder(outputDir);
+    const processedBlobUrls = [];
 
-    for (let i = 0; i < total; i++) {
-      const fileEntry = files[i];
-      updateProgress(`正在處理圖片 (${i + 1}/${total}): ${fileEntry.name}...`, (i / total) * 100);
+    function getFilePrefix(filename) {
+      const nameWithoutExt = filename.substring(0, filename.lastIndexOf('.')) || filename;
+      const match = nameWithoutExt.match(/^(.*?)[_-]?\d+$/);
+      return match ? match[1] : nameWithoutExt;
+    }
 
-      let tempObjectUrl = null;
-      let img = null;
-      let canvas = null;
+    async function loadImageFromFileEntry(fileEntry) {
+      const fileObj = await fileEntry.handle.getFile();
+      const url = URL.createObjectURL(fileObj);
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve({ img, url });
+        img.onerror = (e) => {
+          URL.revokeObjectURL(url);
+          reject(e);
+        };
+        img.src = url;
+      });
+    }
 
-      try {
-        // 1. Fetch File and create Object URL
-        const fileObj = await fileEntry.handle.getFile();
-        tempObjectUrl = URL.createObjectURL(fileObj);
-
-        // 2. Load into image element
-        img = await new Promise((resolve, reject) => {
-          const tempImg = new Image();
-          tempImg.crossOrigin = 'anonymous';
-          tempImg.onload = () => resolve(tempImg);
-          tempImg.onerror = reject;
-          tempImg.src = tempObjectUrl;
+    try {
+      if (fitMode === 'stitch') {
+        const prefixGroups = {};
+        files.forEach(file => {
+          if (file.name.includes('_stitched') || file.name.includes('_processed') || file.name.includes('_crop_')) return;
+          const prefix = getFilePrefix(file.name);
+          if (!prefixGroups[prefix]) prefixGroups[prefix] = [];
+          prefixGroups[prefix].push(file);
         });
 
-        // 3. Create off-screen canvas and render
-        canvas = document.createElement('canvas');
-        canvas.width = targetW;
-        canvas.height = targetH;
-        const ctx = canvas.getContext('2d');
+        const prefixes = Object.keys(prefixGroups);
+        const totalGroups = prefixes.length;
 
-        // Draw background
-        if (bgColor === 'transparent') {
-          ctx.clearRect(0, 0, targetW, targetH);
-        } else {
-          ctx.fillStyle = bgColor;
-          ctx.fillRect(0, 0, targetW, targetH);
+        for (let idx = 0; idx < totalGroups; idx++) {
+          const prefix = prefixes[idx];
+          const groupFiles = prefixGroups[prefix];
+          if (groupFiles.length < 2) continue;
+
+          updateProgress(`正在拼合前綴「${prefix}」的圖片...`, (idx / totalGroups) * 100);
+
+          const loadedImages = [];
+          for (const fileEntry of groupFiles) {
+            try {
+              const loaded = await loadImageFromFileEntry(fileEntry);
+              loadedImages.push(loaded);
+            } catch (err) {
+              console.error('Failed to load image for stitching:', fileEntry.name, err);
+            }
+          }
+
+          if (loadedImages.length < 2) {
+            loadedImages.forEach(l => URL.revokeObjectURL(l.url));
+            continue;
+          }
+
+          const direction = dom.scriptStitchDir.value;
+          const gap = parseInt(dom.scriptStitchGap.value, 10) || 0;
+          const align = dom.scriptStitchAlign.value;
+          const sizeMode = dom.scriptStitchSize.value;
+          
+          let bgColor = dom.scriptBg.value;
+          if (bgColor === 'custom') bgColor = dom.scriptBgPicker.value;
+
+          const dimensions = [];
+          if (sizeMode === 'uniform') {
+            const refW = loadedImages[0].img.naturalWidth;
+            const refH = loadedImages[0].img.naturalHeight;
+            loadedImages.forEach(l => {
+              if (direction === 'horizontal') {
+                const scale = refH / l.img.naturalHeight;
+                dimensions.push({ w: l.img.naturalWidth * scale, h: refH, img: l.img });
+              } else if (direction === 'vertical') {
+                const scale = refW / l.img.naturalWidth;
+                dimensions.push({ w: refW, h: l.img.naturalHeight * scale, img: l.img });
+              } else {
+                dimensions.push({ w: refW, h: refH, img: l.img });
+              }
+            });
+          } else {
+            loadedImages.forEach(l => {
+              dimensions.push({ w: l.img.naturalWidth, h: l.img.naturalHeight, img: l.img });
+            });
+          }
+
+          let canvasW = 0, canvasH = 0;
+          const count = loadedImages.length;
+
+          if (direction === 'horizontal') {
+            canvasW = dimensions.reduce((sum, d) => sum + d.w, 0) + (count - 1) * gap;
+            canvasH = Math.max(...dimensions.map(d => d.h));
+          } else if (direction === 'vertical') {
+            canvasW = Math.max(...dimensions.map(d => d.w));
+            canvasH = dimensions.reduce((sum, d) => sum + d.h, 0) + (count - 1) * gap;
+          } else {
+            const cols = parseInt(dom.scriptStitchGridCols.value, 10) || 2;
+            const rows = Math.ceil(count / cols);
+            let colWidths = Array(cols).fill(0);
+            let rowHeights = Array(rows).fill(0);
+            dimensions.forEach((d, idx) => {
+              const c = idx % cols;
+              const r = Math.floor(idx / cols);
+              colWidths[c] = Math.max(colWidths[c], d.w);
+              rowHeights[r] = Math.max(rowHeights[r], d.h);
+            });
+            canvasW = colWidths.reduce((sum, w) => sum + w, 0) + (cols - 1) * gap;
+            canvasH = rowHeights.reduce((sum, h) => sum + h, 0) + (rows - 1) * gap;
+            dimensions.gridMeta = { colWidths, rowHeights, cols };
+          }
+
+          const MAX_CANVAS_DIM = 16384;
+          if (canvasW > MAX_CANVAS_DIM || canvasH > MAX_CANVAS_DIM) {
+            console.warn(`Stitched canvas size ${canvasW}x${canvasH} exceeds limits.`);
+            loadedImages.forEach(l => URL.revokeObjectURL(l.url));
+            continue;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = canvasW;
+          canvas.height = canvasH;
+          const ctx = canvas.getContext('2d');
+
+          if (bgColor === 'transparent') {
+            ctx.clearRect(0, 0, canvasW, canvasH);
+          } else {
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvasW, canvasH);
+          }
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          if (direction === 'horizontal') {
+            let curX = 0;
+            dimensions.forEach(d => {
+              let dy = 0;
+              if (align === 'center') dy = (canvasH - d.h) / 2;
+              else if (align === 'end') dy = canvasH - d.h;
+              ctx.drawImage(d.img, curX, dy, d.w, d.h);
+              curX += d.w + gap;
+            });
+          } else if (direction === 'vertical') {
+            let curY = 0;
+            dimensions.forEach(d => {
+              let dx = 0;
+              if (align === 'center') dx = (canvasW - d.w) / 2;
+              else if (align === 'end') dx = canvasW - d.w;
+              ctx.drawImage(d.img, dx, curY, d.w, d.h);
+              curY += d.h + gap;
+            });
+          } else {
+            const { colWidths, rowHeights, cols } = dimensions.gridMeta;
+            dimensions.forEach((d, idx) => {
+              const c = idx % cols;
+              const r = Math.floor(idx / cols);
+              let cellX = 0; for (let i = 0; i < c; i++) cellX += colWidths[i] + gap;
+              let cellY = 0; for (let i = 0; i < r; i++) cellY += rowHeights[i] + gap;
+              let dx = cellX;
+              if (align === 'center') dx += (colWidths[c] - d.w) / 2;
+              else if (align === 'end') dx += colWidths[c] - d.w;
+              let dy = cellY;
+              if (align === 'center') dy += (rowHeights[r] - d.h) / 2;
+              else if (align === 'end') dy += rowHeights[r] - d.h;
+              ctx.drawImage(d.img, dx, dy, d.w, d.h);
+            });
+          }
+
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+          const exportUrl = URL.createObjectURL(blob);
+
+          const outputBase = `${prefix}_stitched`;
+          let finalOutputName = outputBase;
+          let counter = 1;
+          while (existingImages.some(img => img.name === `${finalOutputName}.png`)) {
+            finalOutputName = `${outputBase}_${counter}`;
+            counter++;
+          }
+
+          await AssetManager.saveAsset(finalOutputName, exportUrl, outputDir);
+          
+          const savedBlobUrl = await AssetManager.getFileBlobUrlByPath(`${outputDir}/${finalOutputName}.png`);
+          if (savedBlobUrl) processedBlobUrls.push(savedBlobUrl);
+
+          URL.revokeObjectURL(exportUrl);
+          loadedImages.forEach(l => URL.revokeObjectURL(l.url));
+          successCount++;
         }
 
-        // Calculate layout fitting
-        const layout = calculateFitLayout(img.naturalWidth, img.naturalHeight, targetW, targetH, fitMode, align);
-        
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, layout.dx, layout.dy, layout.dw, layout.dh);
+      } else if (fitMode === 'refcrop') {
+        const prefixFilter = dom.scriptPrefixFilter.value.trim();
+        const cropType = dom.scriptCropRefLine.value;
 
-        // 4. Export to blob
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        const exportUrl = URL.createObjectURL(blob);
+        for (let i = 0; i < files.length; i++) {
+          const fileEntry = files[i];
+          if (fileEntry.name.includes('_stitched') || fileEntry.name.includes('_processed') || fileEntry.name.includes('_crop_')) continue;
+          if (prefixFilter && !fileEntry.name.startsWith(prefixFilter)) continue;
 
-        // Conflict check: Auto increment suffix if name already exists in outputDir
-        const origName = fileEntry.name;
-        const baseName = origName.substring(0, origName.lastIndexOf('.')) || origName;
-        const outputBase = `${baseName}_processed`;
-        
-        let finalOutputName = outputBase;
-        let counter = 1;
-        while (existingImages.some(img => img.name === `${finalOutputName}.png`)) {
-          finalOutputName = `${outputBase}_${counter}`;
-          counter++;
+          updateProgress(`正在裁切圖片 (${i + 1}/${files.length}): ${fileEntry.name}...`, (i / files.length) * 100);
+
+          let loaded = null;
+          try {
+            loaded = await loadImageFromFileEntry(fileEntry);
+            const W = loaded.img.naturalWidth;
+            const H = loaded.img.naturalHeight;
+
+            const cropParts = [];
+            const baseName = fileEntry.name.substring(0, fileEntry.name.lastIndexOf('.')) || fileEntry.name;
+
+            if (cropType === 'crosshair') {
+              const halfW = Math.round(W / 2);
+              const halfH = Math.round(H / 2);
+              cropParts.push({ x: 0, y: 0, w: halfW, h: halfH, suffix: 'tl' });
+              cropParts.push({ x: halfW, y: 0, w: W - halfW, h: halfH, suffix: 'tr' });
+              cropParts.push({ x: 0, y: halfH, w: halfW, h: H - halfH, suffix: 'bl' });
+              cropParts.push({ x: halfW, y: halfH, w: W - halfW, h: H - halfH, suffix: 'br' });
+            } else {
+              const xCoords = [0, Math.round(W / 3), Math.round(2 * W / 3), W];
+              const yCoords = [0, Math.round(H / 3), Math.round(2 * H / 3), H];
+              let index = 1;
+              for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                  cropParts.push({
+                    x: xCoords[c],
+                    y: yCoords[r],
+                    w: xCoords[c + 1] - xCoords[c],
+                    h: yCoords[r + 1] - yCoords[r],
+                    suffix: `part_${index++}`
+                  });
+                }
+              }
+            }
+
+            for (const part of cropParts) {
+              const canvas = document.createElement('canvas');
+              canvas.width = part.w;
+              canvas.height = part.h;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(loaded.img, part.x, part.y, part.w, part.h, 0, 0, part.w, part.h);
+
+              const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+              const exportUrl = URL.createObjectURL(blob);
+              const outputName = `${baseName}_crop_${part.suffix}`;
+
+              let finalOutputName = outputName;
+              let counter = 1;
+              while (existingImages.some(img => img.name === `${finalOutputName}.png`)) {
+                finalOutputName = `${outputName}_${counter}`;
+                counter++;
+              }
+
+              await AssetManager.saveAsset(finalOutputName, exportUrl, outputDir);
+              
+              const savedBlobUrl = await AssetManager.getFileBlobUrlByPath(`${outputDir}/${finalOutputName}.png`);
+              if (savedBlobUrl) processedBlobUrls.push(savedBlobUrl);
+
+              URL.revokeObjectURL(exportUrl);
+            }
+
+            successCount++;
+          } catch (err) {
+            console.error('Failed to crop image:', fileEntry.name, err);
+          } finally {
+            if (loaded) URL.revokeObjectURL(loaded.url);
+          }
         }
 
-        // 5. Write to local directory directly
-        await AssetManager.saveAsset(finalOutputName, exportUrl, outputDir);
-        
-        // Revoke target Object URL immediately
-        URL.revokeObjectURL(exportUrl);
-        successCount++;
+      } else {
+        const resVal = dom.scriptResolution.value;
+        let targetW = 1024, targetH = 1024;
+        if (resVal === '512') { targetW = 512; targetH = 512; }
+        else if (resVal === '1024_512') { targetW = 1024; targetH = 512; }
+        else if (resVal === '512_1024') { targetW = 512; targetH = 1024; }
+        else if (resVal === '2048') { targetW = 2048; targetH = 2048; }
 
-      } catch (err) {
-        console.error(`Error auto-processing file ${fileEntry.name}:`, err);
-      } finally {
-        // Release memory resources
-        if (tempObjectUrl) URL.revokeObjectURL(tempObjectUrl);
-        if (img) img.src = '';
-        img = null;
-        canvas = null;
+        const align = dom.scriptAlign.value;
+        let bgColor = dom.scriptBg.value;
+        if (bgColor === 'custom') bgColor = dom.scriptBgPicker.value;
+
+        for (let i = 0; i < files.length; i++) {
+          const fileEntry = files[i];
+          updateProgress(`正在處理圖片 (${i + 1}/${files.length}): ${fileEntry.name}...`, (i / files.length) * 100);
+
+          let loaded = null;
+          try {
+            loaded = await loadImageFromFileEntry(fileEntry);
+            const canvas = document.createElement('canvas');
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext('2d');
+
+            if (bgColor === 'transparent') {
+              ctx.clearRect(0, 0, targetW, targetH);
+            } else {
+              ctx.fillStyle = bgColor;
+              ctx.fillRect(0, 0, targetW, targetH);
+            }
+
+            const layout = calculateFitLayout(loaded.img.naturalWidth, loaded.img.naturalHeight, targetW, targetH, fitMode, align);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(loaded.img, layout.dx, layout.dy, layout.dw, layout.dh);
+
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const exportUrl = URL.createObjectURL(blob);
+
+            const origName = fileEntry.name;
+            const baseName = origName.substring(0, origName.lastIndexOf('.')) || origName;
+            const outputBase = `${baseName}_processed`;
+            
+            let finalOutputName = outputBase;
+            let counter = 1;
+            while (existingImages.some(img => img.name === `${finalOutputName}.png`)) {
+              finalOutputName = `${outputBase}_${counter}`;
+              counter++;
+            }
+
+            await AssetManager.saveAsset(finalOutputName, exportUrl, outputDir);
+            
+            const savedBlobUrl = await AssetManager.getFileBlobUrlByPath(`${outputDir}/${finalOutputName}.png`);
+            if (savedBlobUrl) processedBlobUrls.push(savedBlobUrl);
+
+            URL.revokeObjectURL(exportUrl);
+            successCount++;
+          } catch (err) {
+            console.error('Failed to resize image:', fileEntry.name, err);
+          } finally {
+            if (loaded) URL.revokeObjectURL(loaded.url);
+          }
+        }
       }
+
+      // Propagate processed images downstream in SimpleWorkflow if triggerNode exists
+      if (triggerNode && processedBlobUrls.length > 0) {
+        const groupsObj = window.SimpleWorkflow?.getGroups?.() || {};
+        let parentGroup = null;
+        for (const gid in groupsObj) {
+          const g = groupsObj[gid];
+          if (triggerNode.x >= g.x && triggerNode.y >= g.y && 
+              triggerNode.x + triggerNode.width <= g.x + g.width && 
+              triggerNode.y + (triggerNode.el?.offsetHeight || 0) <= g.y + g.height) {
+            parentGroup = g;
+            break;
+          }
+        }
+        
+        const sourceEntity = parentGroup || triggerNode;
+        if (sourceEntity) {
+          sourceEntity.resultImages = [...processedBlobUrls];
+          if (window.SimpleWorkflow?.propagateVisualImages) {
+            window.SimpleWorkflow.propagateVisualImages();
+          }
+        }
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert('自動化處理出錯：' + err.message);
     }
 
     updateProgress('自動化處理完成', 100);
     setTimeout(() => showProgress(false), 1200);
 
-    // Refresh UI to reload files in grid
     await AssetManager.refreshUI();
     
     if (window.showToast) {
-      window.showToast(`🤖 自動化腳本執行完畢！已成功處理 ${successCount}/${total} 張圖片並存入本機！`);
+      window.showToast(`🤖 自動化腳本執行完畢！已成功處理 ${successCount} 個項目並存入本機！`);
     }
   }
 
@@ -1534,7 +1816,68 @@
       dom.scriptBgPicker.style.display = e.target.value === 'custom' ? 'block' : 'none';
     });
 
-    dom.scriptBtnExecute.addEventListener('click', executeAutomation);
+    dom.scriptFitMode.addEventListener('change', (e) => {
+      const mode = e.target.value;
+      if (mode === 'stitch') {
+        dom.scriptStitchParams.style.display = 'block';
+        dom.scriptCropParams.style.display = 'none';
+        dom.scriptResBgParams.style.display = 'none';
+        dom.scriptAlignBgParams.style.display = 'none';
+      } else if (mode === 'refcrop') {
+        dom.scriptStitchParams.style.display = 'none';
+        dom.scriptCropParams.style.display = 'block';
+        dom.scriptResBgParams.style.display = 'none';
+        dom.scriptAlignBgParams.style.display = 'none';
+      } else {
+        dom.scriptStitchParams.style.display = 'none';
+        dom.scriptCropParams.style.display = 'none';
+        dom.scriptResBgParams.style.display = 'block';
+        dom.scriptAlignBgParams.style.display = 'block';
+      }
+    });
+
+    dom.scriptStitchDir.addEventListener('change', (e) => {
+      dom.scriptStitchGridColsGroup.style.display = e.target.value === 'grid' ? 'block' : 'none';
+    });
+
+    dom.scriptBtnExecute.addEventListener('click', () => executeAutomation());
+
+    // --- Auto-trigger on Node Saved Asset ---
+    let autoRunTimeout = null;
+    let pendingTriggerFiles = [];
+
+    window.addEventListener('node-saved-asset', (event) => {
+      if (state.processing || state.isProcessingAutomation) return;
+      if (!dom.scriptAutoRun || !dom.scriptAutoRun.checked) return;
+
+      const { filename, folder, node } = event.detail;
+      if (filename.includes('_processed') || filename.includes('_stitched') || filename.includes('_crop_')) {
+        return; // Skip output files to prevent infinite loops
+      }
+
+      const keyword = dom.scriptKeyword.value.trim();
+      if (!keyword || !filename.includes(keyword)) return;
+
+      pendingTriggerFiles.push({ filename, folder, node });
+
+      if (autoRunTimeout) clearTimeout(autoRunTimeout);
+      autoRunTimeout = setTimeout(async () => {
+        state.isProcessingAutomation = true;
+        try {
+          if (window.showToast) window.showToast('🤖 自動偵測到圖片，啟動編輯腳本中...');
+          
+          let relativeSource = folder || '根目錄';
+          dom.scriptSourceDir.value = relativeSource;
+          
+          await executeAutomation(node);
+        } catch (e) {
+          console.error('Auto trigger execution failed:', e);
+        } finally {
+          state.isProcessingAutomation = false;
+          pendingTriggerFiles = [];
+        }
+      }, 800);
+    });
 
     // Action buttons click
     dom.btnProcess.addEventListener('click', processAll);

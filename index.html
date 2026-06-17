@@ -69,6 +69,7 @@
             <div class="swf-toolbar" id="swfToolbar">
               <button class="btn-ghost btn-sm" id="swfAddT2I">➕ 文生圖</button>
               <button class="btn-ghost btn-sm" id="swfAddI2I">➕ 圖生圖</button>
+              <button class="btn-ghost btn-sm" id="swfAddComfyUI">➕ ComfyUI</button>
               <button class="btn-ghost btn-sm" id="swfAddGroup">🗂 新增群組</button>
               <div style="width:1px; background:var(--border); margin:0 5px;"></div>
               <button class="btn-ghost btn-sm" id="swfSaveBtn" title="儲存當前畫布">💾 儲存</button>
@@ -485,7 +486,7 @@
 
             <!-- Right Pane: Global Properties / Inspector -->
             <div class="ip-right-inspector">
-              <button id="ipBtnUnify" class="btn-primary" style="width:100%; font-weight:600; padding:10px; margin-bottom:12px; background:var(--accent,#1783FF); border:none; border-radius:6px; color:#fff; cursor:pointer;">✨ 統一輸出參數</button>
+              <button id="ipBtnUnify" class="btn-primary" style="width:100%; padding:10px; margin-bottom:12px; border-radius:6px;">✨ 統一輸出參數</button>
               <button id="ipBtnClearInspector" class="btn-ghost" style="width: 100%; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 8px; color: var(--danger, #ff4d4f); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; background: transparent;">🗑️ 清空工作區</button>
               
               <div class="ip-inspector-section">
@@ -999,45 +1000,112 @@
           <!-- 由 JS 動態填充 -->
         </select>
 
-        <label class="form-label" style="margin-top: 12px;">目標解析度 (Target Resolution)</label>
-        <select class="form-input" id="ipScriptResolution">
-          <option value="512">512 × 512</option>
-          <option value="1024_512">1024 × 512</option>
-          <option value="512_1024">512 × 1024</option>
-          <option value="1024" selected>1024 × 1024</option>
-          <option value="2048">2048 × 2048</option>
-        </select>
+        <!-- 核心適配與背景填充參數 (Res & Bg Params for Fit Mode) -->
+        <div id="ipScriptResBgParams">
+          <label class="form-label" style="margin-top: 12px;">目標解析度 (Target Resolution)</label>
+          <select class="form-input" id="ipScriptResolution">
+            <option value="512">512 × 512</option>
+            <option value="1024_512">1024 × 512</option>
+            <option value="512_1024">512 × 1024</option>
+            <option value="1024" selected>1024 × 1024</option>
+            <option value="2048">2048 × 2048</option>
+          </select>
+        </div>
 
-        <label class="form-label" style="margin-top: 12px;">適配模式 (Fit Mode)</label>
+        <label class="form-label" style="margin-top: 12px;">腳本功能 (Script Function)</label>
         <select class="form-input" id="ipScriptFitMode">
-          <option value="contain" selected>Contain (等比例縮小以完整顯示，背景色填充)</option>
-          <option value="cover">Cover (等比例放大填滿畫布，裁切溢出)</option>
-          <option value="stretch">Stretch (非等比例拉伸填滿)</option>
+          <option value="contain" selected>縮放適配 (Contain - 背景色填充)</option>
+          <option value="cover">縮放填充 (Cover - 裁切溢出)</option>
+          <option value="stretch">拉伸填充 (Stretch - 非等比例)</option>
+          <option value="stitch">圖片拼合 (Stitch - 多圖合併)</option>
+          <option value="refcrop">參考線裁切 (Reference Line Crop)</option>
         </select>
 
-        <label class="form-label" style="margin-top: 12px;">對齊基準 (Alignment)</label>
-        <select class="form-input" id="ipScriptAlign">
-          <option value="center" selected>Center (居中)</option>
-          <option value="top">Top (靠上)</option>
-          <option value="bottom">Bottom (靠下)</option>
-          <option value="left">Left (靠左)</option>
-          <option value="right">Right (靠右)</option>
-          <option value="top-left">Top-Left</option>
-          <option value="top-right">Top-Right</option>
-          <option value="bottom-left">Bottom-Left</option>
-          <option value="bottom-right">Bottom-Right</option>
-        </select>
+        <!-- 拼合參數 (Stitch Parameters) -->
+        <div id="ipScriptStitchParams" style="display: none; margin-top: 12px; padding: 10px; border: 1px dashed var(--border); border-radius: 6px; background: var(--bg);">
+          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:var(--accent,#1783FF);">🔗 拼合參數設定</div>
+          
+          <label class="form-label">拼合方向</label>
+          <select class="form-input" id="ipScriptStitchDir" style="margin-bottom:8px;">
+            <option value="horizontal" selected>橫向拼合 (Side-by-side)</option>
+            <option value="vertical">縱向拼合 (Top-to-bottom)</option>
+            <option value="grid">網格拼合 (Grid)</option>
+          </select>
+          
+          <div id="ipScriptStitchGridColsGroup" style="display: none; margin-bottom:8px;">
+            <label class="form-label">每行圖片數量 (列數)</label>
+            <input type="number" class="form-input" id="ipScriptStitchGridCols" value="2" min="1">
+          </div>
 
-        <label class="form-label" style="margin-top: 12px;">背景填充顏色</label>
-        <select class="form-input" id="ipScriptBg">
-          <option value="#FFFFFF" selected>白色</option>
-          <option value="#000000">黑色</option>
-          <option value="#00FF00">綠色</option>
-          <option value="#0000FF">藍色</option>
-          <option value="transparent">透明</option>
-          <option value="custom">自訂顏色</option>
-        </select>
-        <input type="color" class="form-input" id="ipScriptBgPicker" value="#FFFFFF" style="display: none; margin-top: 8px;">
+          <label class="form-label">圖片間距 (像素)</label>
+          <input type="number" class="form-input" id="ipScriptStitchGap" value="0" min="0" placeholder="0 px" style="margin-bottom:8px;">
+
+          <label class="form-label">對齊方式</label>
+          <select class="form-input" id="ipScriptStitchAlign" style="margin-bottom:8px;">
+            <option value="center" selected>居中對齊</option>
+            <option value="start">靠左 / 靠上對齊</option>
+            <option value="end">靠右 / 靠下對齊</option>
+          </select>
+
+          <label class="form-label">尺寸適配</label>
+          <select class="form-input" id="ipScriptStitchSize">
+            <option value="original" selected>保持原始比例 (可能大小不一)</option>
+            <option value="uniform">以首張圖片為準進行縮放對齊</option>
+          </select>
+        </div>
+
+        <!-- 參考線裁切參數 (Reference Crop Parameters) -->
+        <div id="ipScriptCropParams" style="display: none; margin-top: 12px; padding: 10px; border: 1px dashed var(--border); border-radius: 6px; background: var(--bg);">
+          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:var(--accent,#1783FF);">✂️ 裁切參數設定</div>
+          
+          <label class="form-label">裁切參考線類型</label>
+          <select class="form-input" id="ipScriptCropRefLine" style="margin-bottom:8px;">
+            <option value="crosshair" selected>十字線 (裁切為 4 等份)</option>
+            <option value="thirds">井字線 (裁切為 9 等份)</option>
+          </select>
+
+          <label class="form-label">對齊前綴過濾</label>
+          <input type="text" class="form-input" id="ipScriptPrefixFilter" placeholder="例如: cat (選填，留空則處理所有)">
+        </div>
+
+        <!-- 核心對齊與背景設定 (Alignment & Bg for Fit Mode) -->
+        <div id="ipScriptAlignBgParams">
+          <label class="form-label" style="margin-top: 12px;">對齊基準 (Alignment)</label>
+          <select class="form-input" id="ipScriptAlign">
+            <option value="center" selected>Center (居中)</option>
+            <option value="top">Top (靠上)</option>
+            <option value="bottom">Bottom (靠下)</option>
+            <option value="left">Left (靠左)</option>
+            <option value="right">Right (靠右)</option>
+            <option value="top-left">Top-Left</option>
+            <option value="top-right">Top-Right</option>
+            <option value="bottom-left">Bottom-Left</option>
+            <option value="bottom-right">Bottom-Right</option>
+          </select>
+
+          <label class="form-label" style="margin-top: 12px;">背景填充顏色</label>
+          <select class="form-input" id="ipScriptBg">
+            <option value="#FFFFFF" selected>白色</option>
+            <option value="#000000">黑色</option>
+            <option value="#00FF00">綠色</option>
+            <option value="#0000FF">藍色</option>
+            <option value="transparent">透明</option>
+            <option value="custom">自訂顏色</option>
+          </select>
+          <input type="color" class="form-input" id="ipScriptBgPicker" value="#FFFFFF" style="display: none; margin-top: 8px;">
+        </div>
+
+        <!-- 自動執行設定 (Auto-Trigger Settings) -->
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);">
+          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:var(--success,#28a745);">🤖 腳本自動執行 (Auto-Trigger)</div>
+          <label class="form-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: normal;">
+            <input type="checkbox" id="ipScriptAutoRun"> 偵測到新圖片儲存時，自動執行此腳本
+          </label>
+          <div style="margin-top: 6px;">
+            <label class="form-label" style="font-size: 11px; color: var(--muted);">觸發關鍵字過濾 (Trigger Keyword)</label>
+            <input type="text" class="form-input" id="ipScriptKeyword" placeholder="例如: trigger (檔名含此字眼時觸發)" style="padding: 4px; font-size: 12px;">
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn-ghost" id="ipScriptModalCancel">取消</button>
