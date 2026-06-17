@@ -1363,6 +1363,17 @@
   box-shadow: -2px 0 8px rgba(0,0,0,0.08);
 }
 .swf-group.params-sidebar-open .swf-group-params-sidebar { display: flex; }
+/* Left-edge drag handle to resize the 統一參數 panel width (right edge stays anchored). */
+.swf-gps-resize {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 3;
+}
+.swf-gps-resize:hover { background: var(--dyn-grp-color, #00c8b4); opacity: 0.35; }
 
 /* 完成後自動化 slide-out — mirrors .swf-group-params-sidebar */
 .swf-group-automation-sidebar {

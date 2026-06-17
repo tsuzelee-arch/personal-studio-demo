@@ -561,6 +561,7 @@
         <div class="swf-gs-images"></div>
       </div>
       <div class="swf-group-params-sidebar">
+        <div class="swf-gps-resize" title="拖動調整寬度"></div>
         <div class="swf-gs-header">
           <span>⚙ 統一參數</span>
           <button class="swf-gps-close">✕</button>
@@ -747,6 +748,7 @@
         group.sidebarOpen = false; el.classList.remove('sidebar-open');
         group.automationSidebarOpen = false; el.classList.remove('automation-sidebar-open');
         renderGroupParamsSidebar(group);
+        if (group.paramsSidebarWidth) applyGpsWidth(group, group.paramsSidebarWidth);
       }
       el.classList.toggle('params-sidebar-open', group.paramsSidebarOpen);
     });
@@ -766,6 +768,7 @@
     });
     // 統一提示詞 — same rich-text editor as node prompts (color tags, inline thumbs, paste from prompt library)
     setupPromptEditor(el.querySelector('.swf-gps-prompt'));
+    setupGpsResize(group);
 
     // 完成後自動化 slide-out toggle (mutually exclusive with the other two panels)
     el.querySelector('.swf-grp-automation-btn').addEventListener('click', (e) => {
@@ -1094,6 +1097,40 @@
       group.el.style.width = group.width + 'px';
       group.el.style.height = group.height + 'px';
       scheduleEdgeRender();
+    });
+
+    window.addEventListener('mouseup', () => { isResizing = false; });
+  }
+
+  // 統一參數 panel sits to the LEFT of the group (CSS left:-230, width:220 → right edge
+  // anchored 10px off the group's left). Dragging the left-edge handle leftward widens
+  // it; we keep the right edge fixed by setting left = -(width + 10).
+  const GPS_PANEL_GAP = 10, GPS_MIN_W = 180, GPS_MAX_W = 480;
+  function applyGpsWidth(group, w) {
+    const panel = group.el.querySelector('.swf-group-params-sidebar');
+    if (!panel) return;
+    panel.style.width = w + 'px';
+    panel.style.left = -(w + GPS_PANEL_GAP) + 'px';
+  }
+  function setupGpsResize(group) {
+    const handle = group.el.querySelector('.swf-gps-resize');
+    const panel = group.el.querySelector('.swf-group-params-sidebar');
+    if (!handle || !panel) return;
+    let isResizing = false, startX = 0, startW = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startW = panel.offsetWidth;
+      e.stopPropagation(); e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      // Drag left (clientX decreases) → wider; /zoomLevel matches the zoomed wrapper.
+      const newW = Math.max(GPS_MIN_W, Math.min(GPS_MAX_W, startW + (startX - e.clientX) / zoomLevel));
+      group.paramsSidebarWidth = newW;
+      applyGpsWidth(group, newW);
     });
 
     window.addEventListener('mouseup', () => { isResizing = false; });
@@ -3081,7 +3118,8 @@
         resultImages: forStorage ? [] : [...(g.resultImages || [])],
         postAutomationConfig: { ...(g.postAutomationConfig || {}) }, postAutomationEnabled: !!g.postAutomationEnabled,
         folder: folderInput ? folderInput.value : '',
-        importFolder: importFolderSelect ? importFolderSelect.value : (g.importFolder || '')
+        importFolder: importFolderSelect ? importFolderSelect.value : (g.importFolder || ''),
+        paramsSidebarWidth: g.paramsSidebarWidth || null
       };
     }
     return { nodes: nodesData, groups: groupsData, edges: edges.map(e => ({ ...e })), panX, panY, zoomLevel, version: 3 };
@@ -3178,6 +3216,7 @@
             g.postAutomationConfig = gd.postAutomationConfig || { fitMode: 'contain', resolution: '1024', align: 'center', bg: '#FFFFFF', bgPicker: '#FFFFFF', cropRefLine: 'crosshair' };
             g.postAutomationEnabled = !!gd.postAutomationEnabled;
             g.resultImages = Array.isArray(gd.resultImages) ? [...gd.resultImages] : [];
+            if (gd.paramsSidebarWidth) { g.paramsSidebarWidth = gd.paramsSidebarWidth; applyGpsWidth(g, gd.paramsSidebarWidth); }
             const folderInput = g.el.querySelector('.swf-group-folder');
             if (folderInput) folderInput.value = gd.folder || '';
             
