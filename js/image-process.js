@@ -1559,17 +1559,67 @@
   }
 
   // ──────────── Populate folders dropdown for Script Modal ────────────
-  // ──────────── 自動化腳本「檔案設定」預設集（卡片式，存於 localStorage） ────────────
-  const SCRIPT_PRESETS_KEY = 'ps_ip_automation_scripts';
+  // ──────────── 自動化腳本「檔案設定」預設集 ────────────
+  // 持久化到「連結的本機工作夾」根目錄的 JSON 檔（耐久，不像 localStorage 易被清空）。
+  // 記憶體快取供同步渲染；變更時非同步寫回磁碟。舊的 localStorage 僅用於一次性搬移救回。
+  const SCRIPT_PRESETS_KEY = 'ps_ip_automation_scripts'; // legacy（僅讀取以搬移）
+  const SCRIPT_PRESETS_FILE = 'studio_automation_scripts.json';
+  let scriptPresetsCache = null;       // null = 尚未自磁碟載入
+  let scriptPresetsLoading = null;     // 載入中的 Promise（避免重複）
 
   function getSavedScripts() {
-    try {
-      const arr = JSON.parse(localStorage.getItem(SCRIPT_PRESETS_KEY) || '[]');
-      return Array.isArray(arr) ? arr : [];
-    } catch { return []; }
+    return Array.isArray(scriptPresetsCache) ? scriptPresetsCache : [];
   }
+
+  // 設定快取並非同步寫回磁碟。
   function saveSavedScripts(arr) {
-    localStorage.setItem(SCRIPT_PRESETS_KEY, JSON.stringify(arr));
+    scriptPresetsCache = Array.isArray(arr) ? arr : [];
+    persistScriptPresets();
+  }
+
+  async function persistScriptPresets() {
+    if (!AssetManager.isConnected()) {
+      if (window.showToast) window.showToast('⚠️ 尚未連結本機資料夾，腳本暫存於本次工作階段，連結後將寫入磁碟', 3500);
+      return;
+    }
+    try {
+      await AssetManager.writeWorkspaceTextFile(SCRIPT_PRESETS_FILE, JSON.stringify(scriptPresetsCache || [], null, 2));
+    } catch (e) {
+      console.error('Persist script presets failed:', e);
+      if (window.showToast) window.showToast('❌ 腳本寫入磁碟失敗：' + e.message, 3500);
+    }
+  }
+
+  // 自磁碟載入腳本到快取；檔案不存在時，從舊 localStorage 搬移救回並寫成檔案。
+  async function loadScriptPresetsFromDisk() {
+    if (!AssetManager.isConnected()) { if (!scriptPresetsCache) scriptPresetsCache = []; return; }
+    try {
+      const text = await AssetManager.readWorkspaceTextFile(SCRIPT_PRESETS_FILE);
+      if (text != null) {
+        const arr = JSON.parse(text);
+        scriptPresetsCache = Array.isArray(arr) ? arr : [];
+      } else {
+        // 檔案不存在 → 嘗試從舊 localStorage 搬移
+        let legacy = [];
+        try { legacy = JSON.parse(localStorage.getItem(SCRIPT_PRESETS_KEY) || '[]'); } catch {}
+        scriptPresetsCache = Array.isArray(legacy) ? legacy : [];
+        if (scriptPresetsCache.length) {
+          await persistScriptPresets();
+          if (window.showToast) window.showToast(`📦 已將 ${scriptPresetsCache.length} 個舊腳本搬移到本機工作夾`, 3000);
+        }
+      }
+    } catch (e) {
+      console.warn('Load script presets failed:', e);
+      if (!scriptPresetsCache) scriptPresetsCache = [];
+    }
+    renderScriptPresets();
+  }
+
+  // 確保已嘗試載入一次（連結後）。
+  function ensureScriptPresetsLoaded() {
+    if (scriptPresetsCache !== null) return Promise.resolve();
+    if (!scriptPresetsLoading) scriptPresetsLoading = loadScriptPresetsFromDisk().finally(() => { scriptPresetsLoading = null; });
+    return scriptPresetsLoading;
   }
 
   // 擷取目前腳本表單的所有欄位成一個設定物件。
@@ -1984,6 +2034,7 @@
         return;
       }
       populateScriptFolders();
+      ensureScriptPresetsLoaded();
       renderScriptPresets();
       dom.scriptModal.classList.remove('hidden');
     });
@@ -2028,8 +2079,9 @@
 
     dom.scriptBtnExecute.addEventListener('click', () => executeAutomation());
 
-    // 初始渲染側欄（頁面載入即顯示已儲存腳本）
+    // 初始渲染側欄（先空畫，連結後自磁碟載入並重繪）
     renderScriptPresets();
+    ensureScriptPresetsLoaded();
 
     // --- Auto-trigger on Node Saved Asset：逐一比對已儲存腳本（每張獨立 autoRun + keyword）---
     let autoRunTimeout = null;
@@ -2100,6 +2152,7 @@
         populateScriptFolders();
       }
       renderGallery();
+      ensureScriptPresetsLoaded(); // 連結/重整工作夾後自磁碟載入腳本（僅首次）
     });
 
     // Sidebar Toggle

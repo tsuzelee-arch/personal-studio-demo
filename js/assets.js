@@ -724,6 +724,30 @@ window.AssetManager = (function() {
     }
   }
 
+  // Read a UTF-8 text file from the workspace root. Returns null if not connected
+  // or the file doesn't exist (so callers can migrate/seed). Throws on other errors.
+  async function readWorkspaceTextFile(filename) {
+    if (!workspaceHandle || !permissionGranted) return null;
+    try {
+      const fh = await workspaceHandle.getFileHandle(filename);
+      const file = await fh.getFile();
+      return await file.text();
+    } catch (e) {
+      if (e && e.name === 'NotFoundError') return null;
+      throw e;
+    }
+  }
+
+  // Write a UTF-8 text file to the workspace root (durable on-disk storage, unlike
+  // localStorage). Used to persist settings such as automation-script presets.
+  async function writeWorkspaceTextFile(filename, text) {
+    if (!workspaceHandle || !permissionGranted) throw new Error('未連結本機目錄或未授權');
+    const fh = await workspaceHandle.getFileHandle(filename, { create: true });
+    const writable = await fh.createWritable();
+    await writable.write(text);
+    await writable.close();
+  }
+
   // Public API
   return {
     initDB,
@@ -731,6 +755,8 @@ window.AssetManager = (function() {
     getActiveFolder: () => activeFolder,
     refreshUI,
     isConnected: () => !!workspaceHandle && permissionGranted,
+    readWorkspaceTextFile,
+    writeWorkspaceTextFile,
     getFileBlobUrlByPath: getFileBlobUrl,
     getFileHandleByPath: (path) => {
       const fileObj = allImageFiles.find(f => f.path === path);
