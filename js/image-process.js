@@ -1179,7 +1179,6 @@
     }
 
     const fitMode = dom.scriptFitMode.value;
-    const desaturate = !!(dom.scriptDesaturate && dom.scriptDesaturate.checked); // 去除飽和度（灰階）
 
     if (dom.scriptModal && !dom.scriptModal.classList.contains('hidden')) {
       dom.scriptModal.classList.add('hidden');
@@ -2261,6 +2260,16 @@
 
     const img = await loadImageElement(srcUrl);
 
+    if (fitMode === 'desaturate') {
+      // 去除飽和度：原尺寸轉灰階，不縮放、不裁切
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.filter = 'grayscale(1)';
+      ctx.drawImage(img, 0, 0);
+      return [canvas.toDataURL('image/png')];
+    }
+
     if (fitMode === 'refcrop') {
       const W = img.naturalWidth, H = img.naturalHeight;
       const cropParts = [];
@@ -2281,7 +2290,6 @@
         const canvas = document.createElement('canvas');
         canvas.width = part.w; canvas.height = part.h;
         const ctx = canvas.getContext('2d');
-        if (config.desaturate) ctx.filter = 'grayscale(1)';
         ctx.drawImage(img, part.x, part.y, part.w, part.h, 0, 0, part.w, part.h);
         return canvas.toDataURL('image/png');
       });
@@ -2307,7 +2315,6 @@
     const layout = calculateFitLayout(img.naturalWidth, img.naturalHeight, targetW, targetH, fitMode, config.align || 'center');
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    if (config.desaturate) ctx.filter = 'grayscale(1)'; // 去除飽和度（背景填色已先畫，不受影響）
     ctx.drawImage(img, layout.dx, layout.dy, layout.dw, layout.dh);
     return [canvas.toDataURL('image/png')];
   }
