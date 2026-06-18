@@ -57,6 +57,10 @@
       <header class="topbar">
         <div class="page-title" id="pageTitle">圖像解構</div>
         <div class="topbar-actions" id="topbarActions">
+          <button class="global-dev-log-btn" id="globalDevLogBtn" title="開啟開發日誌">
+            <span>📋</span>
+            <span class="btn-text">開發日誌</span>
+          </button>
           <button class="global-ide-agent-btn" id="globalIdeAgentBtn" title="開啟 IDE Agent">✨</button>
         </div>
       </header>
@@ -1208,6 +1212,21 @@
     </div>
   </div>
 
+  <!-- Global Floating Development Log -->
+  <div class="global-dev-log-panel hidden" id="globalDevLogPanel">
+    <div class="dev-log-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="dev-log-header-title">📋 開發日誌 (Development Log)</span>
+        <button id="devLogRefreshBtn" class="dev-log-refresh-btn" title="重新載入日誌">🔄</button>
+      </div>
+      <button class="dev-log-close-btn" id="devLogCloseBtn">&#x2715;</button>
+    </div>
+    <div class="dev-log-body" style="padding: 0; overflow: hidden; height: calc(100% - 45px);">
+      <iframe id="devLogFrame" style="width: 100%; height: 100%; border: none; background: #ffffff;" src="about:blank"></iframe>
+    </div>
+  </div>
+
+
   <!-- Simple Workflow: Library Modal -->
   <div class="modal-backdrop hidden" id="swfLibraryModal">
     <div class="modal" style="max-width: 450px;">
@@ -1245,6 +1264,7 @@
   <script src="js/workflow-library.js?v=__BUILD_TS__"></script>
   <script src="js/simple-workflow.js?v=__BUILD_TS__"></script>
   <script src="js/ide-agent.js?v=__BUILD_TS__"></script>
+  <script src="js/dev-log.js?v=__BUILD_TS__"></script>
   <!-- JSZip & FileSaver for Image Processing page -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>

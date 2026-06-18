@@ -2,19 +2,19 @@
 require('dotenv').config();
 
 const express = require('express');
-const cors    = require('cors');
-const morgan  = require('morgan');
-const path    = require('path');
-const fs      = require('fs');
+const cors = require('cors');
+const morgan = require('morgan');
+const path = require('path');
+const fs = require('fs');
 
 
-const aiRouter         = require('./server/routes/ai');
-const n8nRouter        = require('./server/routes/n8n');
+const aiRouter = require('./server/routes/ai');
+const n8nRouter = require('./server/routes/n8n');
 const localAssetsRouter = require('./server/routes/localAssets');
 
-const app  = express();
-const PORT = process.env.PORT  || 3001;
-const N8N  = process.env.N8N_PORT || 5678;
+const app = express();
+const PORT = process.env.PORT || 3001;
+const N8N = process.env.N8N_PORT || 5678;
 // Bind to loopback by default so the file-system API isn't reachable from the LAN.
 // Override with HOST=0.0.0.0 only if you deliberately need remote access.
 const HOST = process.env.HOST || '127.0.0.1';
@@ -54,27 +54,28 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Health
 app.get('/health', (_req, res) => {
   res.json({
-    status:    'ok',
-    uptime:    Math.round(process.uptime()),
-    n8nUrl:    `http://localhost:${N8N}`,
+    status: 'ok',
+    uptime: Math.round(process.uptime()),
+    n8nUrl: `http://localhost:${N8N}`,
     timestamp: new Date().toISOString()
   });
 });
 
 // API
-app.use('/api/ai',           aiRouter);
-app.use('/api/n8n',          n8nRouter);
+app.use('/api/ai', aiRouter);
+app.use('/api/n8n', n8nRouter);
 app.use('/api/local-assets', requireLocalOrigin, localAssetsRouter);
 
+
 // Serve static frontend — only expose specific subdirectories, not the project root
-app.use('/js',     express.static(path.join(__dirname, 'js')));
-app.use('/css',    express.static(path.join(__dirname, 'css')));
+app.use('/js', express.static(path.join(__dirname, 'js')));
+app.use('/css', express.static(path.join(__dirname, 'css')));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // Serve index.html with build timestamp injected for automatic cache busting on restart
 const _indexPath = path.resolve(__dirname, 'index.html');
 let _indexTemplate = '';
-try { _indexTemplate = fs.readFileSync(_indexPath, 'utf8'); } catch (e) {}
+try { _indexTemplate = fs.readFileSync(_indexPath, 'utf8'); } catch (e) { }
 
 app.get('*', (_req, res) => {
   if (process.env.NODE_ENV !== 'production') {
