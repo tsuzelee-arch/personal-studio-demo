@@ -32,4 +32,9 @@ CLAUDE-FABLE-*.md
 upload_*.bat
 *.bat
 
+# Agent guides and skills
+STUDIO_GUIDE.md
+STUDIO_USER_GUIDE.md
+
+
 
