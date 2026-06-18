@@ -537,6 +537,7 @@
       <button class="swf-grp-fit-btn swf-left-tab-btn" title="自動調整範圍以囊括所有節點"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
       <button class="swf-grp-automation-btn swf-left-tab-btn" title="完成後自動化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 4v4M9 13h.01M15 13h.01M2 14h2M20 14h2"/></svg></button>
       <div class="swf-group-sidebar">
+        <div class="swf-panel-resize" title="拖動調整寬度"></div>
         <div class="swf-gs-header">
           <span>📁 上游圖片</span>
           <button class="swf-gs-close">✕</button>
@@ -561,7 +562,7 @@
         <div class="swf-gs-images"></div>
       </div>
       <div class="swf-group-params-sidebar">
-        <div class="swf-gps-resize" title="拖動調整寬度"></div>
+        <div class="swf-panel-resize" title="拖動調整寬度"></div>
         <div class="swf-gs-header">
           <span>⚙ 統一參數</span>
           <button class="swf-gps-close">✕</button>
@@ -587,6 +588,7 @@
         </div>
       </div>
       <div class="swf-group-automation-sidebar">
+        <div class="swf-panel-resize" title="拖動調整寬度"></div>
         <div class="swf-gs-header">
           <span>🤖 完成後自動化</span>
           <button class="swf-gas-close">✕</button>
@@ -748,7 +750,7 @@
         group.sidebarOpen = false; el.classList.remove('sidebar-open');
         group.automationSidebarOpen = false; el.classList.remove('automation-sidebar-open');
         renderGroupParamsSidebar(group);
-        if (group.paramsSidebarWidth) applyGpsWidth(group, group.paramsSidebarWidth);
+        if (group.paramsSidebarWidth) applyPanelWidth(el.querySelector('.swf-group-params-sidebar'), group.paramsSidebarWidth);
       }
       el.classList.toggle('params-sidebar-open', group.paramsSidebarOpen);
     });
@@ -768,7 +770,10 @@
     });
     // 統一提示詞 — same rich-text editor as node prompts (color tags, inline thumbs, paste from prompt library)
     setupPromptEditor(el.querySelector('.swf-gps-prompt'));
-    setupGpsResize(group);
+    // Left-edge width resize for all three slide-out panels.
+    setupPanelResize(group, '.swf-group-sidebar', 'sidebarWidth');
+    setupPanelResize(group, '.swf-group-params-sidebar', 'paramsSidebarWidth');
+    setupPanelResize(group, '.swf-group-automation-sidebar', 'automationSidebarWidth');
 
     // 完成後自動化 slide-out toggle (mutually exclusive with the other two panels)
     el.querySelector('.swf-grp-automation-btn').addEventListener('click', (e) => {
@@ -778,6 +783,7 @@
         group.sidebarOpen = false; el.classList.remove('sidebar-open');
         group.paramsSidebarOpen = false; el.classList.remove('params-sidebar-open');
         renderGroupAutomationSidebar(group);
+        if (group.automationSidebarWidth) applyPanelWidth(el.querySelector('.swf-group-automation-sidebar'), group.automationSidebarWidth);
       }
       el.classList.toggle('automation-sidebar-open', group.automationSidebarOpen);
     });
@@ -818,6 +824,7 @@
         group.paramsSidebarOpen = false; el.classList.remove('params-sidebar-open');
         group.automationSidebarOpen = false; el.classList.remove('automation-sidebar-open');
         renderGroupSidebar(group);
+        if (group.sidebarWidth) applyPanelWidth(el.querySelector('.swf-group-sidebar'), group.sidebarWidth);
       }
       el.classList.toggle('sidebar-open', group.sidebarOpen);
     });
@@ -1102,19 +1109,19 @@
     window.addEventListener('mouseup', () => { isResizing = false; });
   }
 
-  // 統一參數 panel sits to the LEFT of the group (CSS left:-230, width:220 → right edge
-  // anchored 10px off the group's left). Dragging the left-edge handle leftward widens
-  // it; we keep the right edge fixed by setting left = -(width + 10).
-  const GPS_PANEL_GAP = 10, GPS_MIN_W = 180, GPS_MAX_W = 480;
-  function applyGpsWidth(group, w) {
-    const panel = group.el.querySelector('.swf-group-params-sidebar');
+  // The three group slide-out panels (上游圖片 / 統一參數 / 完成後自動化) all sit to the
+  // LEFT of the group (CSS left:-230, width:220 → right edge anchored 10px off the group's
+  // left). Dragging a panel's left-edge handle leftward widens it; the right edge stays
+  // fixed by setting left = -(width + 10). Shared by all three panels.
+  const PANEL_GAP = 10, PANEL_MIN_W = 180, PANEL_MAX_W = 480;
+  function applyPanelWidth(panel, w) {
     if (!panel) return;
     panel.style.width = w + 'px';
-    panel.style.left = -(w + GPS_PANEL_GAP) + 'px';
+    panel.style.left = -(w + PANEL_GAP) + 'px';
   }
-  function setupGpsResize(group) {
-    const handle = group.el.querySelector('.swf-gps-resize');
-    const panel = group.el.querySelector('.swf-group-params-sidebar');
+  function setupPanelResize(group, panelSelector, storeKey) {
+    const panel = group.el.querySelector(panelSelector);
+    const handle = panel && panel.querySelector('.swf-panel-resize');
     if (!handle || !panel) return;
     let isResizing = false, startX = 0, startW = 0;
 
@@ -1128,9 +1135,9 @@
     window.addEventListener('mousemove', (e) => {
       if (!isResizing) return;
       // Drag left (clientX decreases) → wider; /zoomLevel matches the zoomed wrapper.
-      const newW = Math.max(GPS_MIN_W, Math.min(GPS_MAX_W, startW + (startX - e.clientX) / zoomLevel));
-      group.paramsSidebarWidth = newW;
-      applyGpsWidth(group, newW);
+      const newW = Math.max(PANEL_MIN_W, Math.min(PANEL_MAX_W, startW + (startX - e.clientX) / zoomLevel));
+      group[storeKey] = newW;
+      applyPanelWidth(panel, newW);
     });
 
     window.addEventListener('mouseup', () => { isResizing = false; });
@@ -3119,7 +3126,9 @@
         postAutomationConfig: { ...(g.postAutomationConfig || {}) }, postAutomationEnabled: !!g.postAutomationEnabled,
         folder: folderInput ? folderInput.value : '',
         importFolder: importFolderSelect ? importFolderSelect.value : (g.importFolder || ''),
-        paramsSidebarWidth: g.paramsSidebarWidth || null
+        sidebarWidth: g.sidebarWidth || null,
+        paramsSidebarWidth: g.paramsSidebarWidth || null,
+        automationSidebarWidth: g.automationSidebarWidth || null
       };
     }
     return { nodes: nodesData, groups: groupsData, edges: edges.map(e => ({ ...e })), panX, panY, zoomLevel, version: 3 };
@@ -3216,7 +3225,9 @@
             g.postAutomationConfig = gd.postAutomationConfig || { fitMode: 'contain', resolution: '1024', align: 'center', bg: '#FFFFFF', bgPicker: '#FFFFFF', cropRefLine: 'crosshair' };
             g.postAutomationEnabled = !!gd.postAutomationEnabled;
             g.resultImages = Array.isArray(gd.resultImages) ? [...gd.resultImages] : [];
-            if (gd.paramsSidebarWidth) { g.paramsSidebarWidth = gd.paramsSidebarWidth; applyGpsWidth(g, gd.paramsSidebarWidth); }
+            if (gd.sidebarWidth) { g.sidebarWidth = gd.sidebarWidth; applyPanelWidth(g.el.querySelector('.swf-group-sidebar'), gd.sidebarWidth); }
+            if (gd.paramsSidebarWidth) { g.paramsSidebarWidth = gd.paramsSidebarWidth; applyPanelWidth(g.el.querySelector('.swf-group-params-sidebar'), gd.paramsSidebarWidth); }
+            if (gd.automationSidebarWidth) { g.automationSidebarWidth = gd.automationSidebarWidth; applyPanelWidth(g.el.querySelector('.swf-group-automation-sidebar'), gd.automationSidebarWidth); }
             const folderInput = g.el.querySelector('.swf-group-folder');
             if (folderInput) folderInput.value = gd.folder || '';
             
