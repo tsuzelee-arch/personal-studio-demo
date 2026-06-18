@@ -448,7 +448,7 @@
     // fit modes (contain/cover/stretch) use resolution/align/bg; refcrop uses cropRefLine.
     // updateImageProcessParamVisibility toggles these on render and on change.
     return `
-      <div class="swf-param-row"><label>處理功能</label>${sel('fitMode', 'contain', [['contain', '縮放適配 (Contain)'], ['cover', '縮放填充 (Cover)'], ['stretch', '拉伸填充 (Stretch)'], ['refcrop', '參考線裁切 (Ref Crop)'], ['desaturate', '去除飽和度 (灰階)']])}</div>
+      <div class="swf-param-row"><label>處理功能</label>${sel('fitMode', 'contain', [['contain', '縮放適配 (Contain)'], ['cover', '縮放填充 (Cover)'], ['stretch', '拉伸填充 (Stretch)'], ['refcrop', '參考線裁切 (Ref Crop)'], ['stitch', '拼合圖片'], ['desaturate', '去除飽和度 (灰階)']])}</div>
       <div class="swf-ip-fit-params">
         <div class="swf-param-row"><label>目標解析度</label>${sel('resolution', '1024', [['512', '512 × 512'], ['1024_512', '1024 × 512'], ['512_1024', '512 × 1024'], ['1024', '1024 × 1024'], ['2048', '2048 × 2048']])}</div>
         <div class="swf-param-row"><label>對齊基準</label>${sel('align', 'center', [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['top-left', 'Top-Left'], ['top-right', 'Top-Right'], ['bottom-left', 'Bottom-Left'], ['bottom-right', 'Bottom-Right']])}</div>
@@ -457,6 +457,15 @@
       </div>
       <div class="swf-ip-crop-params">
         <div class="swf-param-row"><label>裁切參考線</label>${sel('cropRefLine', 'crosshair', [['crosshair', '十字線 (4 等份)'], ['thirds', '井字線 (9 等份)']])}</div>
+      </div>
+      <div class="swf-ip-stitch-params">
+        <div class="swf-param-row"><label>拼合方向</label>${sel('stitchDir', 'horizontal', [['horizontal', '水平排列'], ['vertical', '垂直排列'], ['grid', '網格']])}</div>
+        <div class="swf-param-row swf-ip-stitch-grid-cols"><label>欄數</label><input type="number" data-param="stitchGridCols" value="${p.stitchGridCols || 2}" min="1" style="width:60px;"></div>
+        <div class="swf-param-row"><label>間距 (px)</label><input type="number" data-param="stitchGap" value="${p.stitchGap || 0}" min="0" style="width:60px;"></div>
+        <div class="swf-param-row"><label>對齊方式</label>${sel('stitchAlign', 'center', [['center', '置中'], ['start', '起始'], ['end', '末端']])}</div>
+        <div class="swf-param-row"><label>尺寸模式</label>${sel('stitchSize', 'original', [['original', '保持原尺寸'], ['uniform', '以首張為準縮放']])}</div>
+        <div class="swf-param-row"><label>背景顏色</label>${sel('stitchBg', '#FFFFFF', [['#FFFFFF', '白色'], ['#000000', '黑色'], ['transparent', '透明'], ['custom', '自訂顏色']])}</div>
+        <div class="swf-param-row swf-ip-stitch-bgpicker"><label>自訂背景色</label><input type="color" data-param="stitchBgPicker" value="${p.stitchBgPicker || '#FFFFFF'}"></div>
       </div>
     `;
   }
@@ -467,14 +476,27 @@
     const fitSel = area.querySelector('select[data-param="fitMode"]');
     if (!fitSel) return;
     const mode = fitSel.value;
-    const isFit = mode === 'contain' || mode === 'cover' || mode === 'stretch';
-    const fitBox = area.querySelector('.swf-ip-fit-params');
-    const cropBox = area.querySelector('.swf-ip-crop-params');
-    if (fitBox) fitBox.style.display = isFit ? '' : 'none';
-    if (cropBox) cropBox.style.display = mode === 'refcrop' ? '' : 'none';
+    const isFit    = mode === 'contain' || mode === 'cover' || mode === 'stretch';
+    const isStitch = mode === 'stitch';
+    const fitBox   = area.querySelector('.swf-ip-fit-params');
+    const cropBox  = area.querySelector('.swf-ip-crop-params');
+    const stitchBox = area.querySelector('.swf-ip-stitch-params');
+    if (fitBox)    fitBox.style.display    = isFit    ? '' : 'none';
+    if (cropBox)   cropBox.style.display   = mode === 'refcrop' ? '' : 'none';
+    if (stitchBox) stitchBox.style.display = isStitch ? '' : 'none';
+    // fit bg picker
     const bgSel = area.querySelector('select[data-param="bg"]');
     const pickerRow = area.querySelector('.swf-ip-bgpicker-row');
     if (pickerRow) pickerRow.style.display = (isFit && bgSel && bgSel.value === 'custom') ? '' : 'none';
+    // stitch sub-visibility
+    if (isStitch) {
+      const dirSel  = area.querySelector('select[data-param="stitchDir"]');
+      const bgsSel  = area.querySelector('select[data-param="stitchBg"]');
+      const gridRow = area.querySelector('.swf-ip-stitch-grid-cols');
+      const bgpRow  = area.querySelector('.swf-ip-stitch-bgpicker');
+      if (gridRow) gridRow.style.display = (dirSel && dirSel.value === 'grid') ? '' : 'none';
+      if (bgpRow)  bgpRow.style.display  = (bgsSel && bgsSel.value === 'custom') ? '' : 'none';
+    }
   }
 
   // Attach the visibility toggling to an image-process param block that isn't wired by
@@ -2074,7 +2096,7 @@
     area.querySelectorAll('select[data-param]').forEach(inp => {
       inp.addEventListener('change', () => {
         node.data.params[inp.dataset.param] = inp.value;
-        if (inp.dataset.param === 'fitMode' || inp.dataset.param === 'bg') updateImageProcessParamVisibility(area);
+        if (['fitMode', 'bg', 'stitchDir', 'stitchBg'].includes(inp.dataset.param)) updateImageProcessParamVisibility(area);
       });
       node.data.params[inp.dataset.param] = inp.value;
     });
@@ -2716,15 +2738,30 @@
           bg: params.bg || '#FFFFFF',
           bgPicker: params.bgPicker || '#FFFFFF',
           cropRefLine: params.cropRefLine || 'crosshair',
+          stitchDir: params.stitchDir || 'horizontal',
+          stitchGap: params.stitchGap || 0,
+          stitchAlign: params.stitchAlign || 'center',
+          stitchSize: params.stitchSize || 'original',
+          stitchBg: params.stitchBg || '#FFFFFF',
+          stitchBgPicker: params.stitchBgPicker || '#FFFFFF',
+          stitchGridCols: params.stitchGridCols || 2,
         };
-        const processed = [];
-        for (const src of allRefs) {
-          const outs = await window.ImageProcess.processImageInMemory(src, cfg);
-          if (Array.isArray(outs)) processed.push(...outs);
+        if (cfg.fitMode === 'stitch') {
+          if (!window.ImageProcess?.stitchImagesFromUrls) throw new Error('拼合功能尚未載入');
+          if (allRefs.length < 2) throw new Error('拼合需要至少 2 張輸入圖片');
+          const stitchedUrl = await window.ImageProcess.stitchImagesFromUrls(allRefs, cfg);
+          preprocessResults = [stitchedUrl];
+          imageUrl = stitchedUrl;
+        } else {
+          const processed = [];
+          for (const src of allRefs) {
+            const outs = await window.ImageProcess.processImageInMemory(src, cfg);
+            if (Array.isArray(outs)) processed.push(...outs);
+          }
+          if (!processed.length) throw new Error('預處理未產生結果');
+          preprocessResults = processed;
+          imageUrl = processed[0];
         }
-        if (!processed.length) throw new Error('預處理未產生結果');
-        preprocessResults = processed;
-        imageUrl = processed[0];
       } else if (model === 'comfyui') {
         const serverUrl = params.serverUrl || 'http://127.0.0.1:8188';
         const cleanUrl = serverUrl.trim().replace(/\/+$/, '');

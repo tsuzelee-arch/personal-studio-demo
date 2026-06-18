@@ -1128,6 +1128,101 @@
     }
   }
 
+  // Pure-logic stitch used by node preprocess (no DOM, returns dataURL).
+  async function stitchImagesFromUrls(urls, cfg) {
+    if (!urls || urls.length < 2) throw new Error('拼合需要至少 2 張圖片');
+    cfg = cfg || {};
+    const direction = cfg.stitchDir || 'horizontal';
+    const gap       = parseInt(cfg.stitchGap, 10) || 0;
+    const align     = cfg.stitchAlign || 'center';
+    const sizeMode  = cfg.stitchSize || 'original';
+    const cols      = Math.max(1, parseInt(cfg.stitchGridCols, 10) || 2);
+    let bgColor     = cfg.stitchBg || '#FFFFFF';
+    if (bgColor === 'custom') bgColor = cfg.stitchBgPicker || '#FFFFFF';
+
+    const imgs = await Promise.all(urls.map(u => loadImageElement(u)));
+    const count = imgs.length;
+
+    let dimensions = [];
+    if (sizeMode === 'uniform') {
+      const refW = imgs[0].naturalWidth;
+      const refH = imgs[0].naturalHeight;
+      imgs.forEach(img => {
+        if (direction === 'horizontal') {
+          const s = refH / img.naturalHeight;
+          dimensions.push({ w: img.naturalWidth * s, h: refH, img });
+        } else if (direction === 'vertical') {
+          const s = refW / img.naturalWidth;
+          dimensions.push({ w: refW, h: img.naturalHeight * s, img });
+        } else {
+          dimensions.push({ w: refW, h: refH, img });
+        }
+      });
+    } else {
+      imgs.forEach(img => dimensions.push({ w: img.naturalWidth, h: img.naturalHeight, img }));
+    }
+
+    let canvasW = 0, canvasH = 0;
+    let gridMeta = null;
+    if (direction === 'horizontal') {
+      canvasW = dimensions.reduce((s, d) => s + d.w, 0) + (count - 1) * gap;
+      canvasH = Math.max(...dimensions.map(d => d.h));
+    } else if (direction === 'vertical') {
+      canvasW = Math.max(...dimensions.map(d => d.w));
+      canvasH = dimensions.reduce((s, d) => s + d.h, 0) + (count - 1) * gap;
+    } else {
+      const rows = Math.ceil(count / cols);
+      const colWidths  = Array(cols).fill(0);
+      const rowHeights = Array(rows).fill(0);
+      dimensions.forEach((d, i) => {
+        colWidths[i % cols]         = Math.max(colWidths[i % cols], d.w);
+        rowHeights[Math.floor(i / cols)] = Math.max(rowHeights[Math.floor(i / cols)], d.h);
+      });
+      canvasW = colWidths.reduce((s, w) => s + w, 0) + (cols - 1) * gap;
+      canvasH = rowHeights.reduce((s, h) => s + h, 0) + (rows - 1) * gap;
+      gridMeta = { colWidths, rowHeights, cols };
+    }
+
+    const MAX = 16384;
+    if (canvasW > MAX || canvasH > MAX) throw new Error(`拼合畫布尺寸過大 (${canvasW}×${canvasH})，請改用「以首張為準縮放對齊」`);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasW; canvas.height = canvasH;
+    const ctx = canvas.getContext('2d');
+    if (bgColor === 'transparent') ctx.clearRect(0, 0, canvasW, canvasH);
+    else { ctx.fillStyle = bgColor; ctx.fillRect(0, 0, canvasW, canvasH); }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    if (direction === 'horizontal') {
+      let x = 0;
+      dimensions.forEach(d => {
+        let dy = align === 'center' ? (canvasH - d.h) / 2 : align === 'end' ? canvasH - d.h : 0;
+        ctx.drawImage(d.img, x, dy, d.w, d.h);
+        x += d.w + gap;
+      });
+    } else if (direction === 'vertical') {
+      let y = 0;
+      dimensions.forEach(d => {
+        let dx = align === 'center' ? (canvasW - d.w) / 2 : align === 'end' ? canvasW - d.w : 0;
+        ctx.drawImage(d.img, dx, y, d.w, d.h);
+        y += d.h + gap;
+      });
+    } else {
+      const { colWidths, rowHeights } = gridMeta;
+      dimensions.forEach((d, i) => {
+        const c = i % cols, r = Math.floor(i / cols);
+        let cx = 0; for (let k = 0; k < c; k++) cx += colWidths[k] + gap;
+        let cy = 0; for (let k = 0; k < r; k++) cy += rowHeights[k] + gap;
+        let dx = cx + (align === 'center' ? (colWidths[c] - d.w) / 2 : align === 'end' ? colWidths[c] - d.w : 0);
+        let dy = cy + (align === 'center' ? (rowHeights[r] - d.h) / 2 : align === 'end' ? rowHeights[r] - d.h : 0);
+        ctx.drawImage(d.img, dx, dy, d.w, d.h);
+      });
+    }
+
+    return canvas.toDataURL('image/png');
+  }
+
   // ──────────── Automation Script Pipeline ────────────
   function calculateFitLayout(imgW, imgH, targetW, targetH, fitMode, alignment) {
     if (fitMode === 'stretch') {
@@ -2362,6 +2457,7 @@
     addFsaAsset: handleFsaAsset,
     getSavedScripts,
     ensureScriptPresetsLoaded,
-    processImageInMemory
+    processImageInMemory,
+    stitchImagesFromUrls
   };
 })();
