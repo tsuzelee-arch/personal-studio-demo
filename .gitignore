@@ -20,3 +20,16 @@ server-config.json
 # Scratch / temp files
 step704*.txt
 test_insert.html
+test_iframe.html
+
+# Local VS Code settings
+.vscode/
+
+# Agent logs and large logs
+CLAUDE-FABLE-*.md
+
+# Git upload scripts
+upload_*.bat
+*.bat
+
+
