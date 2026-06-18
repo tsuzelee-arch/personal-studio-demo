@@ -444,15 +444,46 @@
       const o = opts.map(([v, l]) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`).join('');
       return `<select data-param="${key}">${o}</select>`;
     };
+    // Params are grouped so only the selected 處理功能's relevant ones show (no overlap):
+    // fit modes (contain/cover/stretch) use resolution/align/bg; refcrop uses cropRefLine.
+    // updateImageProcessParamVisibility toggles these on render and on change.
     return `
       <div class="swf-param-row"><label>處理功能</label>${sel('fitMode', 'contain', [['contain', '縮放適配 (Contain)'], ['cover', '縮放填充 (Cover)'], ['stretch', '拉伸填充 (Stretch)'], ['refcrop', '參考線裁切 (Ref Crop)']])}</div>
-      <div class="swf-param-row"><label>目標解析度</label>${sel('resolution', '1024', [['512', '512 × 512'], ['1024_512', '1024 × 512'], ['512_1024', '512 × 1024'], ['1024', '1024 × 1024'], ['2048', '2048 × 2048']])}</div>
-      <div class="swf-param-row"><label>對齊基準</label>${sel('align', 'center', [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['top-left', 'Top-Left'], ['top-right', 'Top-Right'], ['bottom-left', 'Bottom-Left'], ['bottom-right', 'Bottom-Right']])}</div>
-      <div class="swf-param-row"><label>背景填充顏色</label>${sel('bg', '#FFFFFF', [['#FFFFFF', '白色'], ['#000000', '黑色'], ['#00FF00', '綠色'], ['#0000FF', '藍色'], ['transparent', '透明'], ['custom', '自訂顏色']])}</div>
-      <div class="swf-param-row"><label>自訂背景色（背景＝自訂時）</label><input type="color" data-param="bgPicker" value="${p.bgPicker || '#FFFFFF'}"></div>
-      <div class="swf-param-row"><label>裁切參考線（Ref Crop 時）</label>${sel('cropRefLine', 'crosshair', [['crosshair', '十字線 (4 等份)'], ['thirds', '井字線 (9 等份)']])}</div>
+      <div class="swf-ip-fit-params">
+        <div class="swf-param-row"><label>目標解析度</label>${sel('resolution', '1024', [['512', '512 × 512'], ['1024_512', '1024 × 512'], ['512_1024', '512 × 1024'], ['1024', '1024 × 1024'], ['2048', '2048 × 2048']])}</div>
+        <div class="swf-param-row"><label>對齊基準</label>${sel('align', 'center', [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['top-left', 'Top-Left'], ['top-right', 'Top-Right'], ['bottom-left', 'Bottom-Left'], ['bottom-right', 'Bottom-Right']])}</div>
+        <div class="swf-param-row"><label>背景填充顏色</label>${sel('bg', '#FFFFFF', [['#FFFFFF', '白色'], ['#000000', '黑色'], ['#00FF00', '綠色'], ['#0000FF', '藍色'], ['transparent', '透明'], ['custom', '自訂顏色']])}</div>
+        <div class="swf-param-row swf-ip-bgpicker-row"><label>自訂背景色</label><input type="color" data-param="bgPicker" value="${p.bgPicker || '#FFFFFF'}"></div>
+      </div>
+      <div class="swf-ip-crop-params">
+        <div class="swf-param-row"><label>裁切參考線</label>${sel('cropRefLine', 'crosshair', [['crosshair', '十字線 (4 等份)'], ['thirds', '井字線 (9 等份)']])}</div>
+      </div>
       <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px;"><input type="checkbox" data-param="desaturate" ${p.desaturate ? 'checked' : ''}> 去除飽和度（灰階）</label>
     `;
+  }
+
+  // Show only the params relevant to the selected 處理功能 (and the custom-bg picker
+  // only when 背景=自訂). No-op when the area isn't an image-process param block.
+  function updateImageProcessParamVisibility(area) {
+    const fitSel = area.querySelector('select[data-param="fitMode"]');
+    if (!fitSel) return;
+    const isRefcrop = fitSel.value === 'refcrop';
+    const fitBox = area.querySelector('.swf-ip-fit-params');
+    const cropBox = area.querySelector('.swf-ip-crop-params');
+    if (fitBox) fitBox.style.display = isRefcrop ? 'none' : '';
+    if (cropBox) cropBox.style.display = isRefcrop ? '' : 'none';
+    const bgSel = area.querySelector('select[data-param="bg"]');
+    const pickerRow = area.querySelector('.swf-ip-bgpicker-row');
+    if (pickerRow) pickerRow.style.display = (!isRefcrop && bgSel && bgSel.value === 'custom') ? '' : 'none';
+  }
+
+  // Attach the visibility toggling to an image-process param block that isn't wired by
+  // wireParamInputs (e.g. the group 統一參數 panel, which uses wireModalSliders).
+  function wireImageProcessVisibility(area) {
+    if (!area) return;
+    area.querySelectorAll('select[data-param="fitMode"], select[data-param="bg"]').forEach(s =>
+      s.addEventListener('change', () => updateImageProcessParamVisibility(area)));
+    updateImageProcessParamVisibility(area);
   }
 
   function buildParamsHTML(modelKey, savedParams) {
@@ -792,6 +823,7 @@
       const paramsBox = el.querySelector('.swf-gps-params');
       paramsBox.innerHTML = buildParamsHTML(e.target.value, {});
       wireModalSliders(paramsBox);
+      wireImageProcessVisibility(paramsBox);
     });
     el.querySelector('.swf-gps-apply').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1440,7 +1472,7 @@
     const modelSel = el.querySelector('.swf-gps-model');
     if (modelSel) modelSel.value = model;
     const paramsBox = el.querySelector('.swf-gps-params');
-    if (paramsBox) { paramsBox.innerHTML = buildParamsHTML(model, params); wireModalSliders(paramsBox); }
+    if (paramsBox) { paramsBox.innerHTML = buildParamsHTML(model, params); wireModalSliders(paramsBox); wireImageProcessVisibility(paramsBox); }
 
     const folderSel = el.querySelector('.swf-gps-folder');
     if (folderSel) {
@@ -2044,7 +2076,10 @@
   function wireParamInputs(node) {
     const area = node.el.querySelector('.swf-params-area'); if (!area) return;
     area.querySelectorAll('select[data-param]').forEach(inp => {
-      inp.addEventListener('change', () => { node.data.params[inp.dataset.param] = inp.value; });
+      inp.addEventListener('change', () => {
+        node.data.params[inp.dataset.param] = inp.value;
+        if (inp.dataset.param === 'fitMode' || inp.dataset.param === 'bg') updateImageProcessParamVisibility(area);
+      });
       node.data.params[inp.dataset.param] = inp.value;
     });
     area.querySelectorAll('input[type="text"][data-param], textarea[data-param]').forEach(inp => {
@@ -2093,6 +2128,7 @@
       else node.data.params[inp.dataset.param] = inp.value;
     });
     applyModelModeUI(node);
+    updateImageProcessParamVisibility(area);
   }
 
   // In 預處理 mode the node runs image processing (no AI prompt), so hide the prompt
