@@ -83,6 +83,7 @@
     scriptStitchSize: document.getElementById('ipScriptStitchSize'),
     scriptCropParams: document.getElementById('ipScriptCropParams'),
     scriptCropRefLine: document.getElementById('ipScriptCropRefLine'),
+    scriptDesaturate: document.getElementById('ipScriptDesaturate'),
     scriptPrefixFilter: document.getElementById('ipScriptPrefixFilter'),
     scriptResBgParams: document.getElementById('ipScriptResBgParams'),
     scriptAlignBgParams: document.getElementById('ipScriptAlignBgParams'),
@@ -1178,6 +1179,7 @@
     }
 
     const fitMode = dom.scriptFitMode.value;
+    const desaturate = !!(dom.scriptDesaturate && dom.scriptDesaturate.checked); // 去除飽和度（灰階）
 
     if (dom.scriptModal && !dom.scriptModal.classList.contains('hidden')) {
       dom.scriptModal.classList.add('hidden');
@@ -1320,6 +1322,7 @@
 
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
+          if (desaturate) ctx.filter = 'grayscale(1)'; // 去除飽和度（不影響已填好的背景）
 
           if (direction === 'horizontal') {
             let curX = 0;
@@ -1426,6 +1429,7 @@
               canvas.width = part.w;
               canvas.height = part.h;
               const ctx = canvas.getContext('2d');
+              if (desaturate) ctx.filter = 'grayscale(1)';
               ctx.drawImage(loaded.img, part.x, part.y, part.w, part.h, 0, 0, part.w, part.h);
 
               const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -1489,6 +1493,7 @@
             const layout = calculateFitLayout(loaded.img.naturalWidth, loaded.img.naturalHeight, targetW, targetH, fitMode, align);
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
+            if (desaturate) ctx.filter = 'grayscale(1)';
             ctx.drawImage(loaded.img, layout.dx, layout.dy, layout.dw, layout.dh);
 
             const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -1638,6 +1643,7 @@
       stitchAlign: dom.scriptStitchAlign.value,
       stitchSize: dom.scriptStitchSize.value,
       cropRefLine: dom.scriptCropRefLine.value,
+      desaturate: !!dom.scriptDesaturate.checked,
       prefixFilter: dom.scriptPrefixFilter.value,
       keyword: dom.scriptKeyword.value,
       autoRun: !!dom.scriptAutoRun.checked
@@ -1666,6 +1672,7 @@
     if (cfg.stitchAlign != null) dom.scriptStitchAlign.value = cfg.stitchAlign;
     if (cfg.stitchSize != null) dom.scriptStitchSize.value = cfg.stitchSize;
     if (cfg.cropRefLine != null) dom.scriptCropRefLine.value = cfg.cropRefLine;
+    if (dom.scriptDesaturate) dom.scriptDesaturate.checked = !!cfg.desaturate;
     if (cfg.prefixFilter != null) dom.scriptPrefixFilter.value = cfg.prefixFilter;
     if (cfg.keyword != null) dom.scriptKeyword.value = cfg.keyword;
     dom.scriptAutoRun.checked = !!cfg.autoRun;
@@ -2274,6 +2281,7 @@
         const canvas = document.createElement('canvas');
         canvas.width = part.w; canvas.height = part.h;
         const ctx = canvas.getContext('2d');
+        if (config.desaturate) ctx.filter = 'grayscale(1)';
         ctx.drawImage(img, part.x, part.y, part.w, part.h, 0, 0, part.w, part.h);
         return canvas.toDataURL('image/png');
       });
@@ -2299,6 +2307,7 @@
     const layout = calculateFitLayout(img.naturalWidth, img.naturalHeight, targetW, targetH, fitMode, config.align || 'center');
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+    if (config.desaturate) ctx.filter = 'grayscale(1)'; // 去除飽和度（背景填色已先畫，不受影響）
     ctx.drawImage(img, layout.dx, layout.dy, layout.dw, layout.dh);
     return [canvas.toDataURL('image/png')];
   }

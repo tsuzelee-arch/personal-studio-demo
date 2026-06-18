@@ -92,20 +92,20 @@
   /** Get entity (node or group) */
   function getEntity(id) { return nodes[id] || groups[id] || null; }
   /**
-   * A group's images offered to downstream consumers = its execution results PLUS
-   * every member node's reference images (uploadedImages), de-duped. This lets a
-   * group→group / group→node connection carry reference images immediately (before
-   * running) and add result images after a sync-execute. Nodes still expose results
-   * only, preserving existing node→x behaviour.
+   * A group's images offered to downstream consumers = ONLY the final generated image
+   * of each independent sub-workflow inside it (the group's exit nodes — the last node
+   * of every chain / 序號). This deliberately excludes:
+   *   - member reference / uploaded images (#3: adding a reference image upstream must
+   *     NOT push it downstream), and
+   *   - intermediate mid-chain node outputs (#4: only the last generated image flows,
+   *     not the in-process images).
+   * Example: a group with 序號1 (a 3-node chain) + 序號2 (1 node) sends 2 images —
+   * 序號1's final node result and 序號2's result.
    */
   function getGroupOutputImages(group) {
-    // Everything the group can offer downstream, whether the user ran the whole
-    // group (group.resultImages) or just an individual member node (n.resultImages):
-    // member generated results + member reference images, de-duped.
-    const out = [...(group.resultImages || [])];
-    getGroupMembers(group.id).forEach(n => {
+    const out = [];
+    getGroupExitNodes(group.id).forEach(n => {
       if (n.resultImages) out.push(...n.resultImages);
-      if (n.data && n.data.uploadedImages) out.push(...n.data.uploadedImages);
     });
     return [...new Set(out)];
   }
@@ -426,11 +426,38 @@
         { key: 'gptBackground', label: 'Background (背景)', type: 'select', options: [{ v: 'auto', l: 'Auto' }, { v: 'opaque', l: 'Opaque' }], default: 'auto' },
         { key: 'gptFidelity', label: 'Fidelity (還原度)', type: 'select', options: [{ v: 'high', l: 'High' }, { v: 'low', l: 'Low' }], default: 'high' },
       ]
+    },
+    preprocess: {
+      label: '預處理 (圖像處理)',
+      // params handled specially in buildParamsHTML → buildImageProcessParamsHTML
+      params: []
     }
   };
 
+  // 圖像處理 parameter block, shared by the node's 預處理 mode. Uses data-param so
+  // wireParamInputs binds the values into node.data.params; consumed by
+  // window.ImageProcess.processImageInMemory at run time.
+  function buildImageProcessParamsHTML(p) {
+    p = p || {};
+    const sel = (key, def, opts) => {
+      const cur = p[key] ?? def;
+      const o = opts.map(([v, l]) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`).join('');
+      return `<select data-param="${key}">${o}</select>`;
+    };
+    return `
+      <div class="swf-param-row"><label>處理功能</label>${sel('fitMode', 'contain', [['contain', '縮放適配 (Contain)'], ['cover', '縮放填充 (Cover)'], ['stretch', '拉伸填充 (Stretch)'], ['refcrop', '參考線裁切 (Ref Crop)']])}</div>
+      <div class="swf-param-row"><label>目標解析度</label>${sel('resolution', '1024', [['512', '512 × 512'], ['1024_512', '1024 × 512'], ['512_1024', '512 × 1024'], ['1024', '1024 × 1024'], ['2048', '2048 × 2048']])}</div>
+      <div class="swf-param-row"><label>對齊基準</label>${sel('align', 'center', [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['top-left', 'Top-Left'], ['top-right', 'Top-Right'], ['bottom-left', 'Bottom-Left'], ['bottom-right', 'Bottom-Right']])}</div>
+      <div class="swf-param-row"><label>背景填充顏色</label>${sel('bg', '#FFFFFF', [['#FFFFFF', '白色'], ['#000000', '黑色'], ['#00FF00', '綠色'], ['#0000FF', '藍色'], ['transparent', '透明'], ['custom', '自訂顏色']])}</div>
+      <div class="swf-param-row"><label>自訂背景色（背景＝自訂時）</label><input type="color" data-param="bgPicker" value="${p.bgPicker || '#FFFFFF'}"></div>
+      <div class="swf-param-row"><label>裁切參考線（Ref Crop 時）</label>${sel('cropRefLine', 'crosshair', [['crosshair', '十字線 (4 等份)'], ['thirds', '井字線 (9 等份)']])}</div>
+      <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px;"><input type="checkbox" data-param="desaturate" ${p.desaturate ? 'checked' : ''}> 去除飽和度（灰階）</label>
+    `;
+  }
+
   function buildParamsHTML(modelKey, savedParams) {
     const p = savedParams || {};
+    if (modelKey === 'preprocess') return buildImageProcessParamsHTML(p);
     if (modelKey === 'comfyui') {
       const serverUrl = p.serverUrl ?? 'http://127.0.0.1:8188';
       const workflowJson = p.workflowJson ?? '';
@@ -568,11 +595,12 @@
           <button class="swf-gps-close">✕</button>
         </div>
         <div class="swf-gps-body">
-          <label class="swf-gps-label">模型</label>
+          <label class="swf-gps-label">模型與處理</label>
           <select class="swf-gps-model swf-gps-input">
             <option value="nanobanana2">Nano Banana 2</option>
             <option value="nanobanana">Nano Banana Pro</option>
             <option value="gptimage">GPT Image 2.0</option>
+            <option value="preprocess">預處理 (圖像處理)</option>
           </select>
           <label class="swf-gps-label">儲存資料夾</label>
           <select class="swf-gps-folder swf-gps-input"></select>
@@ -641,6 +669,7 @@
               <option value="thirds">井字線 (裁切為 9 等份)</option>
             </select>
           </div>
+          <label class="swf-gps-check"><input type="checkbox" class="swf-gas-desaturate"> 去除飽和度（灰階）</label>
           <div class="swf-gas-note">每張生成圖會先在記憶體套用以上處理，再由本群組節點的儲存路徑存檔（不另存到其他資料夾）。</div>
         </div>
       </div>
@@ -814,6 +843,9 @@
     });
     el.querySelector('.swf-gas-cropref').addEventListener('change', (e) => {
       group.postAutomationConfig.cropRefLine = e.target.value;
+    });
+    el.querySelector('.swf-gas-desaturate').addEventListener('change', (e) => {
+      group.postAutomationConfig.desaturate = e.target.checked;
     });
 
     // 上游圖片 sidebar toggle (mutually exclusive with the 統一參數 / 自動化 panels)
@@ -1442,6 +1474,8 @@
     const newParams = {};
     paramsBox.querySelectorAll('select[data-param]').forEach(s => { newParams[s.dataset.param] = s.value; });
     paramsBox.querySelectorAll('input[type="range"][data-param]').forEach(i => { newParams[i.dataset.param] = parseFloat(i.value); });
+    paramsBox.querySelectorAll('input[type="checkbox"][data-param]').forEach(i => { newParams[i.dataset.param] = i.checked; });
+    paramsBox.querySelectorAll('input[type="color"][data-param]').forEach(i => { newParams[i.dataset.param] = i.value; });
 
     const folder = el.querySelector('.swf-gps-folder')?.value ?? '';
     const namePrefix = (el.querySelector('.swf-gps-prefix')?.value ?? '').trim();
@@ -1506,6 +1540,8 @@
     setVal('.swf-gas-cropref', cfg.cropRefLine || 'crosshair');
     const cb = el.querySelector('.swf-gas-enable');
     if (cb) cb.checked = !!group.postAutomationEnabled;
+    const desatCb = el.querySelector('.swf-gas-desaturate');
+    if (desatCb) desatCb.checked = !!cfg.desaturate;
     updateAutomationParamVisibility(el);
   }
 
@@ -1583,7 +1619,7 @@
       </div>
       <div class="swf-macro-body">
         <div style="display:flex; gap: 8px; margin-bottom: 8px;">
-          <div class="swf-model-section" style="flex:1; ${isComfy ? 'display:none;' : ''}"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">模型</label><select class="swf-model-sel" style="width:100%; box-sizing:border-box;">${modelOptionsHTML}</select></div>
+          <div class="swf-model-section" style="flex:1; ${isComfy ? 'display:none;' : ''}"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">模型與處理</label><select class="swf-model-sel" style="width:100%; box-sizing:border-box;">${modelOptionsHTML}</select></div>
           ${isComfy ? `
           <div class="swf-comfy-label-section" style="flex:1;">
             <label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">類型</label>
@@ -1594,7 +1630,7 @@
         </div>
         <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
         ${(isI2I || isComfy) ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
-        <div><div class="swf-section-label swf-prompt-label">提示詞 (Prompt)</div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
+        <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label">提示詞 (Prompt)</div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">📥</button></div>
         <button class="swf-run-btn" data-node="${id}">▶ 生成</button>
         <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
@@ -2046,6 +2082,25 @@
       });
       node.data.params[slider.dataset.param] = parseFloat(slider.value);
     });
+    area.querySelectorAll('input[type="checkbox"][data-param]').forEach(inp => {
+      inp.addEventListener('change', () => { node.data.params[inp.dataset.param] = inp.checked; });
+      if (node.data.params[inp.dataset.param] !== undefined) inp.checked = !!node.data.params[inp.dataset.param];
+      else node.data.params[inp.dataset.param] = inp.checked;
+    });
+    area.querySelectorAll('input[type="color"][data-param]').forEach(inp => {
+      inp.addEventListener('input', () => { node.data.params[inp.dataset.param] = inp.value; });
+      if (node.data.params[inp.dataset.param] !== undefined) inp.value = node.data.params[inp.dataset.param];
+      else node.data.params[inp.dataset.param] = inp.value;
+    });
+    applyModelModeUI(node);
+  }
+
+  // In 預處理 mode the node runs image processing (no AI prompt), so hide the prompt
+  // section; the params area already shows the 圖像處理 controls via buildParamsHTML.
+  function applyModelModeUI(node) {
+    const isPre = node.data.model === 'preprocess';
+    const promptSection = node.el.querySelector('.swf-prompt-section');
+    if (promptSection) promptSection.style.display = isPre ? 'none' : '';
   }
 
   // Shrink an image dataURL for storage (<=1024px, JPEG) so saved workflows stay
@@ -2610,13 +2665,36 @@
       const model = node.data.model || 'nanobanana2';
       const params = node.data.params || {};
 
-      if (!text.trim() && model !== 'comfyui') throw new Error('提示詞不能為空');
+      if (!text.trim() && model !== 'comfyui' && model !== 'preprocess') throw new Error('提示詞不能為空');
 
       // Use unified images array directly — order is exactly what user sees
       const allRefs = [...node.data.images, ...inlineImages];
       let imageUrl = '';
+      let preprocessResults = null; // 預處理 mode may produce multiple outputs (e.g. refcrop)
 
-      if (model === 'comfyui') {
+      if (model === 'preprocess') {
+        // 預處理: run the 圖像處理 script on every incoming image (upstream + uploaded)
+        // instead of AI generation. No prompt, no API.
+        if (!window.ImageProcess?.processImageInMemory) throw new Error('圖像處理模組尚未載入');
+        if (allRefs.length === 0) throw new Error('預處理需要輸入圖片（請從上游連線或上傳參考圖）');
+        const cfg = {
+          fitMode: params.fitMode || 'contain',
+          resolution: params.resolution || '1024',
+          align: params.align || 'center',
+          bg: params.bg || '#FFFFFF',
+          bgPicker: params.bgPicker || '#FFFFFF',
+          cropRefLine: params.cropRefLine || 'crosshair',
+          desaturate: !!params.desaturate,
+        };
+        const processed = [];
+        for (const src of allRefs) {
+          const outs = await window.ImageProcess.processImageInMemory(src, cfg);
+          if (Array.isArray(outs)) processed.push(...outs);
+        }
+        if (!processed.length) throw new Error('預處理未產生結果');
+        preprocessResults = processed;
+        imageUrl = processed[0];
+      } else if (model === 'comfyui') {
         const serverUrl = params.serverUrl || 'http://127.0.0.1:8188';
         const cleanUrl = serverUrl.trim().replace(/\/+$/, '');
         const workflowJsonStr = params.workflowJson || '';
@@ -2897,8 +2975,9 @@
       // "完成後自動化" script, transform the freshly generated image in-memory NOW —
       // before it is displayed / propagated / saved — so the node's own save path
       // stays the single save location (the script's output folder is ignored).
-      let savedImages = [imageUrl];
-      const autoCfg = getNodePostAutomationConfig(node);
+      let savedImages = preprocessResults || [imageUrl];
+      // 預處理 already IS the image-processing step — don't re-apply 完成後自動化 on top.
+      const autoCfg = (model === 'preprocess') ? null : getNodePostAutomationConfig(node);
       if (autoCfg && window.ImageProcess?.processImageInMemory) {
         try {
           const results = await window.ImageProcess.processImageInMemory(imageUrl, autoCfg);
