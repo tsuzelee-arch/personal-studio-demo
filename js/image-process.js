@@ -83,7 +83,6 @@
     scriptStitchSize: document.getElementById('ipScriptStitchSize'),
     scriptCropParams: document.getElementById('ipScriptCropParams'),
     scriptCropRefLine: document.getElementById('ipScriptCropRefLine'),
-    scriptDesaturate: document.getElementById('ipScriptDesaturate'),
     scriptPrefixFilter: document.getElementById('ipScriptPrefixFilter'),
     scriptResBgParams: document.getElementById('ipScriptResBgParams'),
     scriptAlignBgParams: document.getElementById('ipScriptAlignBgParams'),
@@ -1321,7 +1320,6 @@
 
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
-          if (desaturate) ctx.filter = 'grayscale(1)'; // 去除飽和度（不影響已填好的背景）
 
           if (direction === 'horizontal') {
             let curX = 0;
@@ -1428,7 +1426,6 @@
               canvas.width = part.w;
               canvas.height = part.h;
               const ctx = canvas.getContext('2d');
-              if (desaturate) ctx.filter = 'grayscale(1)';
               ctx.drawImage(loaded.img, part.x, part.y, part.w, part.h, 0, 0, part.w, part.h);
 
               const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -1458,6 +1455,45 @@
           }
         }
 
+      } else if (fitMode === 'desaturate') {
+        // 去除飽和度：每張圖原尺寸轉灰階後存檔
+        for (let i = 0; i < files.length; i++) {
+          const fileEntry = files[i];
+          updateProgress(`正在處理圖片 (${i + 1}/${files.length}): ${fileEntry.name}...`, (i / files.length) * 100);
+          let loaded = null;
+          try {
+            loaded = await loadImageFromFileEntry(fileEntry);
+            const canvas = document.createElement('canvas');
+            canvas.width = loaded.img.naturalWidth;
+            canvas.height = loaded.img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.filter = 'grayscale(1)';
+            ctx.drawImage(loaded.img, 0, 0);
+
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const exportUrl = URL.createObjectURL(blob);
+
+            const origName = fileEntry.name;
+            const baseName = origName.substring(0, origName.lastIndexOf('.')) || origName;
+            const outputBase = `${baseName}_processed`;
+            let finalOutputName = outputBase;
+            let counter = 1;
+            while (existingImages.some(img => img.name === `${finalOutputName}.png`)) {
+              finalOutputName = `${outputBase}_${counter}`;
+              counter++;
+            }
+
+            await AssetManager.saveAsset(finalOutputName, exportUrl, outputDir);
+            const savedBlobUrl = await AssetManager.getFileBlobUrlByPath(`${outputDir}/${finalOutputName}.png`);
+            if (savedBlobUrl) processedBlobUrls.push(savedBlobUrl);
+            URL.revokeObjectURL(exportUrl);
+            successCount++;
+          } catch (err) {
+            console.error('Failed to desaturate image:', fileEntry.name, err);
+          } finally {
+            if (loaded) URL.revokeObjectURL(loaded.url);
+          }
+        }
       } else {
         const resVal = dom.scriptResolution.value;
         let targetW = 1024, targetH = 1024;
@@ -1492,7 +1528,6 @@
             const layout = calculateFitLayout(loaded.img.naturalWidth, loaded.img.naturalHeight, targetW, targetH, fitMode, align);
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
-            if (desaturate) ctx.filter = 'grayscale(1)';
             ctx.drawImage(loaded.img, layout.dx, layout.dy, layout.dw, layout.dh);
 
             const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -1642,7 +1677,6 @@
       stitchAlign: dom.scriptStitchAlign.value,
       stitchSize: dom.scriptStitchSize.value,
       cropRefLine: dom.scriptCropRefLine.value,
-      desaturate: !!dom.scriptDesaturate.checked,
       prefixFilter: dom.scriptPrefixFilter.value,
       keyword: dom.scriptKeyword.value,
       autoRun: !!dom.scriptAutoRun.checked
@@ -1671,7 +1705,6 @@
     if (cfg.stitchAlign != null) dom.scriptStitchAlign.value = cfg.stitchAlign;
     if (cfg.stitchSize != null) dom.scriptStitchSize.value = cfg.stitchSize;
     if (cfg.cropRefLine != null) dom.scriptCropRefLine.value = cfg.cropRefLine;
-    if (dom.scriptDesaturate) dom.scriptDesaturate.checked = !!cfg.desaturate;
     if (cfg.prefixFilter != null) dom.scriptPrefixFilter.value = cfg.prefixFilter;
     if (cfg.keyword != null) dom.scriptKeyword.value = cfg.keyword;
     dom.scriptAutoRun.checked = !!cfg.autoRun;
@@ -2069,6 +2102,12 @@
       } else if (mode === 'refcrop') {
         dom.scriptStitchParams.style.display = 'none';
         dom.scriptCropParams.style.display = 'block';
+        dom.scriptResBgParams.style.display = 'none';
+        dom.scriptAlignBgParams.style.display = 'none';
+      } else if (mode === 'desaturate') {
+        // 去除飽和度無額外參數
+        dom.scriptStitchParams.style.display = 'none';
+        dom.scriptCropParams.style.display = 'none';
         dom.scriptResBgParams.style.display = 'none';
         dom.scriptAlignBgParams.style.display = 'none';
       } else {

@@ -448,7 +448,7 @@
     // fit modes (contain/cover/stretch) use resolution/align/bg; refcrop uses cropRefLine.
     // updateImageProcessParamVisibility toggles these on render and on change.
     return `
-      <div class="swf-param-row"><label>處理功能</label>${sel('fitMode', 'contain', [['contain', '縮放適配 (Contain)'], ['cover', '縮放填充 (Cover)'], ['stretch', '拉伸填充 (Stretch)'], ['refcrop', '參考線裁切 (Ref Crop)']])}</div>
+      <div class="swf-param-row"><label>處理功能</label>${sel('fitMode', 'contain', [['contain', '縮放適配 (Contain)'], ['cover', '縮放填充 (Cover)'], ['stretch', '拉伸填充 (Stretch)'], ['refcrop', '參考線裁切 (Ref Crop)'], ['desaturate', '去除飽和度 (灰階)']])}</div>
       <div class="swf-ip-fit-params">
         <div class="swf-param-row"><label>目標解析度</label>${sel('resolution', '1024', [['512', '512 × 512'], ['1024_512', '1024 × 512'], ['512_1024', '512 × 1024'], ['1024', '1024 × 1024'], ['2048', '2048 × 2048']])}</div>
         <div class="swf-param-row"><label>對齊基準</label>${sel('align', 'center', [['center', 'Center'], ['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['top-left', 'Top-Left'], ['top-right', 'Top-Right'], ['bottom-left', 'Bottom-Left'], ['bottom-right', 'Bottom-Right']])}</div>
@@ -458,7 +458,6 @@
       <div class="swf-ip-crop-params">
         <div class="swf-param-row"><label>裁切參考線</label>${sel('cropRefLine', 'crosshair', [['crosshair', '十字線 (4 等份)'], ['thirds', '井字線 (9 等份)']])}</div>
       </div>
-      <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px;"><input type="checkbox" data-param="desaturate" ${p.desaturate ? 'checked' : ''}> 去除飽和度（灰階）</label>
     `;
   }
 
@@ -467,14 +466,15 @@
   function updateImageProcessParamVisibility(area) {
     const fitSel = area.querySelector('select[data-param="fitMode"]');
     if (!fitSel) return;
-    const isRefcrop = fitSel.value === 'refcrop';
+    const mode = fitSel.value;
+    const isFit = mode === 'contain' || mode === 'cover' || mode === 'stretch';
     const fitBox = area.querySelector('.swf-ip-fit-params');
     const cropBox = area.querySelector('.swf-ip-crop-params');
-    if (fitBox) fitBox.style.display = isRefcrop ? 'none' : '';
-    if (cropBox) cropBox.style.display = isRefcrop ? '' : 'none';
+    if (fitBox) fitBox.style.display = isFit ? '' : 'none';
+    if (cropBox) cropBox.style.display = mode === 'refcrop' ? '' : 'none';
     const bgSel = area.querySelector('select[data-param="bg"]');
     const pickerRow = area.querySelector('.swf-ip-bgpicker-row');
-    if (pickerRow) pickerRow.style.display = (!isRefcrop && bgSel && bgSel.value === 'custom') ? '' : 'none';
+    if (pickerRow) pickerRow.style.display = (isFit && bgSel && bgSel.value === 'custom') ? '' : 'none';
   }
 
   // Attach the visibility toggling to an image-process param block that isn't wired by
@@ -660,6 +660,7 @@
             <option value="cover">縮放填充 (Cover - 裁切溢出)</option>
             <option value="stretch">拉伸填充 (Stretch - 非等比例)</option>
             <option value="refcrop">參考線裁切 (Reference Crop)</option>
+            <option value="desaturate">去除飽和度 (灰階)</option>
           </select>
           <div class="swf-gas-fit-params">
             <label class="swf-gps-label">目標解析度</label>
@@ -700,7 +701,6 @@
               <option value="thirds">井字線 (裁切為 9 等份)</option>
             </select>
           </div>
-          <label class="swf-gps-check"><input type="checkbox" class="swf-gas-desaturate"> 去除飽和度（灰階）</label>
           <div class="swf-gas-note">每張生成圖會先在記憶體套用以上處理，再由本群組節點的儲存路徑存檔（不另存到其他資料夾）。</div>
         </div>
       </div>
@@ -875,9 +875,6 @@
     });
     el.querySelector('.swf-gas-cropref').addEventListener('change', (e) => {
       group.postAutomationConfig.cropRefLine = e.target.value;
-    });
-    el.querySelector('.swf-gas-desaturate').addEventListener('change', (e) => {
-      group.postAutomationConfig.desaturate = e.target.checked;
     });
 
     // 上游圖片 sidebar toggle (mutually exclusive with the 統一參數 / 自動化 panels)
@@ -1550,9 +1547,10 @@
   // crop params for refcrop; custom-colour picker only when bg = custom.
   function updateAutomationParamVisibility(el) {
     const fitMode = el.querySelector('.swf-gas-fitmode')?.value || 'contain';
+    const isFit = fitMode === 'contain' || fitMode === 'cover' || fitMode === 'stretch';
     const fitBox = el.querySelector('.swf-gas-fit-params');
     const cropBox = el.querySelector('.swf-gas-crop-params');
-    if (fitBox) fitBox.style.display = fitMode === 'refcrop' ? 'none' : '';
+    if (fitBox) fitBox.style.display = isFit ? '' : 'none';
     if (cropBox) cropBox.style.display = fitMode === 'refcrop' ? '' : 'none';
     const bg = el.querySelector('.swf-gas-bg')?.value;
     const picker = el.querySelector('.swf-gas-bgpicker');
@@ -1572,8 +1570,6 @@
     setVal('.swf-gas-cropref', cfg.cropRefLine || 'crosshair');
     const cb = el.querySelector('.swf-gas-enable');
     if (cb) cb.checked = !!group.postAutomationEnabled;
-    const desatCb = el.querySelector('.swf-gas-desaturate');
-    if (desatCb) desatCb.checked = !!cfg.desaturate;
     updateAutomationParamVisibility(el);
   }
 
@@ -2720,7 +2716,6 @@
           bg: params.bg || '#FFFFFF',
           bgPicker: params.bgPicker || '#FFFFFF',
           cropRefLine: params.cropRefLine || 'crosshair',
-          desaturate: !!params.desaturate,
         };
         const processed = [];
         for (const src of allRefs) {
