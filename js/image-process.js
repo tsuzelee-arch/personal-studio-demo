@@ -1499,6 +1499,14 @@
               cropParts.push({ x: halfW, y: 0, w: W - halfW, h: halfH, suffix: 'tr' });
               cropParts.push({ x: 0, y: halfH, w: halfW, h: H - halfH, suffix: 'bl' });
               cropParts.push({ x: halfW, y: halfH, w: W - halfW, h: H - halfH, suffix: 'br' });
+            } else if (cropType === 'vcenter') {
+              const halfW = Math.round(W / 2);
+              cropParts.push({ x: 0,     y: 0, w: halfW,     h: H, suffix: 'left' });
+              cropParts.push({ x: halfW, y: 0, w: W - halfW, h: H, suffix: 'right' });
+            } else if (cropType === 'hcenter') {
+              const halfH = Math.round(H / 2);
+              cropParts.push({ x: 0, y: 0,     w: W, h: halfH,     suffix: 'top' });
+              cropParts.push({ x: 0, y: halfH, w: W, h: H - halfH, suffix: 'bottom' });
             } else {
               const xCoords = [0, Math.round(W / 3), Math.round(2 * W / 3), W];
               const yCoords = [0, Math.round(H / 3), Math.round(2 * H / 3), H];
@@ -2407,12 +2415,21 @@
     if (fitMode === 'refcrop') {
       const W = img.naturalWidth, H = img.naturalHeight;
       const cropParts = [];
-      if ((config.cropRefLine || 'crosshair') === 'crosshair') {
+      const cropType = config.cropRefLine || 'crosshair';
+      if (cropType === 'crosshair') {
         const halfW = Math.round(W / 2), halfH = Math.round(H / 2);
         cropParts.push({ x: 0, y: 0, w: halfW, h: halfH });
         cropParts.push({ x: halfW, y: 0, w: W - halfW, h: halfH });
         cropParts.push({ x: 0, y: halfH, w: halfW, h: H - halfH });
         cropParts.push({ x: halfW, y: halfH, w: W - halfW, h: H - halfH });
+      } else if (cropType === 'vcenter') {
+        const halfW = Math.round(W / 2);
+        cropParts.push({ x: 0,     y: 0, w: halfW,     h: H });
+        cropParts.push({ x: halfW, y: 0, w: W - halfW, h: H });
+      } else if (cropType === 'hcenter') {
+        const halfH = Math.round(H / 2);
+        cropParts.push({ x: 0, y: 0,     w: W, h: halfH     });
+        cropParts.push({ x: 0, y: halfH, w: W, h: H - halfH });
       } else {
         const xs = [0, Math.round(W / 3), Math.round(2 * W / 3), W];
         const ys = [0, Math.round(H / 3), Math.round(2 * H / 3), H];

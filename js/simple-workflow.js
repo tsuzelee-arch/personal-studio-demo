@@ -456,7 +456,7 @@
         <div class="swf-param-row swf-ip-bgpicker-row"><label>自訂背景色</label><input type="color" data-param="bgPicker" value="${p.bgPicker || '#FFFFFF'}"></div>
       </div>
       <div class="swf-ip-crop-params">
-        <div class="swf-param-row"><label>裁切參考線</label>${sel('cropRefLine', 'crosshair', [['crosshair', '十字線 (4 等份)'], ['thirds', '井字線 (9 等份)']])}</div>
+        <div class="swf-param-row"><label>裁切參考線</label>${sel('cropRefLine', 'crosshair', [['crosshair', '十字線 (4 等份)'], ['thirds', '井字線 (9 等份)'], ['vcenter', '中間豎切 (左右各半)'], ['hcenter', '中間橫切 (上下各半)']])}</div>
       </div>
       <div class="swf-ip-stitch-params">
         <div class="swf-param-row"><label>拼合方向</label>${sel('stitchDir', 'horizontal', [['horizontal', '水平排列'], ['vertical', '垂直排列'], ['grid', '網格']])}</div>
