@@ -27,7 +27,7 @@ window.DevLog = (function () {
     frame.style.width = '100%';
     frame.style.height = '100%';
     frame.style.border = 'none';
-    frame.src = './dev_log.txt';
+    frame.src = './dev_log.txt?t=' + Date.now();
 
     // Append to body container to trigger load
     body.appendChild(frame);

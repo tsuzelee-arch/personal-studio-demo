@@ -1,5 +1,5 @@
 /**
- * Simple Workflow (簡易工具流) — Group + IDE Layout Engine
+ * Simple Workflow (簡易工作流整合) — Group + IDE Layout Engine
  * Features:
  *  - Infinite absolute-positioned canvas with Pan & Zoom
  *  - Groups: user-defined colored regions that act as super-nodes

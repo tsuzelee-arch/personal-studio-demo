@@ -35,8 +35,8 @@
       </div>
       <div class="nav-group">
         <div class="nav-cat">工作室</div>
-        <div class="nav-item" data-panel="simple-workflow">簡易工具流</div>
-        <div class="nav-item active" data-panel="decode">圖像解構</div>
+        <div class="nav-item active" data-panel="simple-workflow">簡易工作流整合</div>
+        <div class="nav-item" data-panel="decode">圖像解構</div>
         <div class="nav-item" data-panel="image-process">圖像處理</div>
         <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
         <div class="nav-item" data-panel="workflow" style="display: none;">自定工作流（暫時廢棄）</div>
@@ -55,7 +55,7 @@
 
     <main class="main" id="main-content">
       <header class="topbar">
-        <div class="page-title" id="pageTitle">圖像解構</div>
+        <div class="page-title" id="pageTitle">簡易工作流整合</div>
         <div class="topbar-actions" id="topbarActions">
           <button class="global-dev-log-btn" id="globalDevLogBtn" title="開啟開發日誌">
             <span>📋</span>
@@ -66,10 +66,10 @@
       </header>
       <div class="content">
 
-        <!-- Panel: 簡易工具流 -->
-        <section class="panel" id="panel-simple-workflow">
+        <!-- Panel: 簡易工作流整合 -->
+        <section class="panel active" id="panel-simple-workflow">
           <div class="swf-header">
-            <div class="swf-title">簡易工具流 (Simple Workflow)</div>
+            <div class="swf-title">簡易工作流整合 (Simple Workflow)</div>
             <div class="swf-toolbar" id="swfToolbar">
               <button class="btn-ghost btn-sm" id="swfAddT2I">➕ 文生圖</button>
               <button class="btn-ghost btn-sm" id="swfAddI2I">➕ 圖生圖</button>
@@ -137,7 +137,7 @@
         </section>
 
         <!-- Panel: 圖像解構 -->
-        <section class="panel active" id="panel-decode">
+        <section class="panel" id="panel-decode">
           <div class="decode-layout">
             <input type="file" id="imageInput" accept="image/*" hidden>
             <!-- Model Selector -->
@@ -852,7 +852,10 @@
               <span>🗃️ 影像資產庫</span>
               <span id="v2-status-text" style="font-size: 12px; color: var(--muted); font-weight: normal;">(就緒)</span>
             </div>
-            <div style="display: flex; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none;">
+                <input type="checkbox" id="v2-auto-link-check" style="cursor: pointer;"> 自動連結/授權
+              </label>
               <button class="btn-primary" id="v2-btn-link-folder" style="padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🔗 連結本機工作夾</button>
               <button class="btn-ghost" id="v2-btn-restore" style="display: none; color: #0d6efd;">🔄 恢復本機連線</button>
               <button class="btn-ghost" id="v2-btn-clear-link" style="color: #dc3545;">🗑️ 解除連結</button>

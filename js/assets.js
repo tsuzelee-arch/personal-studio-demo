@@ -57,15 +57,66 @@ window.AssetManager = (function() {
     });
   }
 
+  // Helper to show/hide all restore buttons
+  function updateRestoreButtons(display) {
+    const ids = ['v2-btn-restore', 'swfAssetRestore', 'ipAssetRestore'];
+    ids.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.style.display = display;
+    });
+  }
+
+  let autoLinkGestureActive = false;
+  function triggerAutoLinkGesture(hasHandle) {
+    const isAutoLink = localStorage.getItem('ps_auto_link') === 'true';
+    if (!isAutoLink) return;
+    if (autoLinkGestureActive) return;
+
+    autoLinkGestureActive = true;
+    console.log('[AssetManager] Auto-link setup. Has handle:', hasHandle);
+
+    const gestureHandler = async (e) => {
+      // Ignore click on interactive buttons that have their own link/restore/clear click handlers, or the checkbox itself
+      if (
+        e.target.closest('#v2-btn-clear-link') || 
+        e.target.closest('#v2-auto-link-check') ||
+        e.target.closest('#v2-btn-link-folder') ||
+        e.target.closest('#v2-btn-restore') ||
+        e.target.closest('#swfAssetLink') ||
+        e.target.closest('#swfAssetRestore') ||
+        e.target.closest('#ipAssetLink') ||
+        e.target.closest('#ipAssetRestore')
+      ) {
+        return;
+      }
+
+      document.body.removeEventListener('click', gestureHandler, true);
+      autoLinkGestureActive = false;
+
+      // Re-read storage state in case it was toggled off before click
+      const isAutoLinkNow = localStorage.getItem('ps_auto_link') === 'true';
+      if (!isAutoLinkNow) return;
+
+      setTimeout(async () => {
+        if (hasHandle) {
+          console.log('[AssetManager] Auto-link gesture triggering restore permission');
+          await requestRestorePermission();
+        } else {
+          console.log('[AssetManager] Auto-link gesture triggering workspace link');
+          await linkWorkspace();
+        }
+      }, 100);
+    };
+
+    document.body.addEventListener('click', gestureHandler, true);
+  }
+
   // 2. File System Access API
   async function linkWorkspace() {
     try {
       workspaceHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
       await saveHandle(workspaceHandle);
-      const btn = document.getElementById('v2-btn-restore');
-      if (btn) btn.style.display = 'none';
-      const swfBtn = document.getElementById('swfAssetRestore');
-      if (swfBtn) swfBtn.style.display = 'none';
+      updateRestoreButtons('none');
       
       if (window.showToast) window.showToast('✅ 成功連結本機資料夾！');
       await refreshUI();
@@ -77,7 +128,10 @@ window.AssetManager = (function() {
   async function restoreWorkspace() {
     try {
       const handle = await getSavedHandle();
-      if (!handle) return false;
+      if (!handle) {
+        triggerAutoLinkGesture(false);
+        return false;
+      }
       workspaceHandle = handle;
       
       const perm = await handle.queryPermission({ mode: 'readwrite' });
@@ -86,14 +140,13 @@ window.AssetManager = (function() {
         return true;
       } else {
         // Needs user gesture to request permission.
-        const btn = document.getElementById('v2-btn-restore');
-        if (btn) btn.style.display = 'inline-block';
-        const swfBtn = document.getElementById('swfAssetRestore');
-        if (swfBtn) swfBtn.style.display = 'inline-block';
+        updateRestoreButtons('inline-block');
+        triggerAutoLinkGesture(true);
         return false;
       }
     } catch (e) {
       console.error('Restore error', e);
+      triggerAutoLinkGesture(false);
       return false;
     }
   }
@@ -103,10 +156,7 @@ window.AssetManager = (function() {
     try {
       const perm = await workspaceHandle.requestPermission({ mode: 'readwrite' });
       if (perm === 'granted') {
-        const btn = document.getElementById('v2-btn-restore');
-        if (btn) btn.style.display = 'none';
-        const swfBtn = document.getElementById('swfAssetRestore');
-        if (swfBtn) swfBtn.style.display = 'none';
+        updateRestoreButtons('none');
         if (window.showToast) window.showToast('✅ 成功恢復連線！');
         await refreshUI();
         window.dispatchEvent(new Event('assets-restored'));
@@ -128,10 +178,7 @@ window.AssetManager = (function() {
       activeFolder = '根目錄';
       treeState.expanded.clear();
       treeState.expanded.add('根目錄');
-      const btn = document.getElementById('v2-btn-restore');
-      if (btn) btn.style.display = 'none';
-      const swfBtn = document.getElementById('swfAssetRestore');
-      if (swfBtn) swfBtn.style.display = 'none';
+      updateRestoreButtons('none');
       refreshUI();
     }
   }
@@ -578,6 +625,20 @@ window.AssetManager = (function() {
     if (ipLinkBtn) ipLinkBtn.addEventListener('click', linkWorkspace);
     if (ipRestoreBtn) ipRestoreBtn.addEventListener('click', requestRestorePermission);
     
+    // Auto-Link Checkbox
+    const autoLinkCheck = document.getElementById('v2-auto-link-check');
+    if (autoLinkCheck) {
+      const autoLink = localStorage.getItem('ps_auto_link') === 'true';
+      autoLinkCheck.checked = autoLink;
+      autoLinkCheck.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        localStorage.setItem('ps_auto_link', checked ? 'true' : 'false');
+        if (checked && (!workspaceHandle || !permissionGranted)) {
+          triggerAutoLinkGesture(!!workspaceHandle);
+        }
+      });
+    }
+
     // Auto-Refresh on Window Focus
     window.addEventListener('focus', () => {
       if (workspaceHandle && permissionGranted) {

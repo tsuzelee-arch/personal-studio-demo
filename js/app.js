@@ -6,7 +6,7 @@ window.StudioState = {
 
 // Navigation
 const panels = {
-  'simple-workflow': '簡易工具流',
+  'simple-workflow': '簡易工作流整合',
   decode: '圖像解構',
   'image-process': '圖像處理',
   prompts: '提示詞庫與熔爐',
