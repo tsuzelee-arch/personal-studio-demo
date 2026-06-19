@@ -274,7 +274,7 @@
 
     const btn = document.createElement('button');
     btn.className = 'add-to-vault-btn';
-    btn.innerHTML = '📥 存入詞庫';
+    btn.innerHTML = (window.Icons ? '<span class="ico">' + window.Icons.get('download') + '</span> ' : '') + '存入詞庫';
     btn.title = `將「${title}」存入提示詞庫`;
     btn.addEventListener('click', (e) => {
       e.stopPropagation();

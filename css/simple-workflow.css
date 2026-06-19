@@ -814,30 +814,55 @@
 }
 .swf-plib-popover-item:hover { background: var(--hover-bg, #eef4ff); }
 /* indent items under a category header to show hierarchy */
-.swf-plib-popover-item { padding-left: 22px; }
+.swf-plib-popover-item { padding-left: 30px; }
 .swf-plib-popover-empty {
   padding: 12px 14px;
   font-size: 12px;
   color: var(--muted, #888);
   text-align: center;
 }
-/* Category header rows in the grouped prompt picker */
-.swf-plib-group-header {
-  padding: 7px 14px 3px;
-  font-size: 10px;
+/* Collapsible category accordion (collapsed by default; ">" chevron rotates) */
+.swf-plib-cat-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
   font-weight: 700;
-  color: var(--muted, #888);
+  color: var(--node-text, #555);
   border-top: 1px solid var(--border, #e0e0e0);
-  margin-top: 2px;
 }
-.swf-plib-group-header:first-child { border-top: none; margin-top: 0; }
+.swf-plib-cat:first-child .swf-plib-cat-header { border-top: none; }
+.swf-plib-cat-header:hover { background: var(--hover-bg, rgba(0,0,0,0.04)); }
+.swf-plib-cat-header .chev {
+  display: inline-flex;
+  flex-shrink: 0;
+  transition: transform .15s;
+  transform: rotate(-90deg);  /* ">" — collapsed */
+  color: var(--muted, #888);
+}
+.swf-plib-cat-header .chev svg { width: 13px; height: 13px; display: block; }
+.swf-plib-cat.open .swf-plib-cat-header .chev { transform: rotate(0); }  /* "v" — open */
+.swf-plib-cat-name { flex: 1; }
+.swf-plib-cat-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted, #999);
+  background: var(--hover-bg, rgba(0,0,0,0.06));
+  border-radius: 9px;
+  padding: 0 6px;
+}
+.swf-plib-cat-items { display: none; }
+.swf-plib-cat.open .swf-plib-cat-items { display: block; }
 [data-theme="dark"] .swf-plib-popover {
   background: var(--surface, #1e1e2e);
   border-color: var(--node-input-border, #444);
 }
 [data-theme="dark"] .swf-plib-popover-item { color: var(--node-text, #e0e0e0); }
 [data-theme="dark"] .swf-plib-popover-item:hover { background: rgba(255,255,255,0.06); }
-[data-theme="dark"] .swf-plib-group-header { border-color: var(--node-input-border, #444); }
+[data-theme="dark"] .swf-plib-cat-header { color: var(--node-text, #e0e0e0); border-color: var(--node-input-border, #444); }
 
 /* ═══ Inline icon sizing (emoji → SVG migration) ═══ */
 /* Toolbar buttons: icon + text, vertically centered */
@@ -853,6 +878,18 @@
 /* Download button on preview (JS toggles display:block; size the svg + center) */
 .swf-preview-area .swf-download-btn { padding: 5px 7px; line-height: 0; }
 .swf-preview-area .swf-download-btn svg { width: 15px; height: 15px; vertical-align: middle; }
+/* Group sidebar headers (folder / settings / bot) + close buttons */
+.swf-gs-title { display: inline-flex; align-items: center; gap: 6px; }
+.swf-gs-title svg { width: 15px; height: 15px; flex-shrink: 0; }
+.swf-gs-close svg, .swf-gps-close svg, .swf-gas-close svg { width: 15px; height: 15px; }
+.swf-gs-apply-btn { display: inline-flex; align-items: center; gap: 4px; }
+.swf-gs-apply-btn svg { width: 12px; height: 12px; }
+/* Reference-image delete buttons (small corner ✕) */
+.swf-gs-img-del svg, .swf-img-thumb-del svg { width: 11px; height: 11px; display: block; }
+/* Upstream-image badge (small up-arrow indicator) */
+.swf-img-upstream-badge svg { width: 10px; height: 10px; display: block; }
+/* Prompt library category accordion chevron uses currentColor */
+.swf-plib-btns button svg { width: 14px; height: 14px; }
 
 /* Macro Header */
 .swf-macro-header {

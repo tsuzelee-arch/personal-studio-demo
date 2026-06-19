@@ -30,16 +30,9 @@
   let zoomLevel = 1;
   const ZOOM_MIN = 0.2, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
 
-  // ── Inline SVG icons (Feather/Lucide style) — replace emoji glyphs for a
-  // consistent, professional look. Sized via CSS (.swf-*-icon / button svg). ──
-  const SVG = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
-  const ICONS = {
-    bookmark: SVG('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
-    list:     SVG('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'),
-    download: SVG('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
-    play:     SVG('<polygon points="5 3 19 12 5 21 5 3"/>'),
-    fileText: SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>')
-  };
+  // Inline SVG icons — sourced from the shared global registry (js/icons.js),
+  // loaded before this script. Alias keeps the existing `${ICONS.name}` usage.
+  const ICONS = (window.Icons && window.Icons.raw) || {};
 
   // Pan state
   let isPanning = false;
@@ -630,8 +623,8 @@
       <div class="swf-group-sidebar">
         <div class="swf-panel-resize" title="拖動調整寬度"></div>
         <div class="swf-gs-header">
-          <span>📁 上游圖片</span>
-          <button class="swf-gs-close">✕</button>
+          <span class="swf-gs-title">${ICONS.folder} 上游圖片</span>
+          <button class="swf-gs-close">${ICONS.close}</button>
         </div>
         <div class="swf-gs-controls">
           <label class="swf-gs-checkbox-label"><input type="checkbox" class="swf-gs-receive-cb" checked> 接收上游圖片</label>
@@ -647,7 +640,7 @@
           </div>
           <div style="margin-top: 6px; display: flex; gap: 4px; justify-content: space-between;">
             <button class="swf-gs-select-all" style="font-size: 10px; cursor: pointer; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface);">全選</button>
-            <button class="swf-gs-apply-btn" style="font-size: 10px; cursor: pointer; background: var(--warm); color: var(--ink); border: none; border-radius: 4px; padding: 2px 6px;">📥 全部套用</button>
+            <button class="swf-gs-apply-btn" style="font-size: 10px; cursor: pointer; background: var(--warm); color: var(--ink); border: none; border-radius: 4px; padding: 2px 6px;">${ICONS.download} 全部套用</button>
           </div>
         </div>
         <div class="swf-gs-images"></div>
@@ -655,8 +648,8 @@
       <div class="swf-group-params-sidebar">
         <div class="swf-panel-resize" title="拖動調整寬度"></div>
         <div class="swf-gs-header">
-          <span>⚙ 統一參數</span>
-          <button class="swf-gps-close">✕</button>
+          <span class="swf-gs-title">${ICONS.settings} 統一參數</span>
+          <button class="swf-gps-close">${ICONS.close}</button>
         </div>
         <div class="swf-gps-body">
           <label class="swf-gps-label">模型與處理</label>
@@ -682,8 +675,8 @@
       <div class="swf-group-automation-sidebar">
         <div class="swf-panel-resize" title="拖動調整寬度"></div>
         <div class="swf-gs-header">
-          <span>🤖 完成後自動化</span>
-          <button class="swf-gas-close">✕</button>
+          <span class="swf-gs-title">${ICONS.bot} 完成後自動化</span>
+          <button class="swf-gas-close">${ICONS.close}</button>
         </div>
         <div class="swf-gps-body">
           <label class="swf-gps-check"><input type="checkbox" class="swf-gas-enable"> 生成完成後自動執行</label>
@@ -1081,7 +1074,7 @@
       });
       const delBtn = document.createElement('button');
       delBtn.className = 'swf-gs-img-del';
-      delBtn.textContent = '✕';
+      delBtn.innerHTML = ICONS.close;
       delBtn.title = '排除此圖片';
       delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1692,7 +1685,7 @@
         </div>
         <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
         ${(isI2I || isComfy) ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
-        <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label swf-prompt-label-row"><span>提示詞 (Prompt)</span><span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.bookmark}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.list}</button></span></div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
+        <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label swf-prompt-label-row"><span>提示詞 (Prompt)</span><span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.save}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.folderOpen}</button></span></div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">${ICONS.download}</button></div>
         <button class="swf-run-btn" data-node="${id}">${ICONS.play} 生成</button>
         <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
@@ -1756,7 +1749,7 @@
       </div>
       <div class="swf-macro-body swf-note-body">
         <div class="swf-note-toolbar">
-          <span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.bookmark}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.list}</button></span>
+          <span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.save}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.folderOpen}</button></span>
         </div>
         <div class="swf-prompt-editor swf-note-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入備忘內容..." data-node="${id}"></div>
       </div>
@@ -1956,11 +1949,22 @@
       empty.textContent = '尚無儲存的提示詞';
       pop.appendChild(empty);
     } else {
+      // Accordion: each category is a collapsible group, collapsed by default
+      // with a ">" chevron that rotates down when its prompt list is expanded.
       orderedCats.forEach(cat => {
+        const group = document.createElement('div');
+        group.className = 'swf-plib-cat';
+
         const header = document.createElement('div');
-        header.className = 'swf-plib-group-header';
-        header.textContent = cat;
-        pop.appendChild(header);
+        header.className = 'swf-plib-cat-header';
+        header.innerHTML = `<span class="chev">${ICONS.chevron}</span><span class="swf-plib-cat-name"></span><span class="swf-plib-cat-count"></span>`;
+        header.querySelector('.swf-plib-cat-name').textContent = cat;
+        header.querySelector('.swf-plib-cat-count').textContent = byCat.get(cat).length;
+        header.addEventListener('click', () => group.classList.toggle('open'));
+        group.appendChild(header);
+
+        const items = document.createElement('div');
+        items.className = 'swf-plib-cat-items';
         byCat.get(cat).forEach(p => {
           const row = document.createElement('div');
           row.className = 'swf-plib-popover-item';
@@ -1970,8 +1974,10 @@
             insertPromptTextIntoEditor(targetEditor, p.content || '');
             closePlibPopover();
           });
-          pop.appendChild(row);
+          items.appendChild(row);
         });
+        group.appendChild(items);
+        pop.appendChild(group);
       });
     }
 
@@ -2443,7 +2449,7 @@
         // Delete button
         const delBtn = document.createElement('button');
         delBtn.className = 'swf-img-thumb-del';
-        delBtn.textContent = '✕';
+        delBtn.innerHTML = ICONS.close;
         delBtn.title = isUploaded ? '刪除此圖片' : '排除此上游圖片';
         delBtn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -2470,8 +2476,8 @@
         // Source indicator
         if (!isUploaded) {
           const badge = document.createElement('span');
-          badge.className = 'swf-img-upstream-badge';
-          badge.textContent = '⬆';
+          badge.className = 'swf-img-upstream-badge ico';
+          badge.innerHTML = window.Icons ? window.Icons.get('arrowUp') : '';
           badge.title = '上游圖片';
           wrapper.appendChild(badge);
         }

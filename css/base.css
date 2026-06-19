@@ -116,6 +116,26 @@ html { scrollbar-gutter: stable; }
   overflow: hidden;
 }
 
+/* ── Inline icons (emoji → SVG migration, via js/icons.js) ── */
+.ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  vertical-align: -0.14em;
+}
+.ico svg { width: 16px; height: 16px; display: block; }
+.ico-md svg { width: 22px; height: 22px; }
+.ico-lg svg { width: 44px; height: 44px; }
+/* Buttons that hold an icon + text: keep them centered with a small gap */
+button .ico { vertical-align: middle; }
+/* Dynamically-injected SVGs in icon-only action buttons (no .ico wrapper) */
+.v2-btn-icon svg, .icon-btn svg, .key-del-btn svg,
+.cat-delete-btn svg, .dash-toggle svg, .btn-delete svg { width: 15px; height: 15px; vertical-align: middle; }
+.v2-tree-icon svg { width: 14px; height: 14px; }
+.dash-card-icon svg { width: 18px; height: 18px; }
+.settings-card-icon svg { width: 20px; height: 20px; }
+
 /* ── Buttons ── */
 .btn-primary {
   background: var(--warm);

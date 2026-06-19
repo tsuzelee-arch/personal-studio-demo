@@ -380,13 +380,13 @@
               啟用
             </label>
           </div>
-          <button class="btn-delete" title="刪除項目">🗑️</button>
+          <button class="btn-delete" title="刪除項目">${window.Icons ? window.Icons.get('trash') : ''}</button>
         </div>
         <div class="ip-card-canvas-wrap ${imgObj.bgColor === 'transparent' ? 'checkerboard' : ''}" style="aspect-ratio: ${res.width} / ${res.height};">
           <canvas class="ip-card-canvas" width="${Dw}" height="${Dh}"></canvas>
           <div class="ip-grid-overlay ${imgObj.refLine !== 'none' ? imgObj.refLine + ' active' : ''}"></div>
           <div class="ip-card-zoom-controls">
-            <span class="zoom-icon">🔍</span>
+            <span class="zoom-icon ico">${window.Icons ? window.Icons.get('search') : ''}</span>
             <input type="range" class="ip-card-zoom-slider" min="0.1" max="5.0" step="0.05" value="${imgObj.scale}" />
           </div>
         </div>
@@ -851,7 +851,7 @@
         if (card) {
           card.classList.remove('locked');
           const statusEl = card.querySelector('.ip-card-status');
-          statusEl.textContent = '✅ 已儲存';
+          statusEl.innerHTML = (window.Icons ? '<span class="ico">' + window.Icons.get('check') + '</span> ' : '') + '已儲存';
           statusEl.className = 'ip-card-status success';
         }
       } catch (err) {
@@ -861,7 +861,7 @@
         if (card) {
           card.classList.remove('locked');
           const statusEl = card.querySelector('.ip-card-status');
-          statusEl.textContent = '❌ 錯誤';
+          statusEl.innerHTML = (window.Icons ? '<span class="ico">' + window.Icons.get('alertTriangle') + '</span> ' : '') + '錯誤';
           statusEl.className = 'ip-card-status error';
         }
         if (window.showToast) window.showToast(`圖片 ${imgObj.file.name} 儲存失敗：${err.message}`);
@@ -1832,7 +1832,7 @@
     if (!box) return;
     box.innerHTML = '';
     if (list.length === 0) {
-      box.innerHTML = '<div class="ip-preset-empty">尚無已儲存腳本，設定好參數後按「💾 儲存目前設定」。</div>';
+      box.innerHTML = '<div class="ip-preset-empty">尚無已儲存腳本，設定好參數後按「<span class="ico">' + (window.Icons ? window.Icons.get('save') : '') + '</span> 儲存目前設定」。</div>';
       return;
     }
     list.forEach(item => {
@@ -1842,11 +1842,11 @@
       const res = item.config?.resolution || '';
       const autoOn = !!item.config?.autoRun;
       card.innerHTML =
-        `<button class="ip-preset-card-del" title="刪除">✕</button>` +
+        `<button class="ip-preset-card-del" title="刪除">${window.Icons ? window.Icons.get('close') : ''}</button>` +
         `<div class="ip-preset-card-name"></div>` +
         `<div class="ip-preset-card-meta">${escHtml(fit)}${res ? ' · ' + escHtml(String(res)) : ''}</div>` +
         `<div class="ip-preset-card-actions">` +
-          `<button class="ip-preset-run" title="馬上用此腳本執行">▶ 馬上執行</button>` +
+          `<button class="ip-preset-run" title="馬上用此腳本執行">${window.Icons ? window.Icons.get('play') : ''} 馬上執行</button>` +
           `<label class="ip-preset-auto" title="偵測到符合關鍵字的新圖片時自動執行此腳本"><input type="checkbox" class="ip-preset-auto-cb" ${autoOn ? 'checked' : ''}> 自動執行</label>` +
         `</div>`;
       card.querySelector('.ip-preset-card-name').textContent = item.name;

@@ -202,7 +202,7 @@
       const dragHandle = isPinned(cat) ? '' : '<span class="cat-drag-handle">⠿</span>';
 
       // Delete button for non-pinned
-      const deleteBtn = isPinned(cat) ? '' : '<span class="cat-delete-btn" title="刪除分類">✕</span>';
+      const deleteBtn = isPinned(cat) ? '' : '<span class="cat-delete-btn ico" title="刪除分類">' + (window.Icons ? window.Icons.get('close') : '') + '</span>';
 
       item.innerHTML = `${dragHandle}<span class="cat-label">${escHtml(cat)}</span><span class="cat-count">${count}</span>${deleteBtn}`;
 

@@ -40,14 +40,14 @@
         <div class="nav-item" data-panel="image-process">圖像處理</div>
         <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
         <div class="nav-item" data-panel="workflow" style="display: none;">自定工作流（暫時廢棄）</div>
-        <div class="nav-item" data-panel="workflow-library" style="display: none;">🗂 工作流庫（暫時廢棄）</div>
+        <div class="nav-item" data-panel="workflow-library" style="display: none;"><i class="ico" data-icon="grid"></i> 工作流庫（暫時廢棄）</div>
         <div class="nav-item" data-panel="assets-v2">資產庫</div>
         <div class="nav-cat" style="margin-top:12px">系統</div>
-        <div class="nav-item" data-panel="settings">⚙ API 設定</div>
+        <div class="nav-item" data-panel="settings"><i class="ico" data-icon="settings"></i> API 設定</div>
       </div>
       <div class="sidebar-footer">
         <div class="nav-item theme-toggle" id="themeToggleBtn" style="margin-bottom: 8px; justify-content: center;">
-          🌙 切換色彩模式
+          <i class="ico" data-icon="moon"></i> <span class="theme-toggle-text">切換色彩模式</span>
         </div>
         <div class="sidebar-footer-text">客制化 Studio v1.0</div>
       </div>
@@ -58,10 +58,10 @@
         <div class="page-title" id="pageTitle">簡易工作流整合</div>
         <div class="topbar-actions" id="topbarActions">
           <button class="global-dev-log-btn" id="globalDevLogBtn" title="開啟開發日誌">
-            <span>📋</span>
+            <span class="ico" data-icon="clipboard"></span>
             <span class="btn-text">開發日誌</span>
           </button>
-          <button class="global-ide-agent-btn" id="globalIdeAgentBtn" title="開啟 IDE Agent">✨</button>
+          <button class="global-ide-agent-btn" id="globalIdeAgentBtn" title="開啟 IDE Agent"><i class="ico" data-icon="sparkles"></i></button>
         </div>
       </header>
       <div class="content">
@@ -100,12 +100,12 @@
             <div class="swf-left-assets assets-body-v2" id="swfLeftAssets" style="display:none; flex-direction: column;">
               <div class="assets-header-v2" style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <div style="font-weight: 600; font-size: 14px;">🗃️ 資產瀏覽器</div>
-                  <button id="swfAssetRefresh" class="v2-btn-icon" title="即時刷新" style="width: 24px; height: 24px; font-size: 12px;">🔄</button>
-                  <button id="swfAssetLink" class="v2-btn-icon" title="連結本機資料夾" style="width: 24px; height: 24px; font-size: 12px;">🔗</button>
-                  <button id="swfAssetRestore" class="v2-btn-icon" title="恢復連線" style="width: 24px; height: 24px; font-size: 12px; display: none; color: #f39c12;">🔌</button>
+                  <div style="font-weight: 600; font-size: 14px; display:flex; align-items:center; gap:6px;"><i class="ico" data-icon="archive"></i> 資產瀏覽器</div>
+                  <button id="swfAssetRefresh" class="v2-btn-icon" title="即時刷新" style="width: 24px; height: 24px;"><i class="ico" data-icon="refresh"></i></button>
+                  <button id="swfAssetLink" class="v2-btn-icon" title="連結本機資料夾" style="width: 24px; height: 24px;"><i class="ico" data-icon="link"></i></button>
+                  <button id="swfAssetRestore" class="v2-btn-icon" title="恢復連線" style="width: 24px; height: 24px; display: none; color: #f39c12;"><i class="ico" data-icon="power"></i></button>
                 </div>
-                <button class="swf-pane-close" id="swfAssetClose" style="background: none; border: none; font-size: 16px; cursor: pointer;">✕</button>
+                <button class="swf-pane-close" id="swfAssetClose" style="background: none; border: none; cursor: pointer;"><i class="ico" data-icon="close"></i></button>
               </div>
               <div style="display: flex; flex: 1; min-height: 0;">
                 <div class="assets-sidebar-v2" style="width: 110px; border-right: 1px solid var(--border); background: var(--bg); overflow-y: auto; padding: 8px;">
@@ -189,7 +189,7 @@
               <!-- Dashboard Top Bar -->
               <div class="decode-dashboard-bar">
                 <div class="dashboard-title">
-                  <span class="dashboard-icon">◈</span> 視覺解構分析報告
+                  <span class="dashboard-icon ico" data-icon="diamond"></span> 視覺解構分析報告
                 </div>
                 <div class="dashboard-actions">
                   <button class="btn-primary" id="copyPromptBtn">複製提示詞</button>
@@ -220,7 +220,7 @@
 
                   <div class="dash-card" id="cardPalette">
                     <div class="dash-card-header">
-                      <span class="dash-card-icon">🎨</span>
+                      <span class="dash-card-icon ico" data-icon="palette"></span>
                       <span class="dash-card-title">色彩色盤 (Color Palette)</span>
                     </div>
                     <div class="palette-row" id="paletteRow"></div>
@@ -228,7 +228,7 @@
 
                   <div class="dash-card" id="cardMood">
                     <div class="dash-card-header">
-                      <span class="dash-card-icon">🌫️</span>
+                      <span class="dash-card-icon ico" data-icon="cloud"></span>
                       <span class="dash-card-title">氛圍與情緒 (Mood)</span>
                     </div>
                     <div class="dash-card-body">
@@ -241,7 +241,7 @@
                     <div class="dash-card-header"
                       style="display: flex; justify-content: space-between; align-items: center;">
                       <div>
-                        <span class="dash-card-icon">✨</span>
+                        <span class="dash-card-icon ico" data-icon="sparkles"></span>
                         <span class="dash-card-title">視覺解構提示詞 (Prompt)</span>
                       </div>
                       <button class="btn-primary btn-sm" id="toNaturalBtn"
@@ -260,7 +260,7 @@
                   <!-- Metadata Card -->
                   <div class="dash-card" id="cardMeta">
                     <div class="dash-card-header">
-                      <span class="dash-card-icon">📋</span>
+                      <span class="dash-card-icon ico" data-icon="clipboard"></span>
                       <span class="dash-card-title">推估風格與過程 (Style & Process)</span>
                     </div>
                     <div class="dash-card-body">
@@ -272,7 +272,7 @@
                   <!-- Dimensions Card -->
                   <div class="dash-card" id="cardDimensions">
                     <div class="dash-card-header">
-                      <span class="dash-card-icon">📏</span>
+                      <span class="dash-card-icon ico" data-icon="ruler"></span>
                       <span class="dash-card-title">圖像尺寸與解析度 (Dimensions)</span>
                     </div>
                     <div class="dash-card-body">
@@ -283,7 +283,7 @@
                   <!-- Elements Breakdown Card -->
                   <div class="dash-card" id="cardElements">
                     <div class="dash-card-header">
-                      <span class="dash-card-icon">🔍</span>
+                      <span class="dash-card-icon ico" data-icon="layers"></span>
                       <span class="dash-card-title">畫面元素拆解 (Layers)</span>
                       <button class="dash-toggle" data-target="elementsBody">展開 ▾</button>
                     </div>
@@ -300,7 +300,7 @@
                         <div class="element-layer-badge subject-badge" style="display: flex; align-items: center;">
                           主體 (Subject)
                           <button class="btn-primary btn-sm" id="saveSubjectBtn"
-                            style="font-size: 11px; padding: 2px 6px; margin-left: auto;">💾 保存角色</button>
+                            style="font-size: 11px; padding: 2px 6px; margin-left: auto;"><i class="ico" data-icon="save"></i> 保存角色</button>
                         </div>
                         <div class="subject-grid" id="elSubject">
                           <div class="subject-item">
@@ -343,7 +343,7 @@
                   <!-- Lighting & Camera Card -->
                   <div class="dash-card" id="cardLighting">
                     <div class="dash-card-header">
-                      <span class="dash-card-icon">💡</span>
+                      <span class="dash-card-icon ico" data-icon="bulb"></span>
                       <span class="dash-card-title">光影與攝影 (Lighting & Camera)</span>
                       <button class="dash-toggle" data-target="lightingBody">展開 ▾</button>
                     </div>
@@ -389,7 +389,7 @@
                   <!-- Materials & Textures Card -->
                   <div class="dash-card" id="cardMaterials">
                     <div class="dash-card-header">
-                      <span class="dash-card-icon">🧱</span>
+                      <span class="dash-card-icon ico" data-icon="box"></span>
                       <span class="dash-card-title">材質與微觀紋理 (Material & Texture)</span>
                       <button class="dash-toggle" data-target="materialsBody">展開 ▾</button>
                     </div>
@@ -401,7 +401,7 @@
                   <!-- Negative Constraints Card -->
                   <div class="dash-card dash-card-negative" id="cardNegative">
                     <div class="dash-card-header">
-                      <span class="dash-card-icon">🚫</span>
+                      <span class="dash-card-icon ico" data-icon="ban"></span>
                       <span class="dash-card-title">推論負面約束 (Negative Space/Constraints)</span>
                     </div>
                     <div class="dash-card-body">
@@ -419,16 +419,16 @@
         <section class="panel" id="panel-image-process">
           <!-- Header Bar (Lightroom-like top toolbar) -->
           <div class="ip-header">
-            <div class="ip-title">🖼️ 圖像批次處理 (Image Batch Processor)</div>
+            <div class="ip-title"><i class="ico" data-icon="image"></i> 圖像批次處理 (Image Batch Processor)</div>
             <div class="ip-toolbar">
-              <button class="btn-ghost btn-sm" id="ipBtnAssetToggle" title="資產瀏覽器">📂 本機資產</button>
+              <button class="btn-ghost btn-sm" id="ipBtnAssetToggle" title="資產瀏覽器"><i class="ico" data-icon="folderOpen"></i> 本機資產</button>
               <div style="width:1px; background:var(--border); margin:0 5px;"></div>
-              <button id="ipBtnStitch" class="btn-ghost btn-sm" disabled>🔗 拼合選取</button>
-              <button id="ipBtnScript" class="btn-ghost btn-sm">🤖 自動化腳本</button>
+              <button id="ipBtnStitch" class="btn-ghost btn-sm" disabled><i class="ico" data-icon="link"></i> 拼合選取</button>
+              <button id="ipBtnScript" class="btn-ghost btn-sm"><i class="ico" data-icon="bot"></i> 自動化腳本</button>
               <div style="width:1px; background:var(--border); margin:0 5px;"></div>
-              <button id="ipBtnProcess" class="btn-primary btn-sm" disabled>🚀 開始處理</button>
-              <button id="ipBtnUpload" class="btn-primary btn-sm" style="background: var(--success); color: #fff;">📤 上傳圖片</button>
-              <button id="ipBtnClear" class="btn-ghost btn-sm" disabled>🗑️ 清除全部</button>
+              <button id="ipBtnProcess" class="btn-primary btn-sm" disabled><i class="ico" data-icon="rocket"></i> 開始處理</button>
+              <button id="ipBtnUpload" class="btn-primary btn-sm" style="background: var(--success); color: #fff;"><i class="ico" data-icon="upload"></i> 上傳圖片</button>
+              <button id="ipBtnClear" class="btn-ghost btn-sm" disabled><i class="ico" data-icon="trash"></i> 清除全部</button>
             </div>
           </div>
 
@@ -438,12 +438,12 @@
             <div class="ip-left-assets assets-body-v2" id="ipLeftAssets" style="display:none; flex-direction: column;">
               <div class="assets-header-v2" style="padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <div style="font-weight: 600; font-size: 14px;">🗃️ 本機資產瀏覽器</div>
-                  <button id="ipAssetRefresh" class="v2-btn-icon" title="即時刷新" style="width: 24px; height: 24px; font-size: 12px;">🔄</button>
-                  <button id="ipAssetLink" class="v2-btn-icon" title="連結本機資料夾" style="width: 24px; height: 24px; font-size: 12px;">🔗</button>
-                  <button id="ipAssetRestore" class="v2-btn-icon" title="恢復連線" style="width: 24px; height: 24px; font-size: 12px; display: none; color: #f39c12;">🔌</button>
+                  <div style="font-weight: 600; font-size: 14px; display:flex; align-items:center; gap:6px;"><i class="ico" data-icon="archive"></i> 本機資產瀏覽器</div>
+                  <button id="ipAssetRefresh" class="v2-btn-icon" title="即時刷新" style="width: 24px; height: 24px;"><i class="ico" data-icon="refresh"></i></button>
+                  <button id="ipAssetLink" class="v2-btn-icon" title="連結本機資料夾" style="width: 24px; height: 24px;"><i class="ico" data-icon="link"></i></button>
+                  <button id="ipAssetRestore" class="v2-btn-icon" title="恢復連線" style="width: 24px; height: 24px; display: none; color: #f39c12;"><i class="ico" data-icon="power"></i></button>
                 </div>
-                <button class="ip-pane-close" id="ipAssetClose" style="background: none; border: none; font-size: 16px; cursor: pointer;">✕</button>
+                <button class="ip-pane-close" id="ipAssetClose" style="background: none; border: none; cursor: pointer;"><i class="ico" data-icon="close"></i></button>
               </div>
               <div style="display: flex; flex: 1; min-height: 0;">
                 <div class="assets-sidebar-v2" style="width: 110px; border-right: 1px solid var(--border); background: var(--bg); overflow-y: auto; padding: 8px;">
@@ -466,12 +466,12 @@
               <!-- Gallery / Preview List -->
               <div class="ip-gallery-container">
                 <div class="ip-gallery-header" style="margin: 0 0 12px 0; display: flex; justify-content: space-between; font-weight: 500; font-size: 14px;">
-                  <span>🖼️ 預覽畫布</span>
+                  <span style="display:flex; align-items:center; gap:6px;"><i class="ico" data-icon="image"></i> 預覽畫布</span>
                   <span id="ipImageCount" style="color: var(--muted);">0 張圖片</span>
                 </div>
                 <div id="ipGallery" class="ip-gallery">
                   <div class="empty-state" id="ipEmptyState">
-                    <div class="empty-icon">📭</div>
+                    <div class="empty-icon ico ico-lg" data-icon="inbox"></div>
                     <p>尚未上傳任何圖片，請使用右上方上傳或由本機資產拖曳新增</p>
                   </div>
                 </div>
@@ -491,8 +491,8 @@
 
             <!-- Right Pane: Global Properties / Inspector -->
             <div class="ip-right-inspector">
-              <button id="ipBtnUnify" class="btn-primary" style="width:100%; padding:10px; margin-bottom:12px; border-radius:6px;">✨ 統一輸出參數</button>
-              <button id="ipBtnClearInspector" class="btn-ghost" style="width: 100%; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 8px; color: var(--danger, #ff4d4f); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; background: transparent;">🗑️ 清空工作區</button>
+              <button id="ipBtnUnify" class="btn-primary" style="width:100%; padding:10px; margin-bottom:12px; border-radius:6px;"><i class="ico" data-icon="sparkles"></i> 統一輸出參數</button>
+              <button id="ipBtnClearInspector" class="btn-ghost" style="width: 100%; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 8px; color: var(--danger, #ff4d4f); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; background: transparent;"><i class="ico" data-icon="trash"></i> 清空工作區</button>
               
               <div class="ip-inspector-section">
                 <div class="ip-inspector-title">全域參數設定 (Global Settings)</div>
@@ -578,7 +578,7 @@
             <div class="prompts-right-forge" id="promptRightForge">
               <div class="prompt-forge" id="promptForge">
                 <div class="forge-header">
-                  <span class="forge-icon">🔥</span>
+                  <span class="forge-icon ico" data-icon="flame"></span>
                   <span class="forge-title">提示詞熔爐</span>
                 </div>
                 <div class="forge-drop-zone" id="forgeDropZone">
@@ -601,15 +601,15 @@
                       <option value="日本語">日本語</option>
                     </select>
                     <button class="btn-primary btn-sm" id="saveForgeBtn"
-                      style="font-size: 12px; padding: 4px 10px; margin-left: 10px;">💾 保存為完整提示詞</button>
+                      style="font-size: 12px; padding: 4px 10px; margin-left: 10px;"><i class="ico" data-icon="save"></i> 保存為完整提示詞</button>
                   </div>
                   <div class="forge-actions-top">
-                    <button class="btn-primary btn-sm" id="forgeToNaturalBtn">✨ 轉自然語言</button>
-                    <button class="btn-primary btn-sm" id="forgeToSdTagsBtn">🏷️ 轉 SD Tags</button>
+                    <button class="btn-primary btn-sm" id="forgeToNaturalBtn"><i class="ico" data-icon="sparkles"></i> 轉自然語言</button>
+                    <button class="btn-primary btn-sm" id="forgeToSdTagsBtn"><i class="ico" data-icon="tag"></i> 轉 SD Tags</button>
                   </div>
                   <div class="forge-actions-bottom">
-                    <button class="btn-ghost btn-sm" id="forgeClearBtn">🗑️ 清空</button>
-                    <button class="btn-ghost btn-sm" id="forgeCopyBtn">📋 複製</button>
+                    <button class="btn-ghost btn-sm" id="forgeClearBtn"><i class="ico" data-icon="trash"></i> 清空</button>
+                    <button class="btn-ghost btn-sm" id="forgeCopyBtn"><i class="ico" data-icon="clipboard"></i> 複製</button>
                   </div>
                 </div>
               </div>
@@ -625,29 +625,29 @@
             <div class="workflow-desc" style="font-weight: 500;">自定工作流 (Node-based)</div>
             <div class="workflow-toolbar" id="wfToolbar" style="display: flex; gap: 8px;">
               <button class="btn-ghost btn-sm" id="wfSaveBtn"
-                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💾 儲存至列表</button>
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><i class="ico" data-icon="save"></i> 儲存至列表</button>
               <button class="btn-ghost btn-sm" id="wfSaveProgressBtn"
-                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🔄 保存進度</button>
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><i class="ico" data-icon="refresh"></i> 保存進度</button>
               <button class="btn-ghost btn-sm" id="wfOverwriteBtn"
                 style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">↩
                 覆蓋workflow</button>
               <button class="btn-ghost btn-sm" id="wfExportBtn"
-                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">📤 導出</button>
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><i class="ico" data-icon="upload"></i> 導出</button>
               <label class="btn-ghost btn-sm"
                 style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin: 0;">
-                📥 導入<input type="file" id="wfImportInput" accept=".json" style="display: none;">
+                <i class="ico" data-icon="download"></i> 導入<input type="file" id="wfImportInput" accept=".json" style="display: none;">
               </label>
               <button class="btn-ghost btn-sm" id="wfPromptToggleBtn"
-                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">💡 Prompt
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><i class="ico" data-icon="bulb"></i> Prompt
                 列表</button>
               <button class="btn-ghost btn-sm" id="wfWorkflowListBtn"
-                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🗂
+                style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><i class="ico" data-icon="grid"></i>
                 workflow列表</button>
               <div style="width: 1px; background: var(--border); margin: 0 5px;"></div>
-              <button class="btn-ghost btn-sm" data-add="model">➕ Model</button>
-              <button class="btn-ghost btn-sm" data-add="prompt">➕ Prompt</button>
-              <button class="btn-ghost btn-sm" data-add="img2img">➕ Img2Img</button>
-              <button class="btn-ghost btn-sm" data-add="mask">➕ Mask</button>
+              <button class="btn-ghost btn-sm" data-add="model"><i class="ico" data-icon="plusSquare"></i> Model</button>
+              <button class="btn-ghost btn-sm" data-add="prompt"><i class="ico" data-icon="plusSquare"></i> Prompt</button>
+              <button class="btn-ghost btn-sm" data-add="img2img"><i class="ico" data-icon="plusSquare"></i> Img2Img</button>
+              <button class="btn-ghost btn-sm" data-add="mask"><i class="ico" data-icon="plusSquare"></i> Mask</button>
               <button class="btn-primary btn-sm" id="wfGenerateRunBtn" style="margin-left: 15px;">執行工作流 (Run)</button>
             </div>
           </div>
@@ -657,7 +657,7 @@
             <!-- Left Pane: Asset File Explorer -->
             <div class="ide-left-assets">
               <div class="ide-assets-header">
-                <span class="ide-pane-title">📂 資產瀏覽器</span>
+                <span class="ide-pane-title" style="display:inline-flex; align-items:center; gap:6px;"><i class="ico" data-icon="folderOpen"></i> 資產瀏覽器</span>
               </div>
               <div class="ide-folder-list" id="ideFolderList"></div>
               <div class="ide-assets-grid" id="ideAssetsGrid"></div>
@@ -681,8 +681,8 @@
               <!-- Right Edge: Workflow List Quick-Bar -->
               <div class="wf-list-quickbar" id="wfWorkflowQuickBar">
                 <div class="wf-list-qb-header">
-                  <span>🗂 workflow列表</span>
-                  <button class="wf-list-qb-close" id="wfWorkflowListClose">✕</button>
+                  <span style="display:inline-flex; align-items:center; gap:6px;"><i class="ico" data-icon="grid"></i> workflow列表</span>
+                  <button class="wf-list-qb-close" id="wfWorkflowListClose"><i class="ico" data-icon="close"></i></button>
                 </div>
                 <input class="wf-list-qb-search" type="text" id="wfListQbSearch" placeholder="搜尋工作流...">
                 <div class="wf-list-qb-body" id="wfListQbBody"></div>
@@ -697,7 +697,7 @@
             <div class="prompts-left-library">
               <div class="prompts-toolbar">
                 <input type="text" class="search-input" id="wlSearch" placeholder="搜尋工作流...">
-                <button class="btn-primary" id="wlSaveCurrentBtn">🗂 儲存目前工作流</button>
+                <button class="btn-primary" id="wlSaveCurrentBtn"><i class="ico" data-icon="grid"></i> 儲存目前工作流</button>
               </div>
               <div class="prompts-body">
                 <div class="prompts-category-sidebar" id="wlCategorySidebar"></div>
@@ -717,7 +717,7 @@
             <!-- OpenAI Settings -->
             <div class="settings-card">
               <div class="settings-card-header">
-                <span class="settings-card-icon">🤖</span>
+                <span class="settings-card-icon ico" data-icon="bot"></span>
                 <span class="settings-card-title">OpenAI (ChatGPT)</span>
               </div>
               <div class="settings-card-body">
@@ -741,7 +741,7 @@
             <!-- Gemini Settings -->
             <div class="settings-card">
               <div class="settings-card-header">
-                <span class="settings-card-icon">✦</span>
+                <span class="settings-card-icon ico" data-icon="sparkles"></span>
                 <span class="settings-card-title">Google Gemini</span>
               </div>
               <div class="settings-card-body">
@@ -765,7 +765,7 @@
             <!-- Gemini 2.5 Lite Settings -->
             <div class="settings-card">
               <div class="settings-card-header">
-                <span class="settings-card-icon">✧</span>
+                <span class="settings-card-icon ico" data-icon="star"></span>
                 <span class="settings-card-title">Google Gemini 2.5 Lite</span>
               </div>
               <div class="settings-card-body">
@@ -791,7 +791,7 @@
             <!-- Nano Banana Pro Settings -->
             <div class="settings-card">
               <div class="settings-card-header">
-                <span class="settings-card-icon">🍌</span>
+                <span class="settings-card-icon ico" data-icon="aperture"></span>
                 <span class="settings-card-title">Nano Banana Pro</span>
               </div>
               <div class="settings-card-body">
@@ -815,7 +815,7 @@
             <!-- File Naming Settings -->
             <div class="settings-card">
               <div class="settings-card-header">
-                <span class="settings-card-icon">🔤</span>
+                <span class="settings-card-icon ico" data-icon="type"></span>
                 <span class="settings-card-title">檔案命名</span>
               </div>
               <div class="settings-card-body">
@@ -832,13 +832,13 @@
             <!-- Asset Source Settings -->
             <div class="settings-card" id="assetSourceCard">
               <div class="settings-card-header">
-                <span class="settings-card-icon">🗂️</span>
+                <span class="settings-card-icon ico" data-icon="hardDrive"></span>
                 <span class="settings-card-title">資產庫來源設定</span>
               </div>
               <div class="settings-card-body">
                 <div class="settings-hint" style="margin-top:0; padding:10px 12px; background:var(--card-bg,#2a2a2a); border-radius:6px; line-height:1.6;">
-                  📁 <strong>批次匯入</strong>：不需要填寫路徑或開啟伺服器。<br>
-                  請至「<strong>資產庫</strong>」面板 → 點「📁 匯入資料夾」按鈕，選擇包含您檔案的本機資料夾。系統會自動將所有檔案（包含子資料夾）無縫匯入本地資料庫中，永久保存且免除重新授權。
+                  <i class="ico" data-icon="folder"></i> <strong>批次匯入</strong>：不需要填寫路徑或開啟伺服器。<br>
+                  請至「<strong>資產庫</strong>」面板 → 點「<i class="ico" data-icon="folder"></i> 匯入資料夾」按鈕，選擇包含您檔案的本機資料夾。系統會自動將所有檔案（包含子資料夾）無縫匯入本地資料庫中，永久保存且免除重新授權。
                 </div>
               </div>
             </div>
@@ -850,16 +850,16 @@
         <section class="panel" id="panel-assets-v2">
           <div class="assets-header-v2" style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
             <div style="font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-              <span>🗃️ 影像資產庫</span>
+              <span style="display:inline-flex; align-items:center; gap:6px;"><i class="ico" data-icon="archive"></i> 影像資產庫</span>
               <span id="v2-status-text" style="font-size: 12px; color: var(--muted); font-weight: normal;">(就緒)</span>
             </div>
             <div style="display: flex; align-items: center; gap: 12px;">
               <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none;">
                 <input type="checkbox" id="v2-auto-link-check" style="cursor: pointer;"> 自動連結/授權
               </label>
-              <button class="btn-primary" id="v2-btn-link-folder" style="padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🔗 連結本機工作夾</button>
-              <button class="btn-ghost" id="v2-btn-restore" style="display: none; color: #0d6efd;">🔄 恢復本機連線</button>
-              <button class="btn-ghost" id="v2-btn-clear-link" style="color: #dc3545;">🗑️ 解除連結</button>
+              <button class="btn-primary" id="v2-btn-link-folder" style="padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="ico" data-icon="link"></i> 連結本機工作夾</button>
+              <button class="btn-ghost" id="v2-btn-restore" style="display: none; color: #0d6efd;"><i class="ico" data-icon="refresh"></i> 恢復本機連線</button>
+              <button class="btn-ghost" id="v2-btn-clear-link" style="color: #dc3545;"><i class="ico" data-icon="trash"></i> 解除連結</button>
             </div>
           </div>
           <div class="assets-body-v2" style="display: flex; flex: 1; min-height: 0; overflow: hidden;">
@@ -869,7 +869,7 @@
             </div>
             <div class="assets-main-v2" style="flex: 1; overflow-y: auto; background: var(--surface); padding: 20px;">
               <div id="v2-empty-state" style="display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; color: var(--muted);">
-                <div style="font-size: 48px; margin-bottom: 16px;">🖼️</div>
+                <div class="ico ico-lg" data-icon="image" style="margin-bottom: 16px;"></div>
                 <div style="font-size: 16px;">此資料夾尚無影像資產</div>
                 <div style="font-size: 13px; margin-top: 8px;">點擊右上方「匯入深層資料夾」載入本機圖片</div>
               </div>
@@ -887,7 +887,7 @@
     <div class="modal">
       <div class="modal-header">
         <div class="modal-title" id="modalTitle">新增提示詞</div>
-        <button class="modal-close" id="modalClose">&#x2715;</button>
+        <button class="modal-close" id="modalClose"><i class="ico" data-icon="close"></i></button>
       </div>
       <div class="modal-body">
         <label class="form-label">標題</label>
@@ -923,7 +923,7 @@
     <div class="modal" style="max-width: 360px;">
       <div class="modal-header">
         <span class="modal-title">覆蓋 workflow</span>
-        <button class="modal-close" id="wlOverwriteClose">✕</button>
+        <button class="modal-close" id="wlOverwriteClose"><i class="ico" data-icon="close"></i></button>
       </div>
       <div class="modal-body">
         <label class="form-label">選擇要覆蓋的 workflow</label>
@@ -940,7 +940,7 @@
     <div class="modal">
       <div class="modal-header">
         <span class="modal-title" id="wlModalTitle">儲存工作流至庫</span>
-        <button class="modal-close" id="wlModalClose">✕</button>
+        <button class="modal-close" id="wlModalClose"><i class="ico" data-icon="close"></i></button>
       </div>
       <div class="modal-body">
         <label class="form-label">名稱 *</label>
@@ -962,7 +962,7 @@
     <div class="modal" style="max-width: 400px;">
       <div class="modal-header">
         <div class="modal-title">圖片拼合設定</div>
-        <button class="modal-close" id="ipStitchModalClose">✕</button>
+        <button class="modal-close" id="ipStitchModalClose"><i class="ico" data-icon="close"></i></button>
       </div>
       <div class="modal-body">
         <label class="form-label">拼合方向</label>
@@ -1015,8 +1015,8 @@
   <div class="modal-backdrop hidden" id="ipScriptModal">
     <div class="modal" style="width: 820px; max-width: 95vw;">
       <div class="modal-header">
-        <div class="modal-title">🤖 自動化裁切與編輯腳本</div>
-        <button class="modal-close" id="ipScriptModalClose">✕</button>
+        <div class="modal-title" style="display:flex; align-items:center; gap:6px;"><i class="ico" data-icon="bot"></i> 自動化裁切與編輯腳本</div>
+        <button class="modal-close" id="ipScriptModalClose"><i class="ico" data-icon="close"></i></button>
       </div>
       <div class="modal-body">
         <div class="ip-script-cols">
@@ -1059,7 +1059,7 @@
 
         <!-- 拼合參數 (Stitch Parameters) -->
         <div id="ipScriptStitchParams" style="display: none; margin-top: 12px; padding: 10px; border: 1px dashed var(--border); border-radius: 6px; background: var(--bg);">
-          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:var(--accent,#1783FF);">🔗 拼合參數設定</div>
+          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:var(--accent,#1783FF); display:flex; align-items:center; gap:5px;"><i class="ico" data-icon="link"></i> 拼合參數設定</div>
           
           <label class="form-label">拼合方向</label>
           <select class="form-input" id="ipScriptStitchDir" style="margin-bottom:8px;">
@@ -1092,7 +1092,7 @@
 
         <!-- 參考線裁切參數 (Reference Crop Parameters) -->
         <div id="ipScriptCropParams" style="display: none; margin-top: 12px; padding: 10px; border: 1px dashed var(--border); border-radius: 6px; background: var(--bg);">
-          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:var(--accent,#1783FF);">✂️ 裁切參數設定</div>
+          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:var(--accent,#1783FF); display:flex; align-items:center; gap:5px;"><i class="ico" data-icon="scissors"></i> 裁切參數設定</div>
           
           <label class="form-label">裁切參考線類型</label>
           <select class="form-input" id="ipScriptCropRefLine" style="margin-bottom:8px;">
@@ -1135,7 +1135,7 @@
 
         <!-- 自動執行設定 (Auto-Trigger Settings) -->
         <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);">
-          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:var(--success,#28a745);">🤖 腳本自動執行 (Auto-Trigger)</div>
+          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:var(--success,#28a745); display:flex; align-items:center; gap:5px;"><i class="ico" data-icon="bot"></i> 腳本自動執行 (Auto-Trigger)</div>
           <label class="form-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: normal;">
             <input type="checkbox" id="ipScriptAutoRun"> 偵測到新圖片儲存時，自動執行此腳本
           </label>
@@ -1146,15 +1146,15 @@
         </div>
         </div><!-- /.ip-script-col-main -->
         <div class="ip-script-col-saved">
-          <div class="ip-script-sidebar-head"><span>🤖 已儲存腳本 (<span id="ipScriptPresetCount">0</span>)</span></div>
+          <div class="ip-script-sidebar-head"><span style="display:inline-flex; align-items:center; gap:5px;"><i class="ico" data-icon="bot"></i> 已儲存腳本 (<span id="ipScriptPresetCount">0</span>)</span></div>
           <div class="ip-preset-cards" id="ipScriptPresetCards"></div>
         </div>
         </div><!-- /.ip-script-cols -->
       </div>
       <div class="modal-footer">
         <button class="btn-ghost" id="ipScriptModalCancel">取消</button>
-        <button class="btn-ghost" id="ipScriptPresetSave">💾 儲存為腳本</button>
-        <button class="btn-primary" id="ipScriptBtnExecute">🚀 執行自動化</button>
+        <button class="btn-ghost" id="ipScriptPresetSave"><i class="ico" data-icon="save"></i> 儲存為腳本</button>
+        <button class="btn-primary" id="ipScriptBtnExecute"><i class="ico" data-icon="rocket"></i> 執行自動化</button>
       </div>
     </div>
   </div>
@@ -1163,11 +1163,11 @@
   <div class="modal-backdrop hidden" id="ipImportConflictModal">
     <div class="modal" style="max-width: 380px;">
       <div class="modal-header">
-        <span class="modal-title">📥 匯入影像</span>
-        <button class="modal-close" id="ipImportConflictClose">✕</button>
+        <span class="modal-title" style="display:inline-flex; align-items:center; gap:6px;"><i class="ico" data-icon="download"></i> 匯入影像</span>
+        <button class="modal-close" id="ipImportConflictClose"><i class="ico" data-icon="close"></i></button>
       </div>
       <div class="modal-body" style="text-align: center; padding: 24px 20px;">
-        <div style="font-size: 36px; margin-bottom: 12px;">📥</div>
+        <div class="ico ico-lg" data-icon="download" style="margin-bottom: 12px;"></div>
         <div style="font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 8px;">偵測到工作區已有圖片</div>
         <div style="font-size: 13px; color: var(--muted); line-height: 1.5;">
           您拖入了新影像，要<strong>覆蓋替代</strong>現有圖片，還是<strong>疊加追加</strong>到現有清單中？
@@ -1175,8 +1175,8 @@
       </div>
       <div class="modal-footer" style="justify-content: center; gap: 12px; padding-bottom: 20px;">
         <button class="btn-ghost" id="ipImportConflictCancel" style="border: 1px solid var(--border); padding: 6px 16px;">取消</button>
-        <button class="btn-primary" id="ipImportConflictReplace" style="background: var(--danger, #ff4d4f); color: white; border: none; padding: 6px 16px; cursor: pointer;">⚠️ 替代現有</button>
-        <button class="btn-primary" id="ipImportConflictAppend" style="background: var(--success, #28a745); color: white; border: none; padding: 6px 16px; cursor: pointer;">➕ 疊加追加</button>
+        <button class="btn-primary" id="ipImportConflictReplace" style="background: var(--danger, #ff4d4f); color: white; border: none; padding: 6px 16px; cursor: pointer; display:inline-flex; align-items:center; gap:5px;"><i class="ico" data-icon="alertTriangle"></i> 替代現有</button>
+        <button class="btn-primary" id="ipImportConflictAppend" style="background: var(--success, #28a745); color: white; border: none; padding: 6px 16px; cursor: pointer; display:inline-flex; align-items:center; gap:5px;"><i class="ico" data-icon="plusSquare"></i> 疊加追加</button>
       </div>
     </div>
   </div>
@@ -1188,22 +1188,22 @@
   <div class="global-ide-agent-panel hidden" id="globalIdeAgentPanel">
     <div class="agent-archive-overlay"
       style="position:absolute; inset:0; z-index:999; background:rgba(0,0,0,0.55); display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:all; backdrop-filter:blur(4px); border-radius:12px;">
-      <div style="font-size:48px; margin-bottom:12px;">🚧</div>
+      <div class="ico ico-lg" data-icon="tool" style="margin-bottom:12px; color:#fff;"></div>
       <div style="font-size:18px; font-weight:700; color:#fff; letter-spacing:1px;">開發中</div>
       <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:6px;">Under Development</div>
     </div>
     <div class="agent-header">
-      <span class="agent-header-title">✨ IDE Agent</span>
+      <span class="agent-header-title" style="display:inline-flex; align-items:center; gap:6px;"><i class="ico" data-icon="sparkles"></i> IDE Agent</span>
       <select class="agent-model-select" id="agentModelSelect" disabled>
         <option value="gpt-5.5">ChatGPT 5.5</option>
         <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash</option>
         <option value="gemini-3.1-pro">Gemini 3.1 Pro (High)</option>
       </select>
-      <button class="agent-close-btn" id="agentCloseBtn">&#x2715;</button>
+      <button class="agent-close-btn" id="agentCloseBtn"><i class="ico" data-icon="close"></i></button>
     </div>
     <div class="agent-messages" id="agentMessages">
       <div class="agent-welcome">
-        <div class="agent-welcome-icon">✨</div>
+        <div class="agent-welcome-icon ico ico-lg" data-icon="sparkles"></div>
         <div class="agent-welcome-title">歡迎使用 IDE Agent</div>
         <div class="agent-welcome-sub">此功能正在開發中，敬請期待。</div>
       </div>
@@ -1211,7 +1211,7 @@
     <div class="agent-input-area">
       <div class="agent-input-container" id="agentInputContainer">
         <textarea class="agent-textarea" id="agentTextarea" placeholder="功能開發中..." rows="1" disabled></textarea>
-        <button class="agent-send-btn" id="agentSendBtn" title="發送" disabled>⬆️</button>
+        <button class="agent-send-btn" id="agentSendBtn" title="發送" disabled><i class="ico" data-icon="send"></i></button>
       </div>
     </div>
   </div>
@@ -1220,10 +1220,10 @@
   <div class="global-dev-log-panel hidden" id="globalDevLogPanel">
     <div class="dev-log-header">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span class="dev-log-header-title">📋 開發日誌 (Development Log)</span>
-        <button id="devLogRefreshBtn" class="dev-log-refresh-btn" title="重新載入日誌">🔄</button>
+        <span class="dev-log-header-title" style="display:inline-flex; align-items:center; gap:6px;"><i class="ico" data-icon="clipboard"></i> 開發日誌 (Development Log)</span>
+        <button id="devLogRefreshBtn" class="dev-log-refresh-btn" title="重新載入日誌"><i class="ico" data-icon="refresh"></i></button>
       </div>
-      <button class="dev-log-close-btn" id="devLogCloseBtn">&#x2715;</button>
+      <button class="dev-log-close-btn" id="devLogCloseBtn"><i class="ico" data-icon="close"></i></button>
     </div>
     <div class="dev-log-body" style="padding: 0; overflow: hidden; height: calc(100% - 45px);">
       <iframe id="devLogFrame" style="width: 100%; height: 100%; border: none; background: #ffffff;" src="about:blank"></iframe>
@@ -1235,8 +1235,8 @@
   <div class="modal-backdrop hidden" id="swfLibraryModal">
     <div class="modal" style="max-width: 450px;">
       <div class="modal-header">
-        <h3 class="modal-title">📂 讀取工作流 (簡易版)</h3>
-        <button class="modal-close" id="swfLibModalCloseBtn">✕</button>
+        <h3 class="modal-title" style="display:flex; align-items:center; gap:6px;"><i class="ico" data-icon="folderOpen"></i> 讀取工作流 (簡易版)</h3>
+        <button class="modal-close" id="swfLibModalCloseBtn"><i class="ico" data-icon="close"></i></button>
       </div>
       <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
         <div id="swfLibList" style="display: flex; flex-direction: column; gap: 8px;">
@@ -1254,6 +1254,7 @@
     defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="js/icons.js?v=__BUILD_TS__"></script>
   <script src="js/utils.js?v=__BUILD_TS__"></script>
   <script src="js/app.js?v=__BUILD_TS__"></script>
   <script src="js/gdrive-api.js?v=__BUILD_TS__"></script>

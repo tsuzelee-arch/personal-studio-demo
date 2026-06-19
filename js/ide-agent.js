@@ -110,7 +110,7 @@ window.IDEAgent = (function() {
     if (inputContainer) inputContainer.classList.toggle('image-mode', isImageMode);
     if (textarea) {
       textarea.placeholder = isImageMode
-        ? '🎨 描述您想要生成的圖片（直接呼叫 GPT Image 2.0，不消耗對話 Token）...'
+        ? '描述您想要生成的圖片（直接呼叫 GPT Image 2.0，不消耗對話 Token）...'
         : '輸入描述來生成圖像，或附加圖片進行分析...';
     }
   }
@@ -148,7 +148,7 @@ window.IDEAgent = (function() {
     
     if (generatedImageUrl) {
       contentHtml += `<img class="chat-gen-image" src="${generatedImageUrl}" alt="Generated Image">`;
-      contentHtml += `<button class="chat-save-btn" data-src="${generatedImageUrl}">💾 存入資產庫</button>`;
+      contentHtml += `<button class="chat-save-btn" data-src="${generatedImageUrl}">${window.Icons ? window.Icons.get('save') : ''} 存入資產庫</button>`;
     }
 
     msg.innerHTML = `

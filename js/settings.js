@@ -118,9 +118,9 @@
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
-    delBtn.className = 'btn-ghost btn-sm key-del-btn';
+    delBtn.className = 'btn-ghost btn-sm key-del-btn ico';
     delBtn.title = '刪除此金鑰';
-    delBtn.textContent = '✕';
+    delBtn.innerHTML = window.Icons ? window.Icons.get('close') : '';
 
     const status = document.createElement('span');
     status.className = 'conn-status key-status';
@@ -303,7 +303,7 @@
   const themeToggleBtn = document.getElementById('themeToggleBtn');
   function updateThemeUI() {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (themeToggleBtn) themeToggleBtn.innerHTML = isDark ? '☀️ 切換日間模式' : '🌙 切換夜間模式';
+    if (themeToggleBtn) themeToggleBtn.innerHTML = (window.Icons ? '<span class="ico">' + window.Icons.get(isDark ? 'sun' : 'moon') + '</span> ' : '') + (isDark ? '切換日間模式' : '切換夜間模式');
   }
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', () => {

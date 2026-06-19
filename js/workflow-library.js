@@ -162,7 +162,7 @@
     if (!container) return;
     const items = filtered();
     if (items.length === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="empty-icon">🗂</div><div class="empty-text">沒有工作流，點擊右上角儲存目前工作流</div></div>';
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon ico ico-lg">' + (window.Icons ? window.Icons.get('grid') : '') + '</div><div class="empty-text">沒有工作流，點擊右上角儲存目前工作流</div></div>';
       bindCardEvents(container);
       return;
     }
@@ -202,8 +202,8 @@
         <div class="prompt-card-header">
           <div class="prompt-card-title">${escHtml(wl.name)}</div>
           <div class="prompt-card-actions">
-            <button class="icon-btn wl-edit-btn" title="編輯" data-id="${wl.id}">✏️</button>
-            <button class="icon-btn danger wl-del-btn" title="刪除" data-id="${wl.id}" data-name="${escHtml(wl.name)}">✕</button>
+            <button class="icon-btn wl-edit-btn ico" title="編輯" data-id="${wl.id}">${window.Icons ? window.Icons.get('pencil') : ''}</button>
+            <button class="icon-btn danger wl-del-btn ico" title="刪除" data-id="${wl.id}" data-name="${escHtml(wl.name)}">${window.Icons ? window.Icons.get('close') : ''}</button>
           </div>
         </div>
         <span class="prompt-card-cat cat-custom">${escHtml(wl.category)}</span>

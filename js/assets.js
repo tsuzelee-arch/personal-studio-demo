@@ -360,8 +360,8 @@ window.AssetManager = (function() {
       toggleSpan.textContent = hasChildren ? '▶' : '';
       
       const iconSpan = document.createElement('span');
-      iconSpan.className = 'v2-tree-icon';
-      iconSpan.textContent = node.path === '根目錄' ? '📂' : '📁';
+      iconSpan.className = 'v2-tree-icon ico';
+      iconSpan.innerHTML = window.Icons ? window.Icons.get(node.path === '根目錄' ? 'folderOpen' : 'folder') : '';
       
       const nameSpan = document.createElement('span');
       nameSpan.textContent = node.name;
@@ -505,9 +505,9 @@ window.AssetManager = (function() {
         <div class="v2-asset-img-wrap">
           <img alt="${a.name}" loading="lazy">
           <div class="v2-asset-actions">
-            ${isIpGrid ? `<button class="v2-btn-icon" title="新增至畫布" data-action="add-to-workspace" data-path="${a.path}" data-name="${a.name}">➕</button>` : ''}
-            <button class="v2-btn-icon" title="複製標籤" data-action="copy" data-path="${a.path}" data-name="${a.name}">📋</button>
-            <button class="v2-btn-icon danger" title="刪除檔案" data-action="delete" data-path="${a.path}" data-name="${a.name}">🗑️</button>
+            ${isIpGrid ? `<button class="v2-btn-icon" title="新增至畫布" data-action="add-to-workspace" data-path="${a.path}" data-name="${a.name}">${window.Icons ? window.Icons.get('plusSquare') : ''}</button>` : ''}
+            <button class="v2-btn-icon" title="複製標籤" data-action="copy" data-path="${a.path}" data-name="${a.name}">${window.Icons ? window.Icons.get('clipboard') : ''}</button>
+            <button class="v2-btn-icon danger" title="刪除檔案" data-action="delete" data-path="${a.path}" data-name="${a.name}">${window.Icons ? window.Icons.get('trash') : ''}</button>
           </div>
         </div>
         <div class="v2-asset-info">
@@ -664,8 +664,9 @@ window.AssetManager = (function() {
       title.style.cssText = 'color:#fff; margin-top:16px; font-size:16px; font-weight:500;';
       
       const closeBtn = document.createElement('button');
-      closeBtn.innerHTML = '✕';
-      closeBtn.style.cssText = 'position:absolute; top:20px; right:30px; background:transparent; border:none; color:#fff; font-size:32px; cursor:pointer; opacity:0.7; transition:opacity 0.2s;';
+      closeBtn.className = 'ico ico-md';
+      closeBtn.innerHTML = window.Icons ? window.Icons.get('close') : '';
+      closeBtn.style.cssText = 'position:absolute; top:20px; right:30px; background:transparent; border:none; color:#fff; cursor:pointer; opacity:0.7; transition:opacity 0.2s;';
       closeBtn.onmouseover = () => closeBtn.style.opacity = '1';
       closeBtn.onmouseout = () => closeBtn.style.opacity = '0.7';
       
