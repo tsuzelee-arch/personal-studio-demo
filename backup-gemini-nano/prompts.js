@@ -610,7 +610,6 @@
     const copyBtn = document.getElementById('forgeCopyBtn');
     const toNaturalBtn = document.getElementById('forgeToNaturalBtn');
     const toSdTagsBtn = document.getElementById('forgeToSdTagsBtn');
-    const modelSel = document.getElementById('forgeModelSel');
 
     if (!dropZone || !textarea) return;
 
@@ -690,36 +689,6 @@
       if (!text) { showToast('請先加入提示詞到熔爐'); return; }
       await forgeConvert(text, 'sdtags', toSdTagsBtn);
     });
-
-    // 監聽熔爐模型選擇變化
-    if (modelSel) {
-      modelSel.addEventListener('change', async () => {
-        if (modelSel.value === 'gemini-nano') {
-          const status = await window.AIService.checkNanoAvailability();
-          if (!status.available) {
-            const modal = document.getElementById('nanoSetupModal');
-            if (modal) modal.classList.remove('hidden');
-          } else if (status.status === 'after-download') {
-            showToast('⚠️ Gemini Nano 模型尚未完全下載，Chrome 將在背景進行下載。', 5000);
-          } else {
-            showToast('✅ 本機 Gemini Nano 已就緒，可離線使用！');
-          }
-        }
-      });
-    }
-
-    // 綁定本機模型引導 Modal 的關閉行為
-    const nanoModal = document.getElementById('nanoSetupModal');
-    const nanoClose = document.getElementById('nanoSetupClose');
-    const nanoOk = document.getElementById('nanoSetupOkBtn');
-    if (nanoModal) {
-      const closeFn = () => nanoModal.classList.add('hidden');
-      if (nanoClose) nanoClose.addEventListener('click', closeFn);
-      if (nanoOk) nanoOk.addEventListener('click', closeFn);
-      nanoModal.addEventListener('click', (e) => {
-        if (e.target === nanoModal) closeFn();
-      });
-    }
   }
 
   async function forgeConvert(text, mode, btn) {
@@ -730,52 +699,6 @@
     const langSel = document.getElementById('forgeLangSel');
     const selectedModel = modelSel ? modelSel.value : 'gemini';
     const targetLang = langSel ? langSel.value : '繁體中文';
-
-    let result;
-    if (selectedModel === 'gemini-nano') {
-      const originalText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = '⏳ 本機轉換中...';
-
-      try {
-        const status = await window.AIService.checkNanoAvailability();
-        if (!status.available) {
-          const modal = document.getElementById('nanoSetupModal');
-          if (modal) modal.classList.remove('hidden');
-          throw new Error('本機 Gemini Nano 環境尚未就緒');
-        }
-
-        if (mode === 'natural') {
-          const rewritePrompt = `You are an expert prompt engineer. Convert the following structured visual analysis prompt into a single, cohesive, beautifully flowing natural language paragraph.
-Combine all details smoothly without using brackets or bullet points. Preserve negative constraints at the very end starting with "--no".
-You MUST write the descriptive paragraph in ${targetLang} language.
-DO NOT output any introductory text, just the final natural language prompt.
-
-Structured Prompt to Rewrite:
-${text}`;
-          result = await window.AIService.generateTextNano(rewritePrompt);
-        } else {
-          const sdPrompt = `You are an expert Stable Diffusion / Danbooru tag engineer. Convert the following visual description into a clean, comma-separated list of Danbooru-style tags.
-Use lowercase English tags. Include "masterpiece, best quality" at start, and negative tags at the end prefixed with "--no".
-Output ONLY the tag list, no explanation.
-
-Text to convert:
-${text}`;
-          result = await window.AIService.generateTextNano(sdPrompt);
-        }
-        
-        textarea.value = result;
-        if (window.EditorService) window.EditorService.setContent('forgeTextarea', result);
-        showToast(mode === 'natural' ? '✅ 已轉換為自然語言' : '✅ 已轉換為 SD Tags');
-      } catch (err) {
-        console.error('Gemini Nano convert error:', err);
-        showToast('❌ 本機轉換失敗：' + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = originalText;
-      }
-      return; // 👈 退出本機流程，不走雲端 API Key 驗證
-    }
 
     // Use unified key resolution from AIService
     const apiKey = window.AIService.resolveApiKey(selectedModel);
@@ -790,6 +713,7 @@ ${text}`;
     btn.textContent = '⏳ 轉換中...';
 
     try {
+      let result;
       if (mode === 'natural') {
         result = await window.AIService.rewriteToNaturalLanguage(text, apiKey, modelName, targetLang);
       } else {

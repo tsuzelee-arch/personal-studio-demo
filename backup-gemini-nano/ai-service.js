@@ -704,74 +704,6 @@ ${JSON.stringify(analysis)}`;
     return analyzeWithGemini(base64, key, mimeType, 'gemini-3.5-flash', lang);
   }
 
-  // ── Chrome Built-in Gemini Nano (Prompt API) ──
-  async function checkNanoAvailability() {
-    const aiNamespace = window.ai || (window.model && window.model.ai);
-    if (!aiNamespace) {
-      return { available: false, status: 'no', reason: 'not-supported' };
-    }
-
-    const languageModel = aiNamespace.languageModel || aiNamespace.assistant;
-    if (!languageModel) {
-      return { available: false, status: 'no', reason: 'api-missing' };
-    }
-
-    try {
-      const capabilities = await languageModel.capabilities();
-      const status = capabilities.available; // 'readily', 'after-download', or 'no'
-      return {
-        available: status === 'readily' || status === 'after-download',
-        status: status,
-        capabilities
-      };
-    } catch (e) {
-      if (typeof languageModel.create === 'function') {
-        return { available: true, status: 'readily', reason: 'legacy-support' };
-      }
-      return { available: false, status: 'no', reason: 'error', error: e.message };
-    }
-  }
-
-  async function generateTextNano(prompt, systemPrompt = '') {
-    const aiNamespace = window.ai || (window.model && window.model.ai);
-    if (!aiNamespace) {
-      throw new Error("您的瀏覽器不支援本機 Gemini Nano (Window AI) 接口。");
-    }
-
-    const languageModel = aiNamespace.languageModel || aiNamespace.assistant;
-    if (!languageModel) {
-      throw new Error("本機語言模型 API 遺失，請至 chrome://flags 開記相關設定。");
-    }
-
-    let session;
-    try {
-      const options = {
-        temperature: 0.4,
-        topK: 3
-      };
-      if (systemPrompt) {
-        options.systemPrompt = systemPrompt;
-      }
-      session = await languageModel.create(options);
-      
-      let result = await session.prompt(prompt);
-      if (result) {
-        result = result.trim();
-        // 清理本地模型有時會返回的 Markdown 程式碼區塊標記
-        if (result.startsWith('```')) {
-          result = result.replace(/^```[a-zA-Z]*\s*\n/, '').replace(/\n\s*```$/, '');
-        }
-      }
-      return result;
-    } catch (e) {
-      throw new Error(`執行本機模型失敗：${e.message}\n(請確認模型是否已完全下載至您的設備中)`);
-    } finally {
-      if (session && typeof session.destroy === 'function') {
-        session.destroy();
-      }
-    }
-  }
-
   // ── Public API ──
   return {
     analyzeWithOpenAI,
@@ -791,9 +723,7 @@ ${JSON.stringify(analysis)}`;
     resolveApiKey,
     analyze,
     compressImage,
-    SYSTEM_PROMPT,
-    checkNanoAvailability,
-    generateTextNano
+    SYSTEM_PROMPT
   };
 
 })();

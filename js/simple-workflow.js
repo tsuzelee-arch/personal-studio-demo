@@ -3327,7 +3327,7 @@
           }
         }
         if (parentGroup) {
-          const groupInput = parentGroup.el.querySelector('.swf-group-folder');
+          const groupInput = parentGroup.el.querySelector('.swf-gps-folder');
           if (groupInput && groupInput.value.trim()) {
             targetFolder = groupInput.value.trim();
           }
@@ -3524,7 +3524,7 @@
     const groupsData = {};
     for (const id in groups) {
       const g = groups[id];
-      const folderInput = g.el.querySelector('.swf-group-folder');
+      const folderInput = g.el.querySelector('.swf-gps-folder');
       const importFolderSelect = g.el.querySelector('.swf-group-import-folder');
       groupsData[id] = {
         id: g.id, x: g.x, y: g.y, width: g.width,
@@ -3544,7 +3544,40 @@
     return { nodes: nodesData, groups: groupsData, edges: edges.map(e => ({ ...e })), panX, panY, zoomLevel, version: 3 };
   }
 
-  function saveWorkflow() {
+  async function saveWorkflows(libraryData) {
+    if (window.AssetManager && typeof window.AssetManager.writeWorkspaceTextFile === 'function' && window.AssetManager.isConnected()) {
+      try {
+        const text = JSON.stringify(libraryData, null, 2);
+        await window.AssetManager.writeWorkspaceTextFile('.studio_workflows.json', text);
+        console.log('[SimpleWorkflow] Saved workflows to workspace .studio_workflows.json');
+        return;
+      } catch (e) {
+        console.error('[SimpleWorkflow] Failed to write to workspace, fallback to localStorage', e);
+      }
+    }
+    localStorage.setItem('swf_library', JSON.stringify(libraryData));
+  }
+
+  async function loadWorkflows() {
+    if (window.AssetManager && typeof window.AssetManager.readWorkspaceTextFile === 'function' && window.AssetManager.isConnected()) {
+      try {
+        const text = await window.AssetManager.readWorkspaceTextFile('.studio_workflows.json');
+        if (text) {
+          console.log('[SimpleWorkflow] Loaded workflows from workspace .studio_workflows.json');
+          return JSON.parse(text);
+        }
+      } catch (e) {
+        console.warn('[SimpleWorkflow] Failed to read workflows from workspace, fallback to localStorage', e);
+      }
+    }
+    try {
+      return JSON.parse(localStorage.getItem('swf_library')) || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async function saveWorkflow() {
     const name = prompt('請輸入工作流名稱：', '未命名工作流');
     if (!name || !name.trim()) return;
     const cleanName = name.trim();
@@ -3556,8 +3589,7 @@
         if (window.showToast) window.showToast('⚠️ 資料過大 (' + sizeKB + 'KB)，可能無法完整儲存', 3000);
       }
 
-      let library = [];
-      try { library = JSON.parse(localStorage.getItem('swf_library')) || []; } catch(e){}
+      let library = await loadWorkflows();
       
       const existing = library.find(x => x.name === cleanName);
       if (existing) {
@@ -3568,7 +3600,7 @@
         library.push({ id: Date.now(), name: cleanName, data: dataStr, time: Date.now() });
       }
       
-      localStorage.setItem('swf_library', JSON.stringify(library));
+      await saveWorkflows(library);
       if (window.showToast) window.showToast(`✅ 已儲存 "${cleanName}" (${sizeKB} KB)`);
     } catch (err) {
       console.error('Save failed:', err);
@@ -3606,6 +3638,9 @@
       }
 
       // Clear current
+      if (window.AssetManager && typeof window.AssetManager.revokeWorkflowBlobUrls === 'function') {
+        window.AssetManager.revokeWorkflowBlobUrls();
+      }
       for (const id in nodes) { nodes[id].el.remove(); delete nodes[id]; }
       for (const id in groups) { groups[id].el.remove(); delete groups[id]; }
       edges.length = 0;
@@ -3638,7 +3673,7 @@
             if (gd.sidebarWidth) { g.sidebarWidth = gd.sidebarWidth; applyPanelWidth(g.el.querySelector('.swf-group-sidebar'), gd.sidebarWidth); }
             if (gd.paramsSidebarWidth) { g.paramsSidebarWidth = gd.paramsSidebarWidth; applyPanelWidth(g.el.querySelector('.swf-group-params-sidebar'), gd.paramsSidebarWidth); }
             if (gd.automationSidebarWidth) { g.automationSidebarWidth = gd.automationSidebarWidth; applyPanelWidth(g.el.querySelector('.swf-group-automation-sidebar'), gd.automationSidebarWidth); }
-            const folderInput = g.el.querySelector('.swf-group-folder');
+            const folderInput = g.el.querySelector('.swf-gps-folder');
             if (folderInput) folderInput.value = gd.folder || '';
             
             const importFolderSelect = g.el.querySelector('.swf-group-import-folder');
@@ -3899,9 +3934,8 @@
     });
   })();
 
-  function loadWorkflow() {
-    let library = [];
-    try { library = JSON.parse(localStorage.getItem('swf_library')) || []; } catch(e){}
+  async function loadWorkflow() {
+    let library = await loadWorkflows();
     
     // Also support loading from the old swf_saved_data if library is empty
     const oldSaved = localStorage.getItem('swf_saved_data');
@@ -3954,13 +3988,13 @@
     });
 
     listContainer.querySelectorAll('.swf-lib-del-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = btn.dataset.id;
         const targetIdx = library.findIndex(x => String(x.id) === String(id));
         if (targetIdx >= 0) {
           if (!confirm(`確定要刪除 "${library[targetIdx].name}" 嗎？`)) return;
           library.splice(targetIdx, 1);
-          localStorage.setItem('swf_library', JSON.stringify(library.filter(x => x.id !== 'old_backup')));
+          await saveWorkflows(library.filter(x => x.id !== 'old_backup'));
           if (id === 'old_backup') localStorage.removeItem('swf_saved_data');
           e.target.closest('div').parentElement.remove();
           if (library.length === 0) modal.classList.add('hidden');
@@ -4177,13 +4211,22 @@
   // via the 統一群組參數 modal, so the default ("") resolves to the root directory.
   function buildNodeFolderOptionsHTML(selected) {
     const paths = (window.AssetManager && window.AssetManager.getAllFolderPaths) ? window.AssetManager.getAllFolderPaths() : [];
-    const opts = [{ v: '', l: '預設 (根目錄)' }, { v: '根目錄', l: '存至根目錄' }, ...paths.map(p => ({ v: p, l: p }))];
+    const opts = [{ v: '', l: '預設 (根目錄)' }, ...paths.filter(p => p !== '根目錄').map(p => ({ v: p, l: p }))];
+    return opts.map(o => `<option value="${o.v}" ${o.v === (selected || '') ? 'selected' : ''}>${o.l}</option>`).join('');
+  }
+
+  function buildImportFolderOptionsHTML(selected) {
+    const paths = (window.AssetManager && window.AssetManager.getAllFolderPaths) ? window.AssetManager.getAllFolderPaths() : [];
+    const opts = [{ v: '', l: '(無)' }, { v: '根目錄', l: '根目錄' }, ...paths.filter(p => p !== '根目錄').map(p => ({ v: p, l: p }))];
     return opts.map(o => `<option value="${o.v}" ${o.v === (selected || '') ? 'selected' : ''}>${o.l}</option>`).join('');
   }
 
   function updateSwfFolderSelects() {
-    document.querySelectorAll('.swf-node-folder, .swf-gps-folder, .swf-group-import-folder').forEach(sel => {
+    document.querySelectorAll('.swf-node-folder, .swf-gps-folder').forEach(sel => {
       sel.innerHTML = buildNodeFolderOptionsHTML(sel.value);
+    });
+    document.querySelectorAll('.swf-group-import-folder').forEach(sel => {
+      sel.innerHTML = buildImportFolderOptionsHTML(sel.value);
     });
   }
   

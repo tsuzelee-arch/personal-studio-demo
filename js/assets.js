@@ -18,6 +18,7 @@ window.AssetManager = (function() {
   // Virtual Tree structure: { name, path, isDir, handle, children: {} }
   let virtualTree = { name: '根目錄', path: '根目錄', isDir: true, handle: null, children: {} };
   let allImageFiles = []; // Flat list of file references for the grid
+  const isFsaSupported = typeof window.showDirectoryPicker === 'function';
 
   // 1. Database Initialization
   function initDB() {
@@ -31,6 +32,11 @@ window.AssetManager = (function() {
       };
       request.onsuccess = (e) => {
         db = e.target.result;
+        if (navigator.storage && navigator.storage.persist) {
+          navigator.storage.persist().then(persistent => {
+            console.log(persistent ? '[AssetDB] Persistent storage granted' : '[AssetDB] Storage is temporary');
+          });
+        }
         resolve();
       };
       request.onerror = (e) => reject(e.target.error);
@@ -111,8 +117,67 @@ window.AssetManager = (function() {
     document.body.addEventListener('click', gestureHandler, true);
   }
 
+  function fallbackLinkWorkspace() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.webkitdirectory = true;
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.addEventListener('change', async (e) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+      
+      const newRoot = { name: '根目錄', path: '根目錄', isDir: true, handle: null, children: {} };
+      allImageFiles = [];
+      
+      for (const file of files) {
+        if (!file.name.match(/\.(png|jpe?g|webp|gif|bmp)$/i)) continue;
+        
+        const parts = file.webkitRelativePath.split('/');
+        let currentNode = newRoot;
+        let pathAccumulator = '根目錄';
+        
+        for (let i = 1; i < parts.length; i++) {
+          const part = parts[i];
+          const path = `${pathAccumulator}/${part}`;
+          const isLast = (i === parts.length - 1);
+          
+          if (isLast) {
+            currentNode.children[part] = { name: part, path: path, isDir: false, fileRef: file };
+            allImageFiles.push({
+              name: part,
+              path: path,
+              folder: pathAccumulator,
+              fileRef: file
+            });
+          } else {
+            if (!currentNode.children[part]) {
+              currentNode.children[part] = { name: part, path: path, isDir: true, children: {} };
+            }
+            currentNode = currentNode.children[part];
+            pathAccumulator = path;
+          }
+        }
+      }
+      
+      virtualTree = newRoot;
+      permissionGranted = true;
+      updateRestoreButtons('none');
+      if (window.showToast) window.showToast('✅ 成功連結虛擬資料夾！');
+      await refreshUI();
+      document.body.removeChild(input);
+    });
+
+    input.click();
+  }
+
   // 2. File System Access API
   async function linkWorkspace() {
+    if (!isFsaSupported) {
+      fallbackLinkWorkspace();
+      return;
+    }
     try {
       workspaceHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
       await saveHandle(workspaceHandle);
@@ -166,6 +231,18 @@ window.AssetManager = (function() {
     }
   }
 
+  function revokeWorkflowBlobUrls() {
+    console.log(`[AssetManager] Revoking ${activeBlobUrls.length} workflow Blob URLs`);
+    activeBlobUrls.forEach(url => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error('Failed to revoke object URL:', url, e);
+      }
+    });
+    activeBlobUrls = [];
+  }
+
   function clearLink() {
     if (confirm('確定解除本機資料夾的連結嗎？')) {
       if (db) {
@@ -179,6 +256,7 @@ window.AssetManager = (function() {
       treeState.expanded.clear();
       treeState.expanded.add('根目錄');
       updateRestoreButtons('none');
+      revokeWorkflowBlobUrls();
       refreshUI();
     }
   }
@@ -446,9 +524,10 @@ window.AssetManager = (function() {
   // Create the object URL for a single card on demand (idempotent). Tracked per
   // grid so re-rendering a grid only revokes its own URLs.
   async function loadCardImage(card) {
-    if (card._blobUrl || !card._assetHandle) return card._blobUrl;
+    if (card._blobUrl) return card._blobUrl;
+    if (!card._assetHandle && !card._assetFileRef) return null;
     try {
-      const file = await card._assetHandle.getFile();
+      const file = card._assetFileRef ? card._assetFileRef : await card._assetHandle.getFile();
       const url = URL.createObjectURL(file);
       card._blobUrl = url;
       (gridBlobUrls[card._containerId] = gridBlobUrls[card._containerId] || []).push(url);
@@ -497,6 +576,7 @@ window.AssetManager = (function() {
       card.className = 'v2-asset-card';
       // Stash the FSA handle/meta; the object URL is created lazily on intersect.
       card._assetHandle = a.handle;
+      card._assetFileRef = a.fileRef;
       card._assetName = a.name;
       card._containerId = containerId;
 
@@ -575,6 +655,15 @@ window.AssetManager = (function() {
 
   // 5. Dynamic File Retrieval (For workflow rendering)
   async function getFileBlobUrl(path) {
+    if (!isFsaSupported) {
+      const fileObj = allImageFiles.find(f => f.path === path);
+      if (fileObj && fileObj.fileRef) {
+        const url = URL.createObjectURL(fileObj.fileRef);
+        activeBlobUrls.push(url);
+        return url;
+      }
+      return null;
+    }
     if (!workspaceHandle) return null;
     
     // Path looks like "根目錄/Folder/Image.png"
@@ -817,6 +906,8 @@ window.AssetManager = (function() {
     getActiveFolder: () => activeFolder,
     refreshUI,
     isConnected: () => !!workspaceHandle && permissionGranted,
+    isFsaSupported: () => isFsaSupported,
+    revokeWorkflowBlobUrls,
     readWorkspaceTextFile,
     writeWorkspaceTextFile,
     getFileBlobUrlByPath: getFileBlobUrl,

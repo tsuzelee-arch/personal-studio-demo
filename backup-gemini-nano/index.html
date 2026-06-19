@@ -587,7 +587,6 @@
                 <div class="forge-actions">
                   <div class="forge-actions-options">
                     <select class="form-select form-select-sm" id="forgeModelSel" title="轉換使用的 AI 模型">
-                      <option value="gemini-nano">Gemini Nano (本機離線)</option>
                       <option value="gemini">Gemini 3.5 Flash</option>
                       <option value="geminilite">Gemini 2.5 Lite</option>
                       <option value="openai">GPT-5.5 (旗艦)</option>
@@ -1243,33 +1242,6 @@
         <div id="swfLibList" style="display: flex; flex-direction: column; gap: 8px;">
           <!-- Populated by JS -->
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Gemini Nano Setup Guide -->
-  <div class="modal-backdrop hidden" id="nanoSetupModal">
-    <div class="modal" style="max-width: 480px;">
-      <div class="modal-header">
-        <span class="modal-title" style="display:inline-flex; align-items:center; gap:6px;">
-          <i class="ico" data-icon="sparkles"></i> 啟用本機 Gemini Nano 說明
-        </span>
-        <button class="modal-close" id="nanoSetupClose"><i class="ico" data-icon="close"></i></button>
-      </div>
-      <div class="modal-body" style="line-height: 1.6; font-size: 14px; color: var(--text);">
-        <p>目前偵測到您的瀏覽器尚未啟用或未下載本機模型。請依照以下步驟啟用 Chrome 內置的 Gemini Nano 模型：</p>
-        <ol style="margin-left: 20px; margin-top: 8px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
-          <li>打開 Chrome 新分頁，前往 <code>chrome://flags/#optimization-guide-on-device-model</code>，將其設為 <strong>Enabled BypassPrefRequirement</strong>。</li>
-          <li>前往 <code>chrome://flags/#prompt-api-for-gemini-nano</code>，將其設為 <strong>Enabled</strong>。</li>
-          <li>點擊 Chrome 右下角的 <strong>Relaunch</strong> 按鈕重新啟動瀏覽器。</li>
-          <li>重新啟動後，前往 <code>chrome://components</code>，找到 <strong>Optimization Guide On Device Model</strong>，點擊 <strong>Check for update</strong>（檢查更新）以確保模型下載完成（檔案較大，下載可能需要數分鐘）。</li>
-        </ol>
-        <div class="settings-hint" style="background: rgba(255, 193, 7, 0.1); border-left: 3px solid #ffc107; padding: 8px 12px; border-radius: 4px; margin-top: 10px;">
-          <strong>提示：</strong> 啟用後，即使在斷網或沒有設定任何 API 金鑰的狀態下，您也可以使用「提示詞熔爐」中的「轉自然語言」與「轉 SD Tags」功能。
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-primary" id="nanoSetupOkBtn">我知道了</button>
       </div>
     </div>
   </div>
