@@ -760,23 +760,30 @@
 .swf-note.swf-collapsed { height: auto !important; }
 .swf-macro.swf-collapsed .swf-note-body { display: none !important; }
 
-/* ═══ Prompt library save/load buttons (💾 / 📂) ═══ */
+/* ═══ Prompt library save/load buttons ═══ */
+/* Pack ▼ + label to the left; push the buttons right with margin-left:auto
+   (NOT justify-content:space-between, which would center the label). */
 .swf-prompt-label-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
 }
+.swf-prompt-label-row .swf-plib-btns { margin-left: auto; }
 .swf-plib-btns { display: flex; gap: 2px; }
 .swf-plib-btns button {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 1px 4px;
-  font-size: 13px;
-  line-height: 1;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0.55;
   border-radius: 4px;
+  color: var(--node-text, #555);
 }
+.swf-plib-btns button svg { width: 14px; height: 14px; }
 .swf-plib-btns button:hover {
   opacity: 1;
   background: var(--hover-bg, rgba(0,0,0,0.06));
@@ -806,18 +813,46 @@
   text-overflow: ellipsis;
 }
 .swf-plib-popover-item:hover { background: var(--hover-bg, #eef4ff); }
+/* indent items under a category header to show hierarchy */
+.swf-plib-popover-item { padding-left: 22px; }
 .swf-plib-popover-empty {
   padding: 12px 14px;
   font-size: 12px;
   color: var(--muted, #888);
   text-align: center;
 }
+/* Category header rows in the grouped prompt picker */
+.swf-plib-group-header {
+  padding: 7px 14px 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted, #888);
+  border-top: 1px solid var(--border, #e0e0e0);
+  margin-top: 2px;
+}
+.swf-plib-group-header:first-child { border-top: none; margin-top: 0; }
 [data-theme="dark"] .swf-plib-popover {
   background: var(--surface, #1e1e2e);
   border-color: var(--node-input-border, #444);
 }
 [data-theme="dark"] .swf-plib-popover-item { color: var(--node-text, #e0e0e0); }
 [data-theme="dark"] .swf-plib-popover-item:hover { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] .swf-plib-group-header { border-color: var(--node-input-border, #444); }
+
+/* ═══ Inline icon sizing (emoji → SVG migration) ═══ */
+/* Toolbar buttons: icon + text, vertically centered */
+.swf-toolbar button { display: inline-flex; align-items: center; gap: 5px; }
+.swf-tb-icon { width: 14px; height: 14px; flex-shrink: 0; }
+/* Note node header title icon */
+.swf-note-title { display: inline-flex; align-items: center; gap: 5px; }
+.swf-note-title-icon { display: inline-flex; }
+.swf-note-title-icon svg { width: 13px; height: 13px; }
+/* Run button: center icon + label */
+.swf-run-btn { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.swf-run-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+/* Download button on preview (JS toggles display:block; size the svg + center) */
+.swf-preview-area .swf-download-btn { padding: 5px 7px; line-height: 0; }
+.swf-preview-area .swf-download-btn svg { width: 15px; height: 15px; vertical-align: middle; }
 
 /* Macro Header */
 .swf-macro-header {

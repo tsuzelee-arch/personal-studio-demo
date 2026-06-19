@@ -29,7 +29,18 @@
 
   let zoomLevel = 1;
   const ZOOM_MIN = 0.2, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
-  
+
+  // ── Inline SVG icons (Feather/Lucide style) — replace emoji glyphs for a
+  // consistent, professional look. Sized via CSS (.swf-*-icon / button svg). ──
+  const SVG = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+  const ICONS = {
+    bookmark: SVG('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
+    list:     SVG('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'),
+    download: SVG('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
+    play:     SVG('<polygon points="5 3 19 12 5 21 5 3"/>'),
+    fileText: SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>')
+  };
+
   // Pan state
   let isPanning = false;
   let panStartX = 0, panStartY = 0;
@@ -1681,9 +1692,9 @@
         </div>
         <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
         ${(isI2I || isComfy) ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
-        <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label swf-prompt-label-row"><span>提示詞 (Prompt)</span><span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">💾</button><button class="swf-plib-load" title="從提示詞庫載入">📂</button></span></div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
-        <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">📥</button></div>
-        <button class="swf-run-btn" data-node="${id}">▶ 生成</button>
+        <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label swf-prompt-label-row"><span>提示詞 (Prompt)</span><span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.bookmark}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.list}</button></span></div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
+        <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">${ICONS.download}</button></div>
+        <button class="swf-run-btn" data-node="${id}">${ICONS.play} 生成</button>
         <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
       </div>
       <div class="swf-node-resize" title="調整大小"></div>
@@ -1736,7 +1747,7 @@
     el.innerHTML = `
       <div class="swf-macro-header">
         <span class="swf-order-badge" style="display:none"></span>
-        <span>📝 備忘錄</span>
+        <span class="swf-note-title"><span class="swf-note-title-icon">${ICONS.fileText}</span>備忘錄</span>
         <div class="swf-macro-actions">
           <button class="swf-collapse-btn" title="摺疊/展開"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <button class="swf-dup-btn" title="複製"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
@@ -1745,7 +1756,7 @@
       </div>
       <div class="swf-macro-body swf-note-body">
         <div class="swf-note-toolbar">
-          <span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">💾</button><button class="swf-plib-load" title="從提示詞庫載入">📂</button></span>
+          <span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.bookmark}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.list}</button></span>
         </div>
         <div class="swf-prompt-editor swf-note-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入備忘內容..." data-node="${id}"></div>
       </div>
@@ -1920,26 +1931,47 @@
   // appends its text to the target editor.
   function showPlibPopover(anchorBtn, targetEditor) {
     closePlibPopover();
-    const items = (window.PromptsService?.listPrompts?.() || []);
+    const svc = window.PromptsService;
+    const all = (svc?.listPrompts?.() || []);
+
+    // Group prompts by category, ordered by the canonical category order; any
+    // unknown/custom categories are appended last so nothing is dropped.
+    const byCat = new Map();
+    all.forEach(p => {
+      const c = p.category || '未分類';
+      if (!byCat.has(c)) byCat.set(c, []);
+      byCat.get(c).push(p);
+    });
+    const order = (svc?.getAllCategories?.() || []);
+    const orderedCats = [
+      ...order.filter(c => byCat.has(c)),
+      ...[...byCat.keys()].filter(c => !order.includes(c))
+    ];
 
     const pop = document.createElement('div');
     pop.className = 'swf-plib-popover';
-    if (items.length === 0) {
+    if (all.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'swf-plib-popover-empty';
       empty.textContent = '尚無儲存的提示詞';
       pop.appendChild(empty);
     } else {
-      items.forEach(p => {
-        const row = document.createElement('div');
-        row.className = 'swf-plib-popover-item';
-        row.textContent = p.title || '(未命名)';
-        row.title = p.content || '';
-        row.addEventListener('click', () => {
-          insertPromptTextIntoEditor(targetEditor, p.content || '');
-          closePlibPopover();
+      orderedCats.forEach(cat => {
+        const header = document.createElement('div');
+        header.className = 'swf-plib-group-header';
+        header.textContent = cat;
+        pop.appendChild(header);
+        byCat.get(cat).forEach(p => {
+          const row = document.createElement('div');
+          row.className = 'swf-plib-popover-item';
+          row.textContent = p.title || '(未命名)';
+          row.title = p.content || '';
+          row.addEventListener('click', () => {
+            insertPromptTextIntoEditor(targetEditor, p.content || '');
+            closePlibPopover();
+          });
+          pop.appendChild(row);
         });
-        pop.appendChild(row);
       });
     }
 
@@ -3323,7 +3355,7 @@
       if (window.showToast) window.showToast('❌ ' + err.message);
     } finally {
       clearInterval(timer);
-      runBtn.disabled = false; runBtn.textContent = '▶ 生成';
+      runBtn.disabled = false; runBtn.innerHTML = ICONS.play + ' 生成';
       node.el.classList.remove('swf-executing');
       propagateVisualImages(); // visually push the generated image to downstream nodes immediately
     }
@@ -3418,7 +3450,7 @@
     const allEntityIds = [...standaloneNodeIds, ...Object.keys(groups)];
 
     if (allEntityIds.length === 0) {
-      runAllBtn.disabled = false; runAllBtn.textContent = '▶ 執行全部'; return;
+      runAllBtn.disabled = false; runAllBtn.innerHTML = ICONS.play + ' 執行全部'; return;
     }
 
     const sorted = topoSort(allEntityIds);
@@ -3430,7 +3462,7 @@
       }));
     }
 
-    runAllBtn.disabled = false; runAllBtn.textContent = '▶ 執行全部';
+    runAllBtn.disabled = false; runAllBtn.innerHTML = ICONS.play + ' 執行全部';
     if (window.showToast) window.showToast('✅ 全部工作流執行完畢');
   }
 
