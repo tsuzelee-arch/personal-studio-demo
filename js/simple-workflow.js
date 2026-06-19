@@ -1241,6 +1241,7 @@
     const members = [];
     for (const nid in nodes) {
       const n = nodes[nid];
+      if (n.type === 'note') continue; // notes are annotations, never group members
       const nw = n.el.offsetWidth || 320;
       const nh = n.el.offsetHeight || 200;
       const cx = n.x + nw / 2;
@@ -1680,7 +1681,7 @@
         </div>
         <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
         ${(isI2I || isComfy) ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
-        <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label">提示詞 (Prompt)</div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
+        <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label swf-prompt-label-row"><span>提示詞 (Prompt)</span><span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">💾</button><button class="swf-plib-load" title="從提示詞庫載入">📂</button></span></div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">📥</button></div>
         <button class="swf-run-btn" data-node="${id}">▶ 生成</button>
         <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
@@ -1704,7 +1705,8 @@
     setupNodeDrag(nodeData);
     setupNodeResize(nodeData);
     setupPortEvents(el, id);
-    
+    setupPromptLibBtns(el);
+
     // Setup ResizeObserver to update edges when node size changes (e.g. prompt editor vertical resize)
     const ro = new ResizeObserver(() => {
       if (nodeData.el.isConnected) scheduleEdgeRender();
@@ -1713,6 +1715,67 @@
 
     scheduleEdgeRender();
     updateSwfFolderSelects();
+    return nodeData;
+  }
+
+  // ═══════════════════════════════════════════
+  // ── NOTE NODE (端點なし純文字備忘錄) ──
+  // ═══════════════════════════════════════════
+  function createNoteNode(initialX, initialY) {
+    const id = uid('n');
+    const pos = (initialX !== undefined) ? { x: initialX, y: initialY } : calculateNextPosition();
+
+    const el = document.createElement('div');
+    el.className = 'swf-macro swf-note';
+    el.dataset.nodeId = id;
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    el.style.width = '320px';
+    el.style.height = '200px';
+
+    el.innerHTML = `
+      <div class="swf-macro-header">
+        <span class="swf-order-badge" style="display:none"></span>
+        <span>📝 備忘錄</span>
+        <div class="swf-macro-actions">
+          <button class="swf-collapse-btn" title="摺疊/展開"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <button class="swf-dup-btn" title="複製"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          <button class="swf-del-btn" title="刪除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+      </div>
+      <div class="swf-macro-body swf-note-body">
+        <div class="swf-note-toolbar">
+          <span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">💾</button><button class="swf-plib-load" title="從提示詞庫載入">📂</button></span>
+        </div>
+        <div class="swf-prompt-editor swf-note-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入備忘內容..." data-node="${id}"></div>
+      </div>
+      <div class="swf-node-resize swf-note-resize" title="調整大小"></div>
+    `;
+
+    nodesContainer.appendChild(el);
+    const nodeData = {
+      id, type: 'note', el, x: pos.x, y: pos.y,
+      width: 320, height: 200, isCollapsed: false,
+      // Empty-but-present collections so generic all-nodes loops (image assembly,
+      // FSA reconnection, etc.) read safely without per-loop note guards.
+      data: { model: '', images: [], uploadedImages: [], fsaPaths: {}, excludedIncomingImages: [], params: {} },
+      resultImages: []
+    };
+    nodes[id] = nodeData;
+
+    el.addEventListener('mousedown', () => selectEntity(id));
+
+    setupMacroEvents(nodeData);  // wires del/dup/collapse + setupPromptEditor; preview/run block self-skips
+    setupNodeDrag(nodeData);
+    setupNoteResize(nodeData);
+    setupPromptLibBtns(el);
+
+    const ro = new ResizeObserver(() => {
+      if (nodeData.el.isConnected) scheduleEdgeRender();
+    });
+    ro.observe(nodeData.el);
+
+    scheduleEdgeRender();
     return nodeData;
   }
 
@@ -1785,6 +1848,128 @@
     });
   }
 
+  // Two-dimensional resize (width + height) for note nodes — the body's flex
+  // layout lets the editor grow to fill whatever height we set.
+  function setupNoteResize(node) {
+    const handle = node.el.querySelector('.swf-note-resize');
+    if (!handle) return;
+    let isResizing = false, startX = 0, startY = 0, startW = 0, startH = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX; startY = e.clientY;
+      startW = node.width || 320;
+      startH = node.height || 200;
+      e.stopPropagation(); e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      node.width  = Math.max(200, startW + (e.clientX - startX) / zoomLevel);
+      node.height = Math.max(120, startH + (e.clientY - startY) / zoomLevel);
+      node.el.style.width  = node.width  + 'px';
+      node.el.style.height = node.height + 'px';
+      // ResizeObserver handles scheduleEdgeRender automatically
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        saveUndoState();
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════
+  // ── PROMPT LIBRARY SAVE / LOAD (node prompt 💾 / 📂) ──
+  // ═══════════════════════════════════════════
+  // Wires the 💾 (save current prompt to library) and 📂 (load a saved prompt)
+  // buttons that sit beside every node's prompt editor (incl. note nodes).
+  function setupPromptLibBtns(nodeEl) {
+    const saveBtn = nodeEl.querySelector('.swf-plib-save');
+    const loadBtn = nodeEl.querySelector('.swf-plib-load');
+    const editor  = nodeEl.querySelector('.swf-prompt-editor');
+    if (!saveBtn || !loadBtn || !editor) return;
+
+    saveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const text = (editor.innerText || '').trim();
+      if (!window.PromptsService?.openAddModalHere) {
+        if (window.showToast) window.showToast('❌ 提示詞庫尚未載入');
+        return;
+      }
+      window.PromptsService.openAddModalHere({ content: text });
+    });
+
+    loadBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showPlibPopover(loadBtn, editor);
+    });
+  }
+
+  let plibPopoverEl = null;
+  function closePlibPopover() {
+    if (plibPopoverEl) { plibPopoverEl.remove(); plibPopoverEl = null; }
+    document.removeEventListener('mousedown', onPlibOutside, true);
+  }
+  function onPlibOutside(e) {
+    if (plibPopoverEl && !plibPopoverEl.contains(e.target)) closePlibPopover();
+  }
+
+  // Floating list of saved prompts anchored to the 📂 button; clicking one
+  // appends its text to the target editor.
+  function showPlibPopover(anchorBtn, targetEditor) {
+    closePlibPopover();
+    const items = (window.PromptsService?.listPrompts?.() || []);
+
+    const pop = document.createElement('div');
+    pop.className = 'swf-plib-popover';
+    if (items.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'swf-plib-popover-empty';
+      empty.textContent = '尚無儲存的提示詞';
+      pop.appendChild(empty);
+    } else {
+      items.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'swf-plib-popover-item';
+        row.textContent = p.title || '(未命名)';
+        row.title = p.content || '';
+        row.addEventListener('click', () => {
+          insertPromptTextIntoEditor(targetEditor, p.content || '');
+          closePlibPopover();
+        });
+        pop.appendChild(row);
+      });
+    }
+
+    document.body.appendChild(pop);
+    plibPopoverEl = pop;
+
+    // Position under the button, clamped to viewport.
+    const r = anchorBtn.getBoundingClientRect();
+    const pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = r.left;
+    let top = r.bottom + 4;
+    if (left + pw > window.innerWidth - 8) left = window.innerWidth - 8 - pw;
+    if (top + ph > window.innerHeight - 8) top = r.top - 4 - ph;
+    pop.style.left = Math.max(8, left) + 'px';
+    pop.style.top = Math.max(8, top) + 'px';
+
+    setTimeout(() => document.addEventListener('mousedown', onPlibOutside, true), 0);
+  }
+
+  // Append plain text to a contenteditable prompt editor at its end, preserving
+  // existing content and refreshing the placeholder state.
+  function insertPromptTextIntoEditor(editor, text) {
+    if (!editor || !text) return;
+    const existing = (editor.innerText || '').trim();
+    if (existing) editor.appendChild(document.createElement('br'));
+    editor.appendChild(document.createTextNode(text));
+    if (window.RichTextService) window.RichTextService.updatePlaceholder(editor);
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   // ═══════════════════════════════════════════
   // ── MACRO NODE EVENTS ──
   // ═══════════════════════════════════════════
@@ -1807,7 +1992,11 @@
 
     el.querySelectorAll('.swf-section-label').forEach(label => {
       label.addEventListener('click', (e) => {
-        const parent = e.target.parentElement;
+        // Ignore clicks on inner controls (e.g. the prompt 💾/📂 buttons).
+        if (e.target.closest('.swf-plib-btns')) return;
+        // Use currentTarget (the label itself) so child spans don't break the
+        // ancestor lookup — the collapse class must land on .swf-prompt-section.
+        const parent = e.currentTarget.parentElement;
         parent.classList.toggle('swf-section-collapsed');
         scheduleEdgeRender();
       });
@@ -1938,24 +2127,29 @@
     // Prompt editor — rich-text wiring (placeholder + paste sanitize + image/prompt drop)
     setupPromptEditor(el.querySelector('.swf-prompt-editor'));
 
-    el.querySelector('.swf-download-btn').addEventListener('click', () => {
-      const img = el.querySelector('.swf-preview-img');
-      if (!img.src) return;
-      const a = document.createElement('a'); a.href = img.src; a.download = 'swf_' + Date.now() + '.png';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    });
-    const previewImg = el.querySelector('.swf-preview-img');
-    previewImg.addEventListener('click', function () {
-      if (this.src && window.AssetManager?.openLightBox) window.AssetManager.openLightBox(this.src, 'Generated', false);
-    });
-    // Route result-image drags through our clean image path (sets a custom type)
-    // so dropping into a prompt inserts a thumbnail rather than a base64 text dump.
-    previewImg.addEventListener('dragstart', (e) => {
-      if (!previewImg.src) return;
-      e.dataTransfer.setData('text/swf-image-src', previewImg.src);
-      e.dataTransfer.effectAllowed = 'copy';
-    });
-    el.querySelector('.swf-run-btn').addEventListener('click', async () => await executeSingleNode(node));
+    // Preview / download / run wiring — absent on note nodes (no generation),
+    // so the whole block is guarded on the run button's presence.
+    const runBtn = el.querySelector('.swf-run-btn');
+    if (runBtn) {
+      el.querySelector('.swf-download-btn').addEventListener('click', () => {
+        const img = el.querySelector('.swf-preview-img');
+        if (!img.src) return;
+        const a = document.createElement('a'); a.href = img.src; a.download = 'swf_' + Date.now() + '.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      });
+      const previewImg = el.querySelector('.swf-preview-img');
+      previewImg.addEventListener('click', function () {
+        if (this.src && window.AssetManager?.openLightBox) window.AssetManager.openLightBox(this.src, 'Generated', false);
+      });
+      // Route result-image drags through our clean image path (sets a custom type)
+      // so dropping into a prompt inserts a thumbnail rather than a base64 text dump.
+      previewImg.addEventListener('dragstart', (e) => {
+        if (!previewImg.src) return;
+        e.dataTransfer.setData('text/swf-image-src', previewImg.src);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+      runBtn.addEventListener('click', async () => await executeSingleNode(node));
+    }
   }
 
   // Wire a contenteditable prompt editor with the rich-text behaviour shared by
@@ -2610,6 +2804,26 @@
   }
 
   function duplicateNode(srcNode) {
+    // Note nodes: copy geometry + prompt HTML, nothing else.
+    if (srcNode.type === 'note') {
+      const copy = createNoteNode(srcNode.x, srcNode.y + srcNode.el.offsetHeight + 20);
+      if (!copy) return;
+      copy.width = srcNode.width || 320;
+      copy.height = srcNode.height || 200;
+      copy.el.style.width = copy.width + 'px';
+      copy.el.style.height = copy.height + 'px';
+      const sp = srcNode.el.querySelector('.swf-prompt-editor');
+      const tp = copy.el.querySelector('.swf-prompt-editor');
+      if (sp && tp) {
+        tp.innerHTML = '';
+        sp.childNodes.forEach(child => {
+          const safe = sanitizePromptNode(child);
+          if (safe) tp.appendChild(safe);
+        });
+        if (window.RichTextService) window.RichTextService.updatePlaceholder(tp);
+      }
+      return;
+    }
     const newNode = createMacroNode(srcNode.type, srcNode.x, srcNode.y + srcNode.el.offsetHeight + 20);
     if (!newNode) return;
     newNode.data.model = srcNode.data.model;
@@ -2694,6 +2908,7 @@
    * @param {boolean} skipImageReset - When true (called from executeGroup), don't reset node images
    */
   async function executeSingleNode(node, skipImageReset) {
+    if (node.type === 'note') return; // note nodes have no generation
     const runBtn = node.el.querySelector('.swf-run-btn');
     const placeholder = node.el.querySelector('.swf-preview-placeholder');
     const imgEl = node.el.querySelector('.swf-preview-img');
@@ -3195,6 +3410,7 @@
     const groupMemberSets = {};
     for (const gid in groups) { groupMemberSets[gid] = new Set(getGroupMembers(gid).map(m => m.id)); }
     for (const nid in nodes) {
+      if (nodes[nid].type === 'note') continue; // notes don't execute
       let insideGroup = false;
       for (const gid in groupMemberSets) { if (groupMemberSets[gid].has(nid)) { insideGroup = true; break; } }
       if (!insideGroup) standaloneNodeIds.push(nid);
@@ -3236,8 +3452,17 @@
     for (const id in nodes) {
       const n = nodes[id];
       const promptEl = n.el.querySelector('.swf-prompt-editor');
-      const folderInput = n.el.querySelector('.swf-node-folder');
       const promptHTML = promptEl ? promptEl.innerHTML : '';
+      // Note nodes carry only text + geometry — no model/params/images/folder.
+      if (n.type === 'note') {
+        nodesData[id] = {
+          id: n.id, type: 'note', x: n.x, y: n.y,
+          width: n.width, height: n.height, isCollapsed: n.isCollapsed,
+          promptHTML: forStorage ? stripInlineImageData(promptHTML) : promptHTML
+        };
+        continue;
+      }
+      const folderInput = n.el.querySelector('.swf-node-folder');
       nodesData[id] = {
         id: n.id, type: n.type, x: n.x, y: n.y,
         width: n.width, isCollapsed: n.isCollapsed, promptHeight: promptEl ? promptEl.offsetHeight : 0,
@@ -3398,9 +3623,27 @@
         for (const savedId in state.nodes) {
           const nd = state.nodes[savedId];
           try {
+            // Note nodes: minimal restore (geometry + text), then skip the
+            // macro-only restoration below.
+            if (nd.type === 'note') {
+              const n = createNoteNode(nd.x, nd.y);
+              idRemap[savedId] = n.id;
+              n.width = nd.width || 320;
+              n.height = nd.height || 200;
+              n.el.style.width = n.width + 'px';
+              n.el.style.height = n.height + 'px';
+              n.isCollapsed = !!nd.isCollapsed;
+              if (n.isCollapsed) n.el.classList.add('swf-collapsed');
+              const pe = n.el.querySelector('.swf-prompt-editor');
+              if (pe && nd.promptHTML) {
+                pe.innerHTML = nd.promptHTML;
+                if (window.RichTextService) window.RichTextService.updatePlaceholder(pe);
+              }
+              continue;
+            }
             const n = createMacroNode(nd.type || 't2i', nd.x, nd.y);
             idRemap[savedId] = n.id;
-            
+
             // Restore dimensions and collapse state
             n.width = nd.width || 320;
             n.el.style.width = n.width + 'px';
@@ -3861,6 +4104,7 @@
   document.getElementById('swfAddT2I')?.addEventListener('click', () => { saveUndoState(); createMacroNode('t2i'); });
   document.getElementById('swfAddI2I')?.addEventListener('click', () => { saveUndoState(); createMacroNode('i2i'); });
   document.getElementById('swfAddComfyUI')?.addEventListener('click', () => { saveUndoState(); createMacroNode('comfyui'); });
+  document.getElementById('swfAddNote')?.addEventListener('click', () => { saveUndoState(); createNoteNode(); });
   document.getElementById('swfAddGroup')?.addEventListener('click', () => { saveUndoState(); createGroup(); });
   document.getElementById('swfRunAll')?.addEventListener('click', executeAll);
   document.getElementById('swfSaveBtn')?.addEventListener('click', saveWorkflow);

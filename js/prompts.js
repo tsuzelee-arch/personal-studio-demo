@@ -771,6 +771,20 @@ ${text}`;
       if (window.switchPanel) window.switchPanel('prompts');
       setTimeout(() => openModal(null, prefill), 100);
     },
+    // Like openAddModal but does NOT switch panels — the modal overlay simply
+    // appears over the current panel (e.g. the workflow canvas). Used by the
+    // workflow node prompt 💾 save button.
+    openAddModalHere: function(prefill) {
+      if (prefill && !prefill.language && window.StudioSettings) {
+        prefill.language = window.StudioSettings.getOutputLanguage();
+      }
+      openModal(null, prefill || {});
+    },
+    // Returns a lightweight list of saved prompts for external pickers
+    // (e.g. the workflow node prompt 📂 load button): [{ id, title, content }].
+    listPrompts: function() {
+      return prompts.map(p => ({ id: p.id, title: p.title, content: p.content, category: p.category }));
+    },
     getAllCategories: function() {
       return getAllCategories().filter(c => c !== '全部');
     },
