@@ -523,6 +523,10 @@
   background: transparent;
   padding: 8px;
 }
+.forge-textarea.rich-editor {
+  max-height: none !important;
+  height: 100% !important;
+}
 .forge-actions {
   display: flex;
   flex-direction: column;

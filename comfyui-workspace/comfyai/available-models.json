@@ -1,30 +1,66 @@
 {
-  "generatedAt": "2026-06-16T12:03:18.039Z",
+  "generatedAt": "2026-06-19T22:36:50.960Z",
   "note": "Model names the server knows about (same data as UI dropdowns). In hiddenswitch, includes models that will be downloaded on first use — not necessarily already on disk. Run ComfyUI: Refresh Node Catalog to update.",
   "models": {
     "checkpoints": [
+      "Wan2_1-Anisora-I2V-480P-14B_fp8_e4m3fn.safetensors",
+      "animaElement7_voidSpirit.safetensors",
+      "anima_baseV10.safetensors",
+      "bespoke_2.safetensors",
+      "cetusMix_Whalefall2.safetensors",
+      "kirazuriAnima_v30AnimaBase1.safetensors",
+      "oneObsession_v22.safetensors",
       "sam3.1_multiplex_fp16.safetensors",
       "sd_xl_base_1.0.safetensors"
     ],
     "diffusion_models": [
+      "flux-2-klein-4b-fp8.safetensors",
+      "flux-2-klein-9b-fp8.safetensors",
       "flux-2-klein-9b.safetensors",
+      "flux1-dev-kontext_fp8_scaled.safetensors",
+      "kirazuriAnima_v30AnimaBase1.safetensors",
       "qwen_image_layered_control_bf16.safetensors",
       "void_pass1.safetensors",
       "void_pass2.safetensors"
     ],
     "vae": [
+      "ae.safetensors",
       "cogvideox_vae.safetensors",
       "diffusion_pytorch_model.safetensors",
       "flux2-vae.safetensors",
       "full_encoder_small_decoder.safetensors",
       "qwen_image_layered_vae.safetensors",
-      "工业设计手绘草图_工业设计手绘草图1.0.safetensors",
+      "qwen_image_vae.safetensors",
+      "vae-ft-mse-840000-ema-pruned.safetensors",
+      "wan_2.1_vae.safetensors",
       "pixel_space"
     ],
     "loras": [
+      "DensePose-2500.safetensors",
+      "E5B9BBE8B1A1E7BB98E5BDB1E58F96.sVtO.safetensors",
+      "FlatColor_Style.safetensors",
       "Flux_2-Turbo-LoRA_comfyui.safetensors",
+      "HDR360.safetensors",
+      "KleinBase4B_PoseTransfer.safetensors",
+      "Mannequin_V1_F29B.safetensors",
+      "Minimal Sketch Style - Kontext (1).safetensors",
+      "Minimal Sketch Style - Kontext.safetensors",
+      "anima-base-1-masterpiece-v51.safetensors",
+      "anima-highres-aesthetic-boost.safetensors",
+      "anima_base_slider_step800.safetensors",
+      "anima_context_detailer_base10.safetensors",
+      "apply_brush_painting_style_flux.safetensors",
+      "cifk4002.safetensors",
+      "cifk9001.safetensors",
+      "dpo_k9b.safetensors",
+      "exposure_Lighting-step00000300.safetensors",
+      "frombehindE38090styleE380.ucHN.safetensors",
+      "granblue-klein9b.safetensors",
       "kontext-turnaround-sheet-v1.safetensors",
-      "place_it.safetensors"
+      "place_it.safetensors",
+      "refcontrol_pose.safetensors",
+      "shexyo_style_klein9b.safetensors",
+      "工业设计手绘草图_工业设计手绘草图1.0.safetensors"
     ],
     "controlnet": [
       "controlnet-canny-sdxl.safetensors"

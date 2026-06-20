@@ -92,4 +92,34 @@ router.get('/gemini/models', async (req, res) => {
   );
 });
 
+// ── Replicate: Create prediction ──────────────────────────────────────────
+router.post('/replicate/predictions', async (req, res) => {
+  const key = getKey(req, 'REPLICATE_API_KEY');
+  if (!key) return res.status(401).json({ error: 'Replicate API key required' });
+  await proxy(
+    'https://api.replicate.com/v1/predictions',
+    {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Token ${key}` },
+      body:    JSON.stringify(req.body)
+    },
+    res
+  );
+});
+
+// ── Replicate: Get prediction status ────────────────────────────────────────
+router.get('/replicate/predictions/:id', async (req, res) => {
+  const key = getKey(req, 'REPLICATE_API_KEY');
+  if (!key) return res.status(401).json({ error: 'Replicate API key required' });
+  const id = req.params.id;
+  await proxy(
+    `https://api.replicate.com/v1/predictions/${id}`,
+    {
+      method:  'GET',
+      headers: { Authorization: `Token ${key}` }
+    },
+    res
+  );
+});
+
 module.exports = router;

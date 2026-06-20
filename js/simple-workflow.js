@@ -116,6 +116,21 @@
   function getSourceOutputImages(id) {
     const ent = getEntity(id);
     if (!ent) return [];
+    if (ent.type === 'mask') {
+      const mode = ent.data.maskOutputMode || 'mask';
+      if (mode === 'mask') {
+        // Inpainting mode: propagate the original base images downstream along with the black-and-white mask
+        const baseImages = ent.data.images || [];
+        const maskImage = ent.data.bwMaskState;
+        return maskImage ? [...baseImages, maskImage] : baseImages;
+      } else if (mode === 'composite') {
+        // Scribble Guide mode: propagate the original base images along with the composite image
+        const baseImages = ent.data.images || [];
+        const compositeImage = ent.data.compositeState;
+        return compositeImage ? [...baseImages, compositeImage] : baseImages;
+      }
+      return ent.resultImages || [];
+    }
     return isGroup(id) ? getGroupOutputImages(ent) : (ent.resultImages || []);
   }
 
@@ -431,6 +446,38 @@
         { key: 'gptFidelity', label: 'Fidelity (還原度)', type: 'select', options: [{ v: 'high', l: 'High' }, { v: 'low', l: 'Low' }], default: 'high' },
       ]
     },
+    replicate: {
+      label: 'Replicate 雲端',
+      params: [
+        { key: 'modelVersion', label: '模型版本', type: 'select', options: [
+          { v: 'black-forest-labs/flux-schnell', l: 'FLUX Schnell' },
+          { v: 'black-forest-labs/flux-dev', l: 'FLUX Dev' },
+          { v: 'stability-ai/sdxl:7762d247b584157ef17a9d848d182161e8638b70f75e3e5d4d2d4d9c2224d027', l: 'SDXL (Base)' },
+          { v: 'stability-ai/stable-diffusion-3', l: 'SD3' }
+        ], default: 'black-forest-labs/flux-schnell' },
+        { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1','2:3','3:2','4:5','16:9','9:16'], default: '1:1' }
+      ]
+    },
+    fal: {
+      label: 'fal.ai 雲端',
+      params: [
+        { key: 'modelId', label: '模型ID', type: 'select', options: [
+          { v: 'fal-ai/flux/schnell', l: 'FLUX Schnell' },
+          { v: 'fal-ai/flux/dev', l: 'FLUX Dev' },
+          { v: 'fal-ai/flux-general/image-to-image', l: 'FLUX Image-to-Image' },
+          { v: 'fal-ai/flux/dev/inpainting', l: 'FLUX Inpainting' },
+          { v: 'fal-ai/fast-sdxl', l: 'SDXL Fast' }
+        ], default: 'fal-ai/flux/schnell' },
+        { key: 'imageSize', label: '尺寸', type: 'select', options: [
+          { v: 'square_hd', l: 'Square HD' },
+          { v: 'square', l: 'Square' },
+          { v: 'portrait_4_3', l: 'Portrait 4:3' },
+          { v: 'portrait_16_9', l: 'Portrait 16:9' },
+          { v: 'landscape_4_3', l: 'Landscape 4:3' },
+          { v: 'landscape_16_9', l: 'Landscape 16:9' }
+        ], default: 'square_hd' }
+      ]
+    },
     preprocess: {
       label: '預處理 (圖像處理)',
       // params handled specially in buildParamsHTML → buildImageProcessParamsHTML
@@ -657,6 +704,8 @@
             <option value="nanobanana2">Nano Banana 2</option>
             <option value="nanobanana">Nano Banana Pro</option>
             <option value="gptimage">GPT Image 2.0</option>
+            <option value="replicate" disabled style="opacity: 0.5;">Replicate 雲端 (暫不可用)</option>
+            <option value="fal" disabled style="opacity: 0.5;">fal.ai 雲端 (暫不可用)</option>
             <option value="preprocess">預處理 (圖像處理)</option>
           </select>
           <label class="swf-gps-label">儲存資料夾</label>
@@ -1631,6 +1680,477 @@
     });
   }
 
+  // ── Canvas Mask Editor (Modal popup mode) ──
+  let activeMaskNode = null;
+  const maskModal = document.getElementById('maskCanvasModal');
+  const maskCanvas = document.getElementById('maskDrawingCanvas');
+  const maskCtx = maskCanvas ? maskCanvas.getContext('2d') : null;
+  let isMaskDrawing = false;
+  let currentMaskBrushSize = 20;
+  let isMaskEraser = false;
+  let maskBgImage = new Image();
+  let maskZoom = 1.0;
+
+  function applyMaskZoom() {
+    const wrapper = document.getElementById('maskCanvasWrapper');
+    if (!wrapper) return;
+    const w = (maskBgImage.naturalWidth || 512) * maskZoom;
+    const h = (maskBgImage.naturalHeight || 512) * maskZoom;
+    wrapper.style.width = w + 'px';
+    wrapper.style.height = h + 'px';
+
+    const canvasEl = document.getElementById('maskDrawingCanvas');
+    if (canvasEl) {
+      canvasEl.style.width = '100%';
+      canvasEl.style.height = '100%';
+    }
+    const label = document.getElementById('maskZoomLabel');
+    if (label) {
+      label.textContent = Math.round(maskZoom * 100) + '%';
+    }
+  }
+
+  // Mouse / Touch drawing events
+  if (maskCanvas && maskCtx) {
+    maskCanvas.addEventListener('mousedown', startMaskDraw);
+    maskCanvas.addEventListener('mousemove', drawMask);
+    maskCanvas.addEventListener('mouseup', stopMaskDraw);
+    maskCanvas.addEventListener('mouseleave', stopMaskDraw);
+
+    // Touch support
+    maskCanvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      const mouseEvent = new MouseEvent('mousedown', {
+        clientX: t.clientX,
+        clientY: t.clientY
+      });
+      maskCanvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    maskCanvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      const mouseEvent = new MouseEvent('mousemove', {
+        clientX: t.clientX,
+        clientY: t.clientY
+      });
+      maskCanvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    maskCanvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      const mouseEvent = new MouseEvent('mouseup', {});
+      maskCanvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+  }
+
+  function startMaskDraw(e) {
+    if (!maskCtx) return;
+    if (e.button !== 0 || isSpaceHeld) return;
+    isMaskDrawing = true;
+    maskCtx.beginPath();
+    const pos = getMaskMousePos(e);
+    maskCtx.moveTo(pos.x, pos.y);
+  }
+
+  function drawMask(e) {
+    if (!isMaskDrawing || !maskCtx) return;
+    const pos = getMaskMousePos(e);
+    maskCtx.lineWidth = currentMaskBrushSize;
+    maskCtx.lineCap = 'round';
+    maskCtx.lineJoin = 'round';
+
+    if (isMaskEraser) {
+      maskCtx.globalCompositeOperation = 'destination-out';
+      maskCtx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      maskCtx.globalCompositeOperation = 'source-over';
+      maskCtx.strokeStyle = currentMaskBrushColor;
+    }
+    maskCtx.lineTo(pos.x, pos.y);
+    maskCtx.stroke();
+  }
+
+  function stopMaskDraw() {
+    isMaskDrawing = false;
+  }
+
+  function getMaskMousePos(e) {
+    const rect = maskCanvas.getBoundingClientRect();
+    const scaleX = maskCanvas.width / rect.width;
+    const scaleY = maskCanvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  }
+
+  // Open Editor
+  function openMaskEditor(node) {
+    activeMaskNode = node;
+    let baseImg = node.data.images[0] || '';
+    if (!baseImg) {
+      // Fallback: 直接從上游邊連線的節點取得圖片
+      const upEdges = sortedUpstreamEdges(node.id);
+      for (const { e } of upEdges) {
+        const src = nodes[e.source];
+        if (src) {
+          const srcImgs = src.resultImages || (src.data && src.data.images) || [];
+          if (srcImgs[0]) {
+            baseImg = srcImgs[0];
+            break;
+          }
+        }
+      }
+      if (baseImg && !node.data.images.includes(baseImg)) {
+        node.data.images = [baseImg, ...node.data.images];
+        renderImageThumbs(node);
+      }
+    }
+    if (!baseImg) {
+      if (window.showToast) window.showToast('⚠️ 請先連線一張底圖至此節點！');
+      return;
+    }
+
+    if (!maskModal || !maskCanvas || !maskCtx) return;
+    maskModal.classList.remove('hidden');
+
+    maskBgImage.src = baseImg;
+    maskBgImage.crossOrigin = 'anonymous';
+    maskBgImage.onload = () => {
+      maskCanvas.width = maskBgImage.naturalWidth || 512;
+      maskCanvas.height = maskBgImage.naturalHeight || 512;
+
+      // Draw background using CSS to keep context clean
+      maskCanvas.style.backgroundImage = 'none';
+      const maskCanvasBg = document.getElementById('maskCanvasBg');
+      if (maskCanvasBg) {
+        maskCanvasBg.style.backgroundImage = `url(${baseImg})`;
+        const opacityVal = document.getElementById('maskBgOpacity')?.value || 100;
+        maskCanvasBg.style.opacity = opacityVal / 100;
+      }
+
+      // Calculate initial fit zoom
+      const containerEl = document.querySelector('.canvas-container');
+      if (containerEl) {
+        const contW = containerEl.clientWidth;
+        const contH = containerEl.clientHeight;
+        const imgW = maskBgImage.naturalWidth || 512;
+        const imgH = maskBgImage.naturalHeight || 512;
+        maskZoom = Math.max(0.1, Math.min(1.5, Math.min((contW - 40) / imgW, (contH - 40) / imgH)));
+      } else {
+        maskZoom = 1.0;
+      }
+      applyMaskZoom();
+
+      maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+      if (node.data.maskCanvasState) {
+        const tempImg = new Image();
+        tempImg.onload = () => maskCtx.drawImage(tempImg, 0, 0);
+        tempImg.src = node.data.maskCanvasState;
+      }
+    };
+    maskBgImage.onerror = () => {
+      if (window.showToast) window.showToast('⚠️ 無法載入底圖，可能跨域限制！');
+    };
+  }
+
+  // Bind controls
+  document.getElementById('maskCanvasClose')?.addEventListener('click', closeMaskEditor);
+  document.getElementById('maskCanvasCancel')?.addEventListener('click', closeMaskEditor);
+  document.getElementById('maskCanvasSave')?.addEventListener('click', saveMaskAndClose);
+
+  // Zoom Controls
+  document.getElementById('maskZoomIn')?.addEventListener('click', () => {
+    maskZoom = Math.min(5, maskZoom + 0.1);
+    applyMaskZoom();
+  });
+  document.getElementById('maskZoomOut')?.addEventListener('click', () => {
+    maskZoom = Math.max(0.1, maskZoom - 0.1);
+    applyMaskZoom();
+  });
+  document.getElementById('maskZoomFit')?.addEventListener('click', () => {
+    const containerEl = document.querySelector('.canvas-container');
+    if (containerEl) {
+      const contW = containerEl.clientWidth;
+      const contH = containerEl.clientHeight;
+      const imgW = maskBgImage.naturalWidth || 512;
+      const imgH = maskBgImage.naturalHeight || 512;
+      maskZoom = Math.max(0.1, Math.min(1.5, Math.min((contW - 40) / imgW, (contH - 40) / imgH)));
+      applyMaskZoom();
+    }
+  });
+
+  // Mouse Wheel Zoom (Scroll to zoom, focused on cursor)
+  const canvasContainer = document.querySelector('.canvas-container');
+  if (canvasContainer) {
+    canvasContainer.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      
+      const rect = maskCanvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const normX = mouseX / rect.width;
+      const normY = mouseY / rect.height;
+
+      const oldW = rect.width;
+      const oldH = rect.height;
+
+      const factor = e.deltaY < 0 ? 1.15 : 0.85;
+      const newZoom = Math.max(0.1, Math.min(5, maskZoom * factor));
+      
+      if (newZoom !== maskZoom) {
+        maskZoom = newZoom;
+        applyMaskZoom();
+
+        const newW = (maskBgImage.naturalWidth || 512) * maskZoom;
+        const newH = (maskBgImage.naturalHeight || 512) * maskZoom;
+
+        canvasContainer.scrollLeft = canvasContainer.scrollLeft + (normX * newW - normX * oldW);
+        canvasContainer.scrollTop = canvasContainer.scrollTop + (normY * newH - normY * oldH);
+      }
+    }, { passive: false });
+  }
+
+  // Panning Canvas via Middle Click or Space + Left Drag
+  let isPanningCanvas = false;
+  let panCanvasStartX = 0, panCanvasStartY = 0;
+  let scrollCanvasStartX = 0, scrollCanvasStartY = 0;
+
+  if (canvasContainer) {
+    canvasContainer.addEventListener('mousedown', (e) => {
+      if (e.button === 1 || (e.button === 0 && isSpaceHeld)) {
+        isPanningCanvas = true;
+        panCanvasStartX = e.clientX;
+        panCanvasStartY = e.clientY;
+        scrollCanvasStartX = canvasContainer.scrollLeft;
+        scrollCanvasStartY = canvasContainer.scrollTop;
+        canvasContainer.style.cursor = 'grabbing';
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isPanningCanvas) return;
+      const dx = e.clientX - panCanvasStartX;
+      const dy = e.clientY - panCanvasStartY;
+      canvasContainer.scrollLeft = scrollCanvasStartX - dx;
+      canvasContainer.scrollTop = scrollCanvasStartY - dy;
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+
+    window.addEventListener('mouseup', () => {
+      if (isPanningCanvas) {
+        isPanningCanvas = false;
+        canvasContainer.style.cursor = 'default';
+      }
+    }, true);
+  }
+
+  function closeMaskEditor() {
+    if (maskModal) maskModal.classList.add('hidden');
+    activeMaskNode = null;
+  }
+
+  function saveMaskAndClose() {
+    if (!activeMaskNode || !maskCanvas || !maskCtx) return;
+
+    // Save drawn mask state as raw colored strokes PNG (transparent background)
+    const rawMaskUrl = maskCanvas.toDataURL('image/png');
+    activeMaskNode.data.maskCanvasState = rawMaskUrl;
+
+    // Convert drawn mask to standard black-and-white mask
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = maskCanvas.width;
+    tempCanvas.height = maskCanvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
+
+    const imgData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+    const data = imgData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const alpha = data[i + 3];
+      if (alpha > 0) {
+        data[i] = 255;
+        data[i + 1] = 255;
+        data[i + 2] = 255;
+        data[i + 3] = 255;
+      } else {
+        data[i] = 0;
+        data[i + 1] = 0;
+        data[i + 2] = 0;
+        data[i + 3] = 255;
+      }
+    }
+    tempCtx.putImageData(imgData, 0, 0);
+    const bwMaskUrl = tempCanvas.toDataURL('image/png');
+    activeMaskNode.data.bwMaskState = bwMaskUrl;
+
+    // Create composite image (white background + transparent base image + opaque strokes)
+    let compositeUrl = '';
+    try {
+      const compCanvas = document.createElement('canvas');
+      compCanvas.width = maskCanvas.width;
+      compCanvas.height = maskCanvas.height;
+      const compCtx = compCanvas.getContext('2d');
+      
+      // 1. Draw solid white background
+      compCtx.fillStyle = '#ffffff';
+      compCtx.fillRect(0, 0, compCanvas.width, compCanvas.height);
+      
+      // 2. Draw base image with selected opacity
+      const opacityVal = document.getElementById('maskBgOpacity')?.value || 100;
+      compCtx.globalAlpha = parseInt(opacityVal) / 100;
+      compCtx.drawImage(maskBgImage, 0, 0, maskCanvas.width, maskCanvas.height);
+      
+      // 3. Draw paint strokes on top
+      compCtx.globalAlpha = 1.0;
+      compCtx.drawImage(maskCanvas, 0, 0);
+      
+      compositeUrl = compCanvas.toDataURL('image/png');
+    } catch (e) {
+      console.warn('Failed to draw composite image, probably crossOrigin tainted canvas:', e);
+      if (window.showToast) window.showToast('⚠️ 無法合併塗鴉底圖：圖片來源跨域限制！');
+    }
+    activeMaskNode.data.compositeState = compositeUrl;
+
+    // Update output based on selected mode
+    updateMaskNodeOutput(activeMaskNode);
+
+    closeMaskEditor();
+  }
+
+  // ── Color and Overlay Management ──
+  let currentMaskBrushColor = '#FF0000';
+
+  const brushColorInput = document.getElementById('maskBrushColor');
+  const brushColorHex = document.getElementById('maskBrushColorHex');
+
+  if (brushColorInput) {
+    brushColorInput.addEventListener('input', (e) => {
+      currentMaskBrushColor = e.target.value;
+      if (brushColorHex) brushColorHex.textContent = currentMaskBrushColor.toUpperCase();
+      activateMaskBrushTool();
+    });
+  }
+
+  document.querySelectorAll('.mask-preset-color').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const color = btn.dataset.color;
+      currentMaskBrushColor = color;
+      if (brushColorInput) brushColorInput.value = color;
+      if (brushColorHex) brushColorHex.textContent = color.toUpperCase();
+      activateMaskBrushTool();
+    });
+  });
+
+  function activateMaskBrushTool() {
+    isMaskEraser = false;
+    const toolBrushBtn = document.getElementById('maskToolBrush');
+    const toolEraserBtn = document.getElementById('maskToolEraser');
+    if (toolBrushBtn && toolEraserBtn) {
+      toolBrushBtn.classList.add('active');
+      toolEraserBtn.classList.remove('active');
+    }
+  }
+
+  function updateMaskNodeOutput(node) {
+    const mode = node.el.querySelector('.swf-mask-output-mode')?.value || 'mask';
+    node.data.maskOutputMode = mode;
+    if (mode === 'mask') {
+      node.resultImages = node.data.bwMaskState ? [node.data.bwMaskState] : [];
+    } else if (mode === 'composite') {
+      node.resultImages = node.data.compositeState ? [node.data.compositeState] : [];
+    }
+    updateMaskNodePreview(node);
+    propagateVisualImages();
+    saveUndoState();
+  }
+
+  function updateMaskNodePreview(node) {
+    if (node.type !== 'mask') return;
+    const imgEl = node.el.querySelector('.swf-preview-img');
+    const placeholder = node.el.querySelector('.swf-preview-placeholder');
+    const previewArea = node.el.querySelector('.swf-preview-area');
+    if (!imgEl || !placeholder || !previewArea) return;
+
+    const baseImg = node.data.images[0] || '';
+    const mode = node.data.maskOutputMode || 'mask';
+
+    if (baseImg || node.data.maskCanvasState) {
+      placeholder.style.display = 'none';
+      imgEl.style.display = 'block';
+
+      if (mode === 'mask') {
+        // Show base image as background with colored strokes overlay
+        if (baseImg) {
+          previewArea.style.backgroundImage = `url(${baseImg})`;
+          previewArea.style.backgroundSize = 'contain';
+          previewArea.style.backgroundRepeat = 'no-repeat';
+          previewArea.style.backgroundPosition = 'center';
+        } else {
+          previewArea.style.backgroundImage = 'none';
+        }
+        imgEl.src = node.data.maskCanvasState || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      } else if (mode === 'composite') {
+        previewArea.style.backgroundImage = 'none';
+        imgEl.src = node.data.compositeState || baseImg || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      }
+    } else {
+      previewArea.style.backgroundImage = 'none';
+      imgEl.style.display = 'none';
+      placeholder.style.display = 'flex';
+      placeholder.textContent = '連線底圖後點擊「編輯遮罩」';
+    }
+  }
+
+  // Brush / Eraser tool switches
+  const brushSizeInput = document.getElementById('maskBrushSize');
+  const brushSizeVal = document.getElementById('maskBrushSizeVal');
+  if (brushSizeInput) {
+    brushSizeInput.addEventListener('input', (e) => {
+      currentMaskBrushSize = parseInt(e.target.value);
+      if (brushSizeVal) brushSizeVal.textContent = currentMaskBrushSize + 'px';
+    });
+  }
+
+  const bgOpacityInput = document.getElementById('maskBgOpacity');
+  const bgOpacityVal = document.getElementById('maskBgOpacityVal');
+  if (bgOpacityInput) {
+    bgOpacityInput.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      if (bgOpacityVal) bgOpacityVal.textContent = val + '%';
+      const maskCanvasBg = document.getElementById('maskCanvasBg');
+      if (maskCanvasBg) {
+        maskCanvasBg.style.opacity = val / 100;
+      }
+    });
+  }
+
+  const toolBrushBtn = document.getElementById('maskToolBrush');
+  const toolEraserBtn = document.getElementById('maskToolEraser');
+  if (toolBrushBtn && toolEraserBtn) {
+    toolBrushBtn.addEventListener('click', () => {
+      isMaskEraser = false;
+      toolBrushBtn.classList.add('active');
+      toolEraserBtn.classList.remove('active');
+    });
+    toolEraserBtn.addEventListener('click', () => {
+      isMaskEraser = true;
+      toolEraserBtn.classList.add('active');
+      toolBrushBtn.classList.remove('active');
+    });
+  }
+
+  document.getElementById('maskToolClear')?.addEventListener('click', () => {
+    if (maskCtx && maskCanvas && confirm('確定要清空所有遮罩重畫嗎？')) {
+      maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    }
+  });
+
   // ═══════════════════════════════════════════
   // ── MACRO NODE CREATION ──
   // ═══════════════════════════════════════════
@@ -1646,6 +2166,10 @@
     const id = uid('n');
     const isI2I = type === 'i2i';
     const isComfy = type === 'comfyui';
+    const isMask = type === 'mask';
+    const isReplicate = type === 'replicate';
+    const isFal = type === 'fal';
+
     let pos = (initialX !== undefined) ? { x: initialX, y: initialY } : calculateNextPosition();
 
     const el = document.createElement('div');
@@ -1654,11 +2178,77 @@
     el.style.left = pos.x + 'px';
     el.style.top = pos.y + 'px';
 
-    const headerTitle = isComfy ? 'ComfyUI' : (isI2I ? '圖生圖 (I2I)' : '文生圖 (T2I)');
-    const defaultModel = isComfy ? 'comfyui' : 'nanobanana2';
-    const modelOptionsHTML = Object.entries(MODEL_PARAMS).map(([k, v]) =>
-      `<option value="${k}" ${k === defaultModel ? 'selected' : ''}>${v.label}</option>`
-    ).join('');
+    let headerTitle = '文生圖 (T2I)';
+    if (isI2I) headerTitle = '圖生圖 (I2I)';
+    else if (isComfy) headerTitle = 'ComfyUI';
+    else if (isMask) headerTitle = '局部遮罩 (Mask)';
+    else if (isReplicate) headerTitle = 'Replicate 雲端';
+    else if (isFal) headerTitle = 'fal.ai 雲端';
+
+    let defaultModel = 'nanobanana2';
+    if (isComfy) defaultModel = 'comfyui';
+    else if (isReplicate) defaultModel = 'replicate';
+    else if (isFal) defaultModel = 'fal';
+    else if (isMask) defaultModel = '';
+
+    const modelOptionsHTML = Object.entries(MODEL_PARAMS).map(([k, v]) => {
+      const isDisabled = k === 'replicate' || k === 'fal';
+      const disabledAttr = isDisabled ? 'disabled' : '';
+      const label = isDisabled ? `${v.label} (暫不可用)` : v.label;
+      const styleAttr = isDisabled ? 'style="opacity: 0.5;"' : '';
+      return `<option value="${k}" ${k === defaultModel ? 'selected' : ''} ${disabledAttr} ${styleAttr}>${label}</option>`;
+    }).join('');
+
+    let bodyHTML = '';
+    if (isMask) {
+      bodyHTML = `
+        <div style="display:flex; gap: 8px; margin-bottom: 8px;">
+          <button class="btn-primary swf-edit-mask-btn" data-node="${id}" style="flex:1; height:32px; font-size:12px; background:var(--accent,#1783FF); border:none; border-radius:4px; color:#fff; cursor:pointer;">編輯遮罩</button>
+        </div>
+        <div style="margin-bottom: 8px;">
+          <label style="font-size:11px; display:block; color:var(--muted); margin-bottom:4px;">輸出類型 (Output Type)</label>
+          <select class="swf-mask-output-mode" style="width:100%; box-sizing:border-box; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:4px; padding:4px; font-size:12px; height:26px;">
+            <option value="mask">黑白遮罩 (Inpainting Mask)</option>
+            <option value="composite">彩色塗鴉指示 (Scribble Guide)</option>
+          </select>
+        </div>
+        <div class="swf-preview-area" data-node="${id}">
+          <span class="swf-preview-placeholder">連線底圖後點擊「編輯遮罩」</span>
+          <img class="swf-preview-img" style="display:none; max-width:100%; border-radius:4px;">
+        </div>
+      `;
+    } else {
+      bodyHTML = `
+        <div style="display:flex; gap: 8px; margin-bottom: 8px;">
+          <div class="swf-model-section" style="flex:1; ${(isComfy || isReplicate || isFal) ? 'display:none;' : ''}"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">模型與處理</label><select class="swf-model-sel" style="width:100%; box-sizing:border-box;">${modelOptionsHTML}</select></div>
+          ${isComfy ? `
+          <div class="swf-comfy-label-section" style="flex:1;">
+            <label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">類型</label>
+            <div style="width: 100%; box-sizing: border-box; background: var(--bg-deep, #eef2f7); border: 1px solid var(--border); color: var(--accent, #1783FF); border-radius: 4px; padding: 4px 8px; font-size: 12px; height: 26px; line-height: 16px; font-weight: bold; text-align: center;">ComfyUI API</div>
+          </div>
+          ` : ''}
+          ${isReplicate ? `
+          <div class="swf-replicate-label-section" style="flex:1;">
+            <label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">類型</label>
+            <div style="width: 100%; box-sizing: border-box; background: var(--bg-deep, #eef2f7); border: 1px solid var(--border); color: var(--accent, #1783FF); border-radius: 4px; padding: 4px 8px; font-size: 12px; height: 26px; line-height: 16px; font-weight: bold; text-align: center;">Replicate 雲端</div>
+          </div>
+          ` : ''}
+          ${isFal ? `
+          <div class="swf-fal-label-section" style="flex:1;">
+            <label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">類型</label>
+            <div style="width: 100%; box-sizing: border-box; background: var(--bg-deep, #eef2f7); border: 1px solid var(--border); color: var(--accent, #1783FF); border-radius: 4px; padding: 4px 8px; font-size: 12px; height: 26px; line-height: 16px; font-weight: bold; text-align: center;">fal.ai 雲端</div>
+          </div>
+          ` : ''}
+          <div class="swf-folder-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">儲存資料夾</label><select class="swf-node-folder" title="選擇儲存資料夾" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 4px; font-size: 12px; height: 26px;"><option value="">預設 (根目錄)</option></select></div>
+        </div>
+        <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
+        ${(isI2I || isComfy || isReplicate || isFal) ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
+        <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label swf-prompt-label-row"><span>提示詞 (Prompt)</span><span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.save}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.folderOpen}</button></span></div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
+        <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">${ICONS.download}</button></div>
+        <button class="swf-run-btn" data-node="${id}">${ICONS.play} 生成</button>
+        <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
+      `;
+    }
 
     el.innerHTML = `
       <div class="swf-port swf-port-in" data-port="in" data-node="${id}" title="接收連線"></div>
@@ -1673,22 +2263,7 @@
         </div>
       </div>
       <div class="swf-macro-body">
-        <div style="display:flex; gap: 8px; margin-bottom: 8px;">
-          <div class="swf-model-section" style="flex:1; ${isComfy ? 'display:none;' : ''}"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">模型與處理</label><select class="swf-model-sel" style="width:100%; box-sizing:border-box;">${modelOptionsHTML}</select></div>
-          ${isComfy ? `
-          <div class="swf-comfy-label-section" style="flex:1;">
-            <label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">類型</label>
-            <div style="width: 100%; box-sizing: border-box; background: var(--bg-deep, #eef2f7); border: 1px solid var(--border); color: var(--accent, #1783FF); border-radius: 4px; padding: 4px 8px; font-size: 12px; height: 26px; line-height: 16px; font-weight: bold; text-align: center;">ComfyUI API</div>
-          </div>
-          ` : ''}
-          <div class="swf-folder-section" style="flex:1;"><label style="font-size: 11px; display: block; color: var(--muted); margin-bottom: 4px;">儲存資料夾</label><select class="swf-node-folder" title="選擇儲存資料夾" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 4px; font-size: 12px; height: 26px;"><option value="">預設 (根目錄)</option></select></div>
-        </div>
-        <div class="swf-params-area">${buildParamsHTML(defaultModel, {})}</div>
-        ${(isI2I || isComfy) ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
-        <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label swf-prompt-label-row"><span>提示詞 (Prompt)</span><span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.save}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.folderOpen}</button></span></div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
-        <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">${ICONS.download}</button></div>
-        <button class="swf-run-btn" data-node="${id}">${ICONS.play} 生成</button>
-        <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
+        ${bodyHTML}
       </div>
       <div class="swf-node-resize" title="調整大小"></div>
     `;
@@ -2015,6 +2590,22 @@
     const el = node.el, id = node.id;
     el.querySelector('.swf-del-btn').addEventListener('click', () => { saveUndoState(); removeNode(id); });
     el.querySelector('.swf-dup-btn').addEventListener('click', () => { saveUndoState(); duplicateNode(node); });
+
+    const editMaskBtn = el.querySelector('.swf-edit-mask-btn');
+    if (editMaskBtn) {
+      editMaskBtn.addEventListener('click', () => openMaskEditor(node));
+    }
+
+    const maskModeSel = el.querySelector('.swf-mask-output-mode');
+    if (maskModeSel) {
+      if (node.data.maskOutputMode) {
+        maskModeSel.value = node.data.maskOutputMode;
+      }
+      maskModeSel.addEventListener('change', (e) => {
+        node.data.maskOutputMode = e.target.value;
+        updateMaskNodeOutput(node);
+      });
+    }
 
     const collapseBtn = el.querySelector('.swf-collapse-btn');
     if (collapseBtn) {
@@ -2681,12 +3272,78 @@
     return contribs;
   }
 
+  function getActualNodeDeps(id) {
+    if (!isGroup(id)) {
+      return [id];
+    }
+    return getGroupExitNodes(id).map(n => n.id);
+  }
+
+  function getNodeDependencies(nid) {
+    const deps = new Set();
+    
+    // 1. Direct upstream edges
+    edges.forEach(e => {
+      if (e.target === nid) {
+        getActualNodeDeps(e.source).forEach(srcId => deps.add(srcId));
+      }
+    });
+    
+    // 2. Group upstream edges (if entry node)
+    let groupId = null;
+    for (const gid in groups) {
+      if (getGroupMembers(gid).some(m => m.id === nid)) {
+        groupId = gid;
+        break;
+      }
+    }
+    if (groupId) {
+      const memberIds = new Set(getGroupMembers(groupId).map(m => m.id));
+      const isEntry = !edges.some(e => e.target === nid && memberIds.has(e.source));
+      if (isEntry) {
+        edges.forEach(e => {
+          if (e.target === groupId) {
+            getActualNodeDeps(e.source).forEach(srcId => deps.add(srcId));
+          }
+        });
+      }
+    }
+    
+    return Array.from(deps);
+  }
+
+  function buildTopoOrder() {
+    const visited = new Set();
+    const order = [];
+    
+    function visit(nid) {
+      if (visited.has(nid)) return;
+      visited.add(nid);
+      
+      getNodeDependencies(nid).forEach(depId => {
+        if (nodes[depId]) {
+          visit(depId);
+        }
+      });
+      
+      order.push(nid);
+    }
+    
+    Object.keys(nodes).forEach(nid => visit(nid));
+    return order;
+  }
+
   function propagateVisualImages() {
-    for (const nid in nodes) {
+    const order = buildTopoOrder();
+    for (const nid of order) {
       const n = nodes[nid];
+      if (!n) continue;
       // Group-aware, priority-ordered assembly (entry nodes also receive group images).
       n.data.images = assembleNodeImages(n, collectNodeUpstreamContribs(n));
       renderImageThumbs(n);
+      if (n.type === 'mask') {
+        updateMaskNodePreview(n);
+      }
     }
 
     // Also refresh any open group sidebars and collapsed groups' completed-image strips
@@ -2947,6 +3604,15 @@
    */
   async function executeSingleNode(node, skipImageReset) {
     if (node.type === 'note') return; // note nodes have no generation
+    if (node.type === 'mask') {
+      // Mask nodes have no run button, their mask is generated manually in the editor modal.
+      if (!skipImageReset) {
+        node.data.images = assembleNodeImages(node, collectNodeUpstreamContribs(node));
+      }
+      renderImageThumbs(node);
+      propagateVisualImages();
+      return;
+    }
     const runBtn = node.el.querySelector('.swf-run-btn');
     const placeholder = node.el.querySelector('.swf-preview-placeholder');
     const imgEl = node.el.querySelector('.swf-preview-img');
@@ -2978,6 +3644,26 @@
       const allRefs = [...node.data.images, ...inlineImages];
       let imageUrl = '';
       let preprocessResults = null; // 預處理 mode may produce multiple outputs (e.g. refcrop)
+
+      // Search for upstream mask node and extract its mask and base image
+      let maskDataUrl = null;
+      let baseImageUrl = null;
+      const upstreamEdges = sortedUpstreamEdges(node.id);
+      for (const { e } of upstreamEdges) {
+        const srcNode = nodes[e.source];
+        if (srcNode && srcNode.type === 'mask') {
+          const maskMode = srcNode.data.maskOutputMode || 'mask';
+          if (maskMode === 'mask') {
+            // Only treat as inpainting mask when output mode is 'mask'
+            if (srcNode.data.bwMaskState) {
+              maskDataUrl = srcNode.data.bwMaskState;
+              baseImageUrl = srcNode.data.images[0] || null;
+              break;
+            }
+          }
+          // composite / strokes_only: images already flow through getSourceOutputImages as regular refs
+        }
+      }
 
       if (model === 'preprocess') {
         // 預處理: run the 圖像處理 script on every incoming image (upstream + uploaded)
@@ -3242,7 +3928,9 @@
           }
         });
       } else {
-        const keyProvider = (model === 'gptimage') ? 'openai' : 'nanobanana';
+        const keyProvider = (model === 'gptimage') ? 'openai' : 
+                            (model === 'replicate') ? 'replicate' :
+                            (model === 'fal') ? 'fal' : 'nanobanana';
         const keyMode = window.StudioSettings?.getKeyMode?.(keyProvider) || 'single';
         // single / round-robin → one active key (rotation handled inside the getter);
         // failover → try every key in priority order until one succeeds.
@@ -3250,12 +3938,14 @@
         if (keyMode === 'failover') {
           attemptKeys = window.StudioSettings?.getApiKeys?.(keyProvider) || [];
         } else {
-          const active = (model === 'gptimage')
-            ? window.StudioSettings?.getOpenAIKey?.()
-            : window.StudioSettings?.getNanobananaKey?.();
+          let active = '';
+          if (model === 'gptimage') active = window.StudioSettings?.getOpenAIKey?.();
+          else if (model === 'replicate') active = window.StudioSettings?.getReplicateKey?.();
+          else if (model === 'fal') active = window.StudioSettings?.getFalKey?.();
+          else active = window.StudioSettings?.getNanobananaKey?.();
           attemptKeys = active ? [active] : [];
         }
-        if (!attemptKeys.length) throw new Error('API Key 尚未設定 (' + model + ')');
+        if (!attemptKeys.length) throw new Error('API Key 尚未設定 (' + keyProvider + ')');
 
         const genOnce = async (apiKey) => {
           if (model === 'gptimage') {
@@ -3263,10 +3953,40 @@
               quality: params.quality || 'low', background: params.gptBackground || 'auto', input_fidelity: params.gptFidelity || 'high'
             });
           } else if (model === 'nanobanana2') {
-            return await window.AIService.generateWithNanoBanana2(text, apiKey, allRefs.length > 0 ? allRefs : null, null, {
+            const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
+            return await window.AIService.generateWithNanoBanana2(text, apiKey, refsToSend.length > 0 ? refsToSend : null, maskDataUrl, {
               aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
               thinkingLevel: params.thinkingLevel || 'none',
             });
+          } else if (model === 'replicate') {
+            const version = params.modelVersion || 'black-forest-labs/flux-schnell';
+            const inputParams = {};
+            if (params.aspectRatio) inputParams.aspect_ratio = params.aspectRatio;
+            if (maskDataUrl) {
+              inputParams.mask = maskDataUrl;
+              inputParams.image = baseImageUrl || allRefs[0];
+            } else if (allRefs.length > 0) {
+              inputParams.image = allRefs[0];
+            }
+            const corsProxy = window.StudioSettings?.getReplicateCorsProxy?.() || '';
+            return await window.AIService.generateWithReplicate(text, apiKey, version, inputParams, corsProxy);
+          } else if (model === 'fal') {
+            let modelId = params.modelId || 'fal-ai/flux/schnell';
+            const inputParams = {};
+            if (params.imageSize) inputParams.image_size = params.imageSize;
+            if (maskDataUrl) {
+              inputParams.mask_url = maskDataUrl;
+              inputParams.image_url = baseImageUrl || allRefs[0];
+              if (modelId === 'fal-ai/flux/schnell' || modelId === 'fal-ai/flux/dev') {
+                modelId = 'fal-ai/flux/dev/inpainting';
+              }
+            } else if (allRefs.length > 0) {
+              inputParams.image_url = allRefs[0];
+              if (modelId === 'fal-ai/flux/schnell' || modelId === 'fal-ai/flux/dev') {
+                modelId = 'fal-ai/flux-general/image-to-image';
+              }
+            }
+            return await window.AIService.generateWithFal(text, apiKey, modelId, inputParams);
           } else {
             return await window.AIService.generateWithNanoBanana(text, apiKey, {
               aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
@@ -4176,6 +4896,9 @@
   document.getElementById('swfAddT2I')?.addEventListener('click', () => { saveUndoState(); createMacroNode('t2i'); });
   document.getElementById('swfAddI2I')?.addEventListener('click', () => { saveUndoState(); createMacroNode('i2i'); });
   document.getElementById('swfAddComfyUI')?.addEventListener('click', () => { saveUndoState(); createMacroNode('comfyui'); });
+  document.getElementById('swfAddMask')?.addEventListener('click', () => { saveUndoState(); createMacroNode('mask'); });
+  document.getElementById('swfAddReplicate')?.addEventListener('click', () => { saveUndoState(); createMacroNode('replicate'); });
+  document.getElementById('swfAddFal')?.addEventListener('click', () => { saveUndoState(); createMacroNode('fal'); });
   document.getElementById('swfAddNote')?.addEventListener('click', () => { saveUndoState(); createNoteNode(); });
   document.getElementById('swfAddGroup')?.addEventListener('click', () => { saveUndoState(); createGroup(); });
   document.getElementById('swfRunAll')?.addEventListener('click', executeAll);

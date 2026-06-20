@@ -772,6 +772,146 @@ ${JSON.stringify(analysis)}`;
     }
   }
 
+  // ── Replicate / fal.ai Cloud API Routing (Support local proxy & Git direct fallback) ──
+  
+  function isLocalBackend() {
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  }
+
+  async function generateWithReplicate(prompt, apiKey, modelVersion, inputParams = {}, corsProxy = '') {
+    throw new Error('Replicate 雲端 API 目前在測試中，已暫時禁用。');
+    const isLocal = isLocalBackend();
+    let url = isLocal ? '/api/ai/replicate/predictions' : 'https://api.replicate.com/v1/predictions';
+    if (!isLocal) {
+      if (corsProxy) {
+        url = corsProxy.trim().replace(/\/+$/, '') + '/' + url;
+      } else {
+        throw new Error('Replicate 在靜態部署下需要設定 CORS 代理位址（請前往「設定」配置）');
+      }
+    }
+
+    const payload = {
+      version: modelVersion,
+      input: { prompt, ...inputParams }
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${apiKey}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Replicate 發起失敗：${err}`);
+    }
+
+    const data = await res.json();
+    let predictionId = data.id;
+
+    // 輪詢狀態
+    let statusUrl = isLocal ? `/api/ai/replicate/predictions/${predictionId}` : `https://api.replicate.com/v1/predictions/${predictionId}`;
+    if (!isLocal && corsProxy) {
+      statusUrl = corsProxy.trim().replace(/\/+$/, '') + '/' + statusUrl;
+    }
+
+    for (let i = 0; i < 100; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const statusRes = await fetch(statusUrl, {
+        headers: { 'Authorization': `Token ${apiKey}` }
+      });
+      if (!statusRes.ok) continue;
+      const pred = await statusRes.json();
+      if (pred.status === 'succeeded') {
+        return Array.isArray(pred.output) ? pred.output[0] : pred.output;
+      }
+      if (pred.status === 'failed' || pred.status === 'canceled') {
+        throw new Error(`Replicate 執行失敗：${pred.error || '被取消'}`);
+      }
+    }
+    throw new Error('Replicate 執行超時');
+  }
+
+  async function generateWithFal(prompt, apiKey, modelId, inputParams = {}) {
+    throw new Error('fal.ai 雲端 API 目前在測試中，已暫時禁用。');
+    const url = `https://queue.fal.run/${modelId}`;
+    
+    const submitRes = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Key ${apiKey}`
+      },
+      body: JSON.stringify({ prompt, ...inputParams })
+    });
+
+    if (!submitRes.ok) {
+      const err = await submitRes.text();
+      throw new Error(`fal.ai 發起失敗：${err}`);
+    }
+
+    const { request_id } = await submitRes.json();
+    const statusUrl = `https://queue.fal.run/${modelId}/requests/${request_id}`;
+
+    for (let i = 0; i < 100; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const statusRes = await fetch(statusUrl, {
+        headers: { 'Authorization': `Key ${apiKey}` }
+      });
+      if (!statusRes.ok) continue;
+      const task = await statusRes.json();
+      if (task.status === 'COMPLETED') {
+        return task.response.images[0].url;
+      }
+      if (task.status === 'FAILED') {
+        throw new Error('fal.ai 執行失敗');
+      }
+    }
+    throw new Error('fal.ai 輪詢超時');
+  }
+
+  async function testReplicate(apiKey) {
+    const isLocal = isLocalBackend();
+    let url = isLocal ? '/api/ai/replicate/predictions' : 'https://api.replicate.com/v1/predictions';
+    const corsProxy = window.StudioSettings?.getReplicateCorsProxy?.() || '';
+    if (!isLocal && corsProxy) {
+      url = corsProxy.trim().replace(/\/+$/, '') + '/' + url;
+    }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${apiKey}`
+      },
+      body: JSON.stringify({
+        version: 'black-forest-labs/flux-schnell',
+        input: { prompt: 'test' }
+      })
+    });
+    if (res.status === 401) {
+      throw new Error('金鑰無效');
+    }
+    return true;
+  }
+
+  async function testFal(apiKey) {
+    const res = await fetch('https://queue.fal.run/fal-ai/flux/schnell', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Key ${apiKey}`
+      },
+      body: JSON.stringify({ prompt: 'test' })
+    });
+    if (res.status === 401) {
+      throw new Error('金鑰無效');
+    }
+    return true;
+  }
+
   // ── Public API ──
   return {
     analyzeWithOpenAI,
@@ -783,10 +923,14 @@ ${JSON.stringify(analysis)}`;
     generateWithNanoBanana,
     generateWithNanoBanana2,
     generateWithGPTImage,
+    generateWithReplicate,
+    generateWithFal,
     testOpenAI,
     testGemini,
     testGeminilite,
     testNanobanana,
+    testReplicate,
+    testFal,
     fileToBase64,
     resolveApiKey,
     analyze,

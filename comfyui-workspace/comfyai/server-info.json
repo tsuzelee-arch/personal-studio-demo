@@ -1,29 +1,29 @@
 {
   "serverUrl": "http://localhost:8188",
-  "configuredStartupArgs": "--enable-manager",
+  "configuredStartupArgs": "--enable-manager --enable-cors-header",
   "system": {
     "os": "win32",
     "ram_total": 33968439296,
-    "ram_free": 4579913728,
-    "comfyui_version": "0.24.1",
-    "required_frontend_version": "1.44.19",
-    "installed_templates_version": "0.9.98",
-    "required_templates_version": "0.9.98",
+    "ram_free": 6648688640,
+    "comfyui_version": "0.25.1",
+    "required_frontend_version": "1.45.15",
+    "installed_templates_version": "0.10.0",
+    "required_templates_version": "0.10.0",
     "comfy_package_versions": [
       {
         "name": "comfyui-frontend-package",
-        "installed": "1.44.19",
-        "required": "1.44.19"
+        "installed": "1.45.15",
+        "required": "1.45.15"
       },
       {
         "name": "comfyui-workflow-templates",
-        "installed": "0.9.98",
-        "required": "0.9.98"
+        "installed": "0.10.0",
+        "required": "0.10.0"
       },
       {
         "name": "comfyui-embedded-docs",
-        "installed": "0.5.2",
-        "required": "0.5.2"
+        "installed": "0.5.4",
+        "required": "0.5.4"
       },
       {
         "name": "comfy-kitchen",
@@ -32,18 +32,20 @@
       },
       {
         "name": "comfy-aimdo",
-        "installed": "0.4.8",
-        "required": "0.4.8"
+        "installed": "0.4.10",
+        "required": "0.4.10"
       }
     ],
     "python_version": "3.13.12 (main, Feb 12 2026, 00:38:53) [MSC v.1944 64 bit (AMD64)]",
-    "pytorch_version": "2.10.0+cu130",
+    "pytorch_version": "2.6.0+cu126",
     "embedded_python": false,
+    "deploy_environment": "local-desktop2-standalone",
     "argv": [
       "ComfyUI\\main.py",
       "--feature-flag",
       "show_signin_button=true",
       "--enable-manager",
+      "--enable-cors-header",
       "--extra-model-paths-config",
       "C:\\Users\\tsuze\\AppData\\Roaming\\Comfy Desktop\\shared_model_paths.yaml",
       "--input-directory",
@@ -58,10 +60,10 @@
       "type": "cuda",
       "index": 0,
       "vram_total": 8585216000,
-      "vram_free": 7451181056,
-      "torch_vram_total": 0,
-      "torch_vram_free": 0
+      "vram_free": 2282864372,
+      "torch_vram_total": 5771362304,
+      "torch_vram_free": 1222422260
     }
   ],
-  "updatedAt": "2026-06-16T12:03:18.066Z"
+  "updatedAt": "2026-06-19T22:36:50.992Z"
 }

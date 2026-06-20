@@ -24,7 +24,8 @@
     outputLanguage:  'ps_output_language',
     localAssetPaths: 'ps_local_asset_paths',
     gdriveClientId:  'ps_gdrive_client_id',
-    filenamePrefix:  'ps_swf_name_prefix'
+    filenamePrefix:  'ps_swf_name_prefix',
+    replicateCorsProxy: 'ps_replicate_cors_proxy'
   };
 
   // Legacy single-key storage — migrated into the per-provider arrays on first
@@ -33,14 +34,18 @@
     openai:     'ps_openai_key',
     gemini:     'ps_gemini_key',
     geminilite: 'ps_geminilite_key',
-    nanobanana: 'ps_nanobanana_key'
+    nanobanana: 'ps_nanobanana_key',
+    replicate:  'ps_replicate_key',
+    fal:        'ps_fal_key'
   };
 
   const PROVIDERS = {
     openai:     { label: 'OpenAI',           placeholder: 'sk-...',         testFn: 'testOpenAI' },
     gemini:     { label: 'Gemini',           placeholder: 'AIza...',        testFn: 'testGemini' },
     geminilite: { label: 'Gemini 2.5 Lite',  placeholder: 'AIza...',        testFn: 'testGeminilite' },
-    nanobanana: { label: 'Nano Banana Pro',  placeholder: 'AIza... / nb-...', testFn: 'testNanobanana' }
+    nanobanana: { label: 'Nano Banana Pro',  placeholder: 'AIza... / nb-...', testFn: 'testNanobanana' },
+    replicate:  { label: 'Replicate',        placeholder: 'r8_...',         testFn: 'testReplicate' },
+    fal:        { label: 'fal.ai',           placeholder: 'key_...',        testFn: 'testFal' }
   };
   const PROVIDER_IDS = Object.keys(PROVIDERS);
   const keysStorageKey = (p) => `ps_keys_${p}`;
@@ -96,12 +101,17 @@
   function buildKeyRow(provider, k, idx) {
     const row = document.createElement('div');
     row.className = 'key-row';
+    const isProviderDisabled = (provider === 'replicate' || provider === 'fal');
 
     const input = document.createElement('input');
     input.type = 'password';
     input.className = 'form-input key-input';
     input.placeholder = PROVIDERS[provider].placeholder;
     input.value = k.key || '';
+    if (isProviderDisabled) {
+      input.disabled = true;
+      input.style.opacity = '0.5';
+    }
 
     const prio = document.createElement('input');
     prio.type = 'number';
@@ -110,17 +120,29 @@
     prio.step = '1';
     prio.value = Number(k.priority) || (idx + 1);
     prio.title = '優先級（數字越小越優先）';
+    if (isProviderDisabled) {
+      prio.disabled = true;
+      prio.style.opacity = '0.5';
+    }
 
     const testBtn = document.createElement('button');
     testBtn.type = 'button';
     testBtn.className = 'btn-ghost btn-sm key-test-btn';
     testBtn.textContent = '測試';
+    if (isProviderDisabled) {
+      testBtn.disabled = true;
+      testBtn.style.opacity = '0.5';
+    }
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'btn-ghost btn-sm key-del-btn ico';
     delBtn.title = '刪除此金鑰';
     delBtn.innerHTML = window.Icons ? window.Icons.get('close') : '';
+    if (isProviderDisabled) {
+      delBtn.disabled = true;
+      delBtn.style.opacity = '0.5';
+    }
 
     const status = document.createElement('span');
     status.className = 'conn-status key-status';
@@ -187,6 +209,7 @@
     if (!card) return;
 
     card.addEventListener('click', (e) => {
+      if (provider === 'replicate' || provider === 'fal') return;
       const addBtn = e.target.closest('.key-add-btn');
       if (addBtn) {
         const listEl = document.getElementById(`keyList_${provider}`);
@@ -211,7 +234,12 @@
     });
 
     const modeSel = document.querySelector(`.key-mode-select[data-provider="${provider}"]`);
-    if (modeSel) modeSel.addEventListener('change', () => setMode(provider, modeSel.value));
+    if (modeSel) {
+      modeSel.addEventListener('change', () => {
+        if (provider === 'replicate' || provider === 'fal') return;
+        setMode(provider, modeSel.value);
+      });
+    }
   });
 
   // ── File-name prefix (unchanged) ──
@@ -268,6 +296,9 @@
     if (modelSelect)    modelSelect.value = localStorage.getItem(STORAGE_KEYS.selectedModel) || 'gemini';
     if (languageSelect) languageSelect.value = localStorage.getItem(STORAGE_KEYS.outputLanguage) || '繁體中文';
     if (swfNamePrefixInput) swfNamePrefixInput.value = localStorage.getItem(STORAGE_KEYS.filenamePrefix) || '';
+    
+    const repProxyInput = document.getElementById('replicateCorsProxy');
+    if (repProxyInput) repProxyInput.value = localStorage.getItem(STORAGE_KEYS.replicateCorsProxy) || '';
   }
 
   // ── Public getters ──
@@ -277,6 +308,9 @@
     getGeminiKey:      () => activeKey('gemini'),
     getGeminiliteKey:  () => activeKey('geminilite'),
     getNanobananaKey:  () => activeKey('nanobanana'),
+    getReplicateKey:   () => activeKey('replicate'),
+    getFalKey:         () => activeKey('fal'),
+    getReplicateCorsProxy: () => localStorage.getItem(STORAGE_KEYS.replicateCorsProxy) || '',
     // Multi-key extensions: ordered key list (for failover loops) + the mode.
     getApiKeys:        (provider) => sortedKeys(provider),
     getKeyMode:        (provider) => getMode(provider),
@@ -295,6 +329,8 @@
       if (model === 'groq')        return false;
       if (model === 'nanobanana')  return sortedKeys('nanobanana').length > 0;
       if (model === 'gptimage')    return sortedKeys('openai').length > 0;
+      if (model === 'replicate')   return sortedKeys('replicate').length > 0;
+      if (model === 'fal')         return sortedKeys('fal').length > 0;
       return false;
     }
   };
@@ -318,6 +354,14 @@
       updateThemeUI();
     });
     updateThemeUI();
+  }
+
+  // ── Replicate CORS Proxy input listener ──
+  const repProxyInput = document.getElementById('replicateCorsProxy');
+  if (repProxyInput) {
+    repProxyInput.addEventListener('input', () => {
+      localStorage.setItem(STORAGE_KEYS.replicateCorsProxy, repProxyInput.value.trim());
+    });
   }
 
   // ── Initialize ──

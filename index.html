@@ -70,26 +70,41 @@
         <section class="panel active" id="panel-simple-workflow">
           <div class="swf-header">
             <div class="swf-title">簡易工作流整合 (Simple Workflow)</div>
-            <div class="swf-toolbar" id="swfToolbar">
-              <button class="btn-ghost btn-sm" id="swfAddT2I"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>文生圖</button>
-              <button class="btn-ghost btn-sm" id="swfAddI2I"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>圖生圖</button>
-              <button class="btn-ghost btn-sm" id="swfAddComfyUI" disabled title="開發中，敬請期待" style="opacity:0.5; cursor:not-allowed;"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>ComfyUI（開發中）</button>
-              <button class="btn-ghost btn-sm" id="swfAddNote" title="新增備忘錄"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>備忘錄</button>
-              <button class="btn-ghost btn-sm" id="swfAddGroup"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>新增群組</button>
-              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
-              <button class="btn-ghost btn-sm" id="swfSaveBtn" title="儲存當前畫布"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>儲存</button>
-              <button class="btn-ghost btn-sm" id="swfLoadBtn" title="讀取已儲存畫布"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>讀取</button>
-              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
-              <button class="btn-ghost btn-sm" id="swfAssetToggle" title="資產瀏覽器"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>資產</button>
-              <button class="btn-ghost btn-sm" id="swfPromptToggle" title="Prompt 列表"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Prompt</button>
-              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
-              <div class="swf-zoom-controls">
+            <div class="swf-toolbar" id="swfToolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <!-- 新增節點組 -->
+              <div class="swf-tb-group" style="display:inline-flex; align-items:center; gap:4px; padding:2px 6px; background:rgba(0,0,0,0.15); border-radius:4px; border:1px solid var(--border);">
+                <span style="font-size:11px; color:var(--muted); margin-right:2px; font-weight:600;">新增:</span>
+                <button class="btn-ghost btn-sm" id="swfAddT2I"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>文生圖</button>
+                <button class="btn-ghost btn-sm" id="swfAddI2I"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>圖生圖</button>
+                <button class="btn-ghost btn-sm" id="swfAddMask"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>局部遮罩 (Mask)</button>
+                <button class="btn-ghost btn-sm" id="swfAddComfyUI" disabled style="opacity: 0.4; cursor: not-allowed;" title="暫不可用"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>ComfyUI</button>
+                <button class="btn-ghost btn-sm" id="swfAddGroup"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>群組</button>
+                <button class="btn-ghost btn-sm" id="swfAddNote" title="新增備忘錄"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>備忘錄</button>
+              </div>
+
+              <!-- 畫布管理組 -->
+              <div class="swf-tb-group" style="display:inline-flex; align-items:center; gap:4px; padding:2px 6px; background:rgba(0,0,0,0.15); border-radius:4px; border:1px solid var(--border);">
+                <span style="font-size:11px; color:var(--muted); margin-right:2px; font-weight:600;">畫布:</span>
+                <button class="btn-ghost btn-sm" id="swfSaveBtn" title="儲存當前畫布"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>儲存</button>
+                <button class="btn-ghost btn-sm" id="swfLoadBtn" title="讀取已儲存畫布"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>讀取</button>
+              </div>
+
+              <!-- 側邊欄面板組 -->
+              <div class="swf-tb-group" style="display:inline-flex; align-items:center; gap:4px; padding:2px 6px; background:rgba(0,0,0,0.15); border-radius:4px; border:1px solid var(--border);">
+                <span style="font-size:11px; color:var(--muted); margin-right:2px; font-weight:600;">面板:</span>
+                <button class="btn-ghost btn-sm" id="swfAssetToggle" title="資產瀏覽器"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>資產</button>
+                <button class="btn-ghost btn-sm" id="swfPromptToggle" title="Prompt 列表"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Prompt</button>
+              </div>
+
+              <!-- 縮放與執行組 -->
+              <div class="swf-zoom-controls" style="display:inline-flex; align-items:center; gap:4px;">
                 <button class="btn-ghost btn-sm" id="swfZoomOut" title="縮小">−</button>
                 <span class="swf-zoom-label" id="swfZoomLabel">100%</span>
                 <button class="btn-ghost btn-sm" id="swfZoomIn" title="放大">+</button>
                 <button class="btn-ghost btn-sm" id="swfZoomReset" title="重置"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
               </div>
-              <div style="width:1px; background:var(--border); margin:0 5px;"></div>
+
+              <div style="width:1px; background:var(--border); margin:0 2px;"></div>
               <button class="btn-primary btn-sm" id="swfRunAll"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>執行全部</button>
             </div>
           </div>
@@ -813,6 +828,58 @@
               </div>
             </div>
 
+            <!-- Replicate Settings -->
+            <div class="settings-card" style="opacity: 0.5;">
+              <div class="settings-card-header">
+                <span class="settings-card-icon ico" data-icon="aperture"></span>
+                <span class="settings-card-title">Replicate 雲端設定 <span style="font-size:12px; color:var(--danger); font-weight:normal; margin-left:8px;">（測試中，暫不開放）</span></span>
+              </div>
+              <div class="settings-card-body">
+                <label class="form-label">API KEY</label>
+                <div class="key-list" id="keyList_replicate" data-provider="replicate"></div>
+                <div class="key-toolbar">
+                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="replicate" disabled>＋ 新增金鑰</button>
+                  <label class="key-mode-wrap" style="opacity: 0.5; pointer-events: none;">多金鑰模式
+                    <select class="key-mode-select" data-provider="replicate" disabled>
+                      <option value="single">只用第一把</option>
+                      <option value="failover">容錯自動切換</option>
+                      <option value="roundrobin">輪流分流</option>
+                    </select>
+                  </label>
+                  <button class="btn-primary key-save-btn" type="button" data-provider="replicate" disabled>儲存</button>
+                </div>
+                <div style="margin-top: 10px; display:flex; flex-direction:column; gap:4px;">
+                  <label style="font-size:11px; color:var(--muted);">CORS 跨域代理位址 (Git 部署時使用)</label>
+                  <input type="text" class="form-input" id="replicateCorsProxy" placeholder="例如 https://cors-anywhere.herokuapp.com/" disabled>
+                </div>
+                <div class="settings-hint">用作雲端 SDXL 或 FLUX 生成管線 · 支援 Git 部署直連或本地後端轉發</div>
+              </div>
+            </div>
+
+            <!-- fal.ai Settings -->
+            <div class="settings-card" style="opacity: 0.5;">
+              <div class="settings-card-header">
+                <span class="settings-card-icon ico" data-icon="cloud"></span>
+                <span class="settings-card-title">fal.ai 雲端設定 <span style="font-size:12px; color:var(--danger); font-weight:normal; margin-left:8px;">（測試中，暫不開放）</span></span>
+              </div>
+              <div class="settings-card-body">
+                <label class="form-label">API KEY</label>
+                <div class="key-list" id="keyList_fal" data-provider="fal"></div>
+                <div class="key-toolbar">
+                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="fal" disabled>＋ 新增金鑰</button>
+                  <label class="key-mode-wrap" style="opacity: 0.5; pointer-events: none;">多金鑰模式
+                    <select class="key-mode-select" data-provider="fal" disabled>
+                      <option value="single">只用第一把</option>
+                      <option value="failover">容錯自動切換</option>
+                      <option value="roundrobin">輪流分流</option>
+                    </select>
+                  </label>
+                  <button class="btn-primary key-save-btn" type="button" data-provider="fal" disabled>儲存</button>
+                </div>
+                <div class="settings-hint">強大的 FLUX/SDXL 雲端極速生成後端 · 支持 CORS 前端直接安全呼叫</div>
+              </div>
+            </div>
+
             <!-- File Naming Settings -->
             <div class="settings-card">
               <div class="settings-card-header">
@@ -1243,6 +1310,71 @@
         <div id="swfLibList" style="display: flex; flex-direction: column; gap: 8px;">
           <!-- Populated by JS -->
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Canvas Mask Editor -->
+  <div class="modal-backdrop hidden" id="maskCanvasModal" style="z-index: 10000;">
+    <div class="modal" style="width: 720px; max-width: 95vw;">
+      <div class="modal-header">
+        <span class="modal-title" style="display:inline-flex; align-items:center; gap:6px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> 繪製局部重繪遮罩
+        </span>
+        <button class="modal-close" id="maskCanvasClose">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:12px; color: var(--text);">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <label style="font-size:12px; display:flex; align-items:center; gap:6px;">
+              <span>筆刷粗細：</span>
+              <input type="range" id="maskBrushSize" min="2" max="100" value="20" style="width:100px; accent-color: var(--accent);">
+              <span id="maskBrushSizeVal">20px</span>
+            </label>
+            <label style="font-size:12px; display:flex; align-items:center; gap:6px;">
+              <span>底圖透明度：</span>
+              <input type="range" id="maskBgOpacity" min="0" max="100" value="100" style="width:100px; accent-color: var(--accent);">
+              <span id="maskBgOpacityVal">100%</span>
+            </label>
+          </div>
+          
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12px;">顏色：</span>
+            <input type="color" id="maskBrushColor" value="#FF0000" style="width:28px; height:24px; border:1px solid var(--border); border-radius:4px; padding:0; background:none; cursor:pointer;">
+            <span id="maskBrushColorHex" style="font-family:monospace; font-size:12px; min-width:55px;">#FF0000</span>
+            <div style="display:flex; gap:4px;">
+              <button class="btn-ghost btn-sm mask-preset-color" data-color="#FF0000" style="background:#FF0000; width:16px; height:16px; padding:0; border-radius:50%; min-width:0; border:1px solid rgba(255,255,255,0.2);" title="紅"></button>
+              <button class="btn-ghost btn-sm mask-preset-color" data-color="#00FF00" style="background:#00FF00; width:16px; height:16px; padding:0; border-radius:50%; min-width:0; border:1px solid rgba(255,255,255,0.2);" title="綠"></button>
+              <button class="btn-ghost btn-sm mask-preset-color" data-color="#0000FF" style="background:#0000FF; width:16px; height:16px; padding:0; border-radius:50%; min-width:0; border:1px solid rgba(255,255,255,0.2);" title="藍"></button>
+              <button class="btn-ghost btn-sm mask-preset-color" data-color="#FFFF00" style="background:#FFFF00; width:16px; height:16px; padding:0; border-radius:50%; min-width:0; border:1px solid rgba(255,255,255,0.2);" title="黃"></button>
+              <button class="btn-ghost btn-sm mask-preset-color" data-color="#FFFFFF" style="background:#FFFFFF; width:16px; height:16px; padding:0; border-radius:50%; min-width:0; border:1px solid rgba(255,255,255,0.2);" title="白"></button>
+              <button class="btn-ghost btn-sm mask-preset-color" data-color="#000000" style="background:#000000; width:16px; height:16px; padding:0; border-radius:50%; min-width:0; border:1px solid rgba(255,255,255,0.2);" title="黑"></button>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn-ghost btn-sm active" id="maskToolBrush">🖌️ 筆刷</button>
+            <button class="btn-ghost btn-sm" id="maskToolEraser">🧽 橡皮擦</button>
+            <button class="btn-ghost btn-sm btn-danger" id="maskToolClear" style="padding: 2px 8px; font-size:11px;">🗑️ 清空重畫</button>
+            
+            <div style="display:inline-flex; align-items:center; gap:4px; margin-left:12px; border-left:1px solid var(--border); padding-left:12px;">
+              <button class="btn-ghost btn-sm" id="maskZoomOut" title="縮小" style="padding: 2px 8px; font-weight: bold;">−</button>
+              <span id="maskZoomLabel" style="font-size:11px; min-width:38px; text-align:center; display:inline-block;">100%</span>
+              <button class="btn-ghost btn-sm" id="maskZoomIn" title="放大" style="padding: 2px 8px; font-weight: bold;">+</button>
+              <button class="btn-ghost btn-sm" id="maskZoomFit" title="適配大小" style="font-size:11px; padding: 2px 6px;">適配</button>
+            </div>
+          </div>
+        </div>
+        <div class="canvas-container" style="width:100%; height:420px; background:#111; border-radius:6px; overflow:auto; display:flex; position:relative; border: 1px solid var(--border);">
+          <div id="maskCanvasWrapper" style="position:relative; display:inline-block; background:#ffffff; box-shadow: 0 0 20px rgba(0,0,0,0.5); margin:auto; flex:none;">
+            <div id="maskCanvasBg" style="position:absolute; top:0; left:0; right:0; bottom:0; background-size:100% 100%; background-repeat:no-repeat; background-position:center; pointer-events:none;"></div>
+            <canvas id="maskDrawingCanvas" style="display:block; width:100%; height:100%; cursor:crosshair; background:transparent; position:relative; z-index:1;"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="maskCanvasCancel">取消</button>
+        <button class="btn-primary" id="maskCanvasSave">套用並輸出遮罩</button>
       </div>
     </div>
   </div>
