@@ -912,51 +912,8 @@
               </section>
             </div>
 
-            <!-- Vertex AI + Batch Mode Region -->
+            <!-- Batch Mode Region -->
             <div class="settings-region">
-              <!-- Vertex AI Settings -->
-              <section class="settings-section" id="vertexAiSection">
-                <div class="settings-section-header">
-                  <span class="settings-card-icon ico" data-icon="cloud"></span>
-                  <span class="settings-section-title">Vertex AI（Gemini 批次）</span>
-                </div>
-                <div class="settings-section-body">
-                  <div class="settings-hint" style="background:var(--warn-bg, #fff8e1); border-left:3px solid var(--warn, #f59e0b); padding:8px 12px; margin-bottom:10px; border-radius:4px; font-size:12px; line-height:1.6;">
-                    ⚠️ Service Account JSON 含私鑰，儲存於 localStorage 存在安全風險，請僅在可信任的私人裝置上使用。
-                  </div>
-                  <div class="key-input-row" style="gap:8px; flex-wrap:wrap;">
-                    <div style="flex:1; min-width:160px;">
-                      <label class="form-label" style="font-size:11px;">GCP Project ID</label>
-                      <input type="text" class="form-input" id="gcpProjectId" placeholder="my-project-123456">
-                    </div>
-                    <div style="flex:0 0 160px;">
-                      <label class="form-label" style="font-size:11px;">區域 (Region)</label>
-                      <select class="form-input" id="gcpRegion" style="height:36px;">
-                        <option value="us-central1">us-central1</option>
-                        <option value="asia-east1">asia-east1</option>
-                        <option value="asia-northeast1">asia-northeast1</option>
-                        <option value="europe-west1">europe-west1</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div style="margin-top:8px;">
-                    <label class="form-label" style="font-size:11px;">GCS Bucket 名稱（用於批次 I/O）</label>
-                    <input type="text" class="form-input" id="gcpBucket" placeholder="my-studio-batch-bucket">
-                  </div>
-                  <div style="margin-top:8px;">
-                    <label class="form-label" style="font-size:11px;">Service Account JSON Key</label>
-                    <textarea class="form-input" id="gcpSaKey" rows="4" style="font-family:monospace; font-size:11px; resize:vertical;" placeholder='{"type":"service_account","project_id":"...","private_key":"-----BEGIN RSA PRIVATE KEY-----\n...","client_email":"...@....iam.gserviceaccount.com",...}'></textarea>
-                  </div>
-                  <div class="key-toolbar" style="margin-top:8px;">
-                    <button class="btn-primary" id="saveVertexAiBtn">儲存</button>
-                    <button class="btn-ghost" id="testVertexAiBtn">測試連線</button>
-                    <div class="conn-status" id="vertexSaveStatus"></div>
-                  </div>
-                </div>
-              </section>
-
-              <hr class="settings-divider">
-
               <!-- Batch Mode Toggles -->
               <section class="settings-section">
                 <div class="settings-section-header">
@@ -975,8 +932,8 @@
                   <label class="batch-toggle-row" style="margin-top:8px;">
                     <input type="checkbox" id="geminiBatchToggle">
                     <span class="batch-toggle-label">
-                      <strong>Gemini Vertex AI Batch</strong>
-                      <span class="settings-hint" style="display:block; margin:2px 0 0;">需填寫上方 Vertex AI 設定，使用 GCS 作為 I/O</span>
+                      <strong>Gemini AI Studio Batch</strong>
+                      <span class="settings-hint" style="display:block; margin:2px 0 0;">使用設定頁的 Gemini API Key 並行送出，結果即時回填；不需要 Vertex AI 或 GCP</span>
                     </span>
                   </label>
                 </div>

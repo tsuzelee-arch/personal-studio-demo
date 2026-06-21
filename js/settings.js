@@ -26,10 +26,6 @@
     gdriveClientId:  'ps_gdrive_client_id',
     filenamePrefix:  'ps_swf_name_prefix',
     replicateCorsProxy: 'ps_replicate_cors_proxy',
-    gcp_project_id:  'ps_gcp_project_id',
-    gcp_region:      'ps_gcp_region',
-    gcp_gcs_bucket:  'ps_gcp_gcs_bucket',
-    gcp_sa_key:      'ps_gcp_sa_key',
     openai_batch:    'ps_openai_batch_mode',
     gemini_batch:    'ps_gemini_batch_mode',
     batch_jobs:      'ps_batch_jobs'
@@ -329,12 +325,6 @@
     },
     getGdriveClientId: () => localStorage.getItem(STORAGE_KEYS.gdriveClientId) || '',
     getFilenamePattern: () => localStorage.getItem(STORAGE_KEYS.filenamePrefix) || '',
-    getGcpConfig: () => ({
-      projectId: localStorage.getItem(STORAGE_KEYS.gcp_project_id) || '',
-      region:    localStorage.getItem(STORAGE_KEYS.gcp_region) || 'us-central1',
-      bucket:    localStorage.getItem(STORAGE_KEYS.gcp_gcs_bucket) || '',
-      saKeyJson: localStorage.getItem(STORAGE_KEYS.gcp_sa_key) || ''
-    }),
     isBatchMode: (provider) => {
       if (provider === 'openai') return localStorage.getItem(STORAGE_KEYS.openai_batch) === '1';
       if (provider === 'gemini') return localStorage.getItem(STORAGE_KEYS.gemini_batch) === '1';
@@ -392,60 +382,12 @@
     });
   }
 
-  // ── Vertex AI settings ──
-  function loadVertexAiSettings() {
-    const pid = document.getElementById('gcpProjectId');
-    const reg = document.getElementById('gcpRegion');
-    const bkt = document.getElementById('gcpBucket');
-    const saKey = document.getElementById('gcpSaKey');
+  // ── Batch Mode toggles ──
+  function loadBatchSettings() {
     const oaiBatch = document.getElementById('openAiBatchToggle');
     const gemBatch = document.getElementById('geminiBatchToggle');
-    if (pid) pid.value = localStorage.getItem(STORAGE_KEYS.gcp_project_id) || '';
-    if (reg) reg.value = localStorage.getItem(STORAGE_KEYS.gcp_region) || 'us-central1';
-    if (bkt) bkt.value = localStorage.getItem(STORAGE_KEYS.gcp_gcs_bucket) || '';
-    if (saKey) saKey.value = localStorage.getItem(STORAGE_KEYS.gcp_sa_key) || '';
     if (oaiBatch) oaiBatch.checked = localStorage.getItem(STORAGE_KEYS.openai_batch) === '1';
     if (gemBatch) gemBatch.checked = localStorage.getItem(STORAGE_KEYS.gemini_batch) === '1';
-  }
-
-  const saveVertexBtn = document.getElementById('saveVertexAiBtn');
-  if (saveVertexBtn) {
-    saveVertexBtn.addEventListener('click', () => {
-      const pid   = document.getElementById('gcpProjectId')?.value.trim() || '';
-      const reg   = document.getElementById('gcpRegion')?.value.trim() || 'us-central1';
-      const bkt   = document.getElementById('gcpBucket')?.value.trim() || '';
-      const saKey = document.getElementById('gcpSaKey')?.value.trim() || '';
-      localStorage.setItem(STORAGE_KEYS.gcp_project_id, pid);
-      localStorage.setItem(STORAGE_KEYS.gcp_region, reg);
-      localStorage.setItem(STORAGE_KEYS.gcp_gcs_bucket, bkt);
-      localStorage.setItem(STORAGE_KEYS.gcp_sa_key, saKey);
-      toast('Vertex AI 設定已儲存');
-      const st = document.getElementById('vertexSaveStatus');
-      if (st) updateStatusIndicator(st, 'saved');
-    });
-  }
-
-  const testVertexBtn = document.getElementById('testVertexAiBtn');
-  if (testVertexBtn) {
-    testVertexBtn.addEventListener('click', async () => {
-      const statusEl = document.getElementById('vertexSaveStatus');
-      testVertexBtn.disabled = true;
-      const old = testVertexBtn.textContent;
-      testVertexBtn.textContent = '測試中...';
-      updateStatusIndicator(statusEl, 'testing');
-      try {
-        const gcpConfig = window.StudioSettings.getGcpConfig();
-        await window.AIService.testVertexAi(gcpConfig);
-        updateStatusIndicator(statusEl, 'success');
-        toast('✅ Vertex AI 連線成功！');
-      } catch (err) {
-        updateStatusIndicator(statusEl, 'error', err.message);
-        toast('❌ Vertex AI 連線失敗：' + err.message, 4000);
-      } finally {
-        testVertexBtn.disabled = false;
-        testVertexBtn.textContent = old;
-      }
-    });
   }
 
   const oaiBatchToggle = document.getElementById('openAiBatchToggle');
@@ -562,6 +504,6 @@
 
   // ── Initialize ──
   loadSettings();
-  loadVertexAiSettings();
+  loadBatchSettings();
 
 })();

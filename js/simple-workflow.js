@@ -789,6 +789,8 @@
         <span class="swf-grp-spacer"></span>
         <div class="swf-group-actions">
           <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>
+          <button class="swf-grp-batch-all-btn" title="將群組內所有圖像節點加入批次佇列">批次全選</button>
+          <button class="swf-grp-batch-run-btn" title="只提交此群組的批次節點" style="display:none">執行批次</button>
           <button class="swf-grp-collapse-btn" title="摺疊/展開群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <button class="swf-grp-del-btn" title="關閉/刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
@@ -869,6 +871,8 @@
     }
     el.querySelector('.swf-grp-del-btn').addEventListener('click', () => { saveUndoState(); promptRemoveGroup(group.id); });
     el.querySelector('.swf-grp-run-btn').addEventListener('click', () => executeGroup(group.id));
+    el.querySelector('.swf-grp-batch-all-btn').addEventListener('click', () => groupBatchSelectAll(group.id));
+    el.querySelector('.swf-grp-batch-run-btn').addEventListener('click', () => executeGroupBatch(group.id));
     el.querySelector('.swf-grp-collapse-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleGroupCollapse(group); });
     el.querySelector('.swf-grp-lock-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleGroupLock(group); });
     el.querySelector('.swf-grp-fit-btn').addEventListener('click', (e) => { e.stopPropagation(); autoFitGroup(group); });
@@ -2248,7 +2252,7 @@
         <div class="swf-run-row">
           <button class="swf-run-btn" data-node="${id}">${ICONS.play} 生成</button>
           <button class="swf-batch-btn btn-ghost btn-sm" data-node="${id}" title="加入批次佇列">批次</button>
-          <span class="swf-batch-badge" style="display:none" title="已在批次佇列中">⏳</span>
+          <span class="swf-batch-badge" style="display:none">批次中</span>
         </div>
         <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
       `;
@@ -2368,6 +2372,16 @@
   // ═══════════════════════════════════════════
   const _batchQueue = new Map();
 
+  // Update group "執行批次" button visibility for a given node's parent groups
+  function _updateGroupBatchRunBtns() {
+    for (const [gid, g] of Object.entries(groups)) {
+      const members = getGroupMembers(gid);
+      const hasBatch = members.some(m => _batchQueue.has(m.id));
+      const btn = g.el?.querySelector('.swf-grp-batch-run-btn');
+      if (btn) btn.style.display = hasBatch ? '' : 'none';
+    }
+  }
+
   function enqueueNodeBatch(node) {
     _batchQueue.set(node.id, node);
     const badge = node.el.querySelector('.swf-batch-badge');
@@ -2375,7 +2389,11 @@
     const batchBtn = node.el.querySelector('.swf-batch-btn');
     if (batchBtn) { batchBtn.textContent = '移出批次'; batchBtn.classList.add('active'); }
     const submitBtn = document.getElementById('swfBatchSubmit');
-    if (submitBtn) submitBtn.style.display = '';
+    if (submitBtn) {
+      submitBtn.style.display = '';
+      submitBtn.className = 'btn-primary btn-sm';
+    }
+    _updateGroupBatchRunBtns();
     if (window.showToast) window.showToast(`已加入批次（共 ${_batchQueue.size} 個節點）`);
   }
 
@@ -2390,16 +2408,31 @@
     }
     if (_batchQueue.size === 0) {
       const submitBtn = document.getElementById('swfBatchSubmit');
-      if (submitBtn) submitBtn.style.display = 'none';
+      if (submitBtn) { submitBtn.style.display = 'none'; submitBtn.className = 'btn-ghost btn-sm'; }
     }
+    _updateGroupBatchRunBtns();
   }
 
-  async function executeBatch() {
-    if (_batchQueue.size === 0) { if (window.showToast) window.showToast('批次佇列為空'); return; }
+  function groupBatchSelectAll(groupId) {
+    const members = getGroupMembers(groupId);
+    const batchable = members.filter(n => n.type !== 'note' && n.type !== 'mask');
+    if (batchable.length === 0) { if (window.showToast) window.showToast('群組內沒有可批次的圖像節點'); return; }
+    batchable.forEach(n => { if (!_batchQueue.has(n.id)) enqueueNodeBatch(n); });
+  }
+
+  function executeGroupBatch(groupId) {
+    const memberIds = new Set(getGroupMembers(groupId).map(n => n.id));
+    executeBatch(memberIds);
+  }
+
+  async function executeBatch(filterNodeIds = null) {
+    const entries = filterNodeIds
+      ? [..._batchQueue.values()].filter(n => filterNodeIds.has(n.id))
+      : [..._batchQueue.values()];
+    if (entries.length === 0) { if (window.showToast) window.showToast('批次佇列為空'); return; }
     const submitBtn = document.getElementById('swfBatchSubmit');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '提交中...'; }
 
-    const entries = [..._batchQueue.values()];
     const gptimageBatch = entries.filter(n => n.data.model === 'gptimage');
     const otherBatch = entries.filter(n => n.data.model !== 'gptimage');
 
@@ -2441,15 +2474,15 @@
         });
       }
 
-      // ── Gemini / Nano Banana via Vertex AI batch ──
+      // ── Gemini / Nano Banana via Google AI Studio API key (parallel) ──
       if (otherBatch.length) {
-        const gcpConfig = window.StudioSettings?.getGcpConfig?.() || {};
-        if (!gcpConfig.projectId || !gcpConfig.saKeyJson) {
-          throw new Error(`${otherBatch.length} 個 Gemini 節點需要 Vertex AI 設定，請至設定頁填入 GCP 資訊`);
-        }
         if (!window.StudioSettings?.isBatchMode('gemini')) {
           throw new Error('請先在「設定 > Batch 模式」開啟 Gemini 批次模式');
         }
+        const geminiKey = (window.StudioSettings?.getApiKeys?.('gemini') || [])[0]
+                       || (window.StudioSettings?.getApiKeys?.('nanobanana') || [])[0] || '';
+        if (!geminiKey) throw new Error('Gemini API Key 未設定，請至設定頁填入');
+
         const requests = otherBatch.map(n => {
           const { text } = extractPromptData(n);
           const params = n.data.params || {};
@@ -2457,23 +2490,38 @@
           return {
             customId: n.id,
             model,
-            contents: [{ parts: [{ text }] }],
+            contents: [{ role: 'user', parts: [{ text }] }],
             generationConfig: {
-              imageConfig: { aspectRatio: params.aspectRatio || '1:1' },
-              responseModalities: ['IMAGE']
+              responseModalities: ['IMAGE', 'TEXT'],
+              ...(params.aspectRatio && { imageConfig: { aspectRatio: params.aspectRatio } })
             }
           };
         });
-        const job = await window.AIService.submitVertexBatch(requests, gcpConfig);
-        window.StudioSettings?.saveBatchJob?.({
-          id: job.jobName, jobName: job.jobName, provider: 'gemini', type: 'image',
-          status: job.state, nodeIds: otherBatch.map(n => n.id),
-          outputUri: job.outputUri, submittedAt: Date.now()
-        });
+
+        const resultMap = await window.AIService.submitGeminiBatch(requests, geminiKey);
+        let filled = 0;
+        for (const [nodeId, { imageUrl, error }] of resultMap) {
+          const node = nodes[nodeId];
+          if (!node) continue;
+          if (error) { if (window.showToast) window.showToast('節點錯誤：' + error, 3000); continue; }
+          if (!imageUrl) continue;
+          node.resultImages = [imageUrl];
+          const imgEl = node.el.querySelector('.swf-preview-img');
+          const placeholder = node.el.querySelector('.swf-preview-placeholder');
+          const dlBtn = node.el.querySelector('.swf-download-btn');
+          if (imgEl) { imgEl.src = imageUrl; imgEl.style.display = ''; }
+          if (placeholder) placeholder.style.display = 'none';
+          if (dlBtn) dlBtn.style.display = '';
+          filled++;
+        }
+        propagateVisualImages();
+        triggerAutoSave();
+        if (window.showToast) window.showToast('✅ Gemini 批次完成，已回填 ' + filled + ' 個節點');
       }
 
-      [..._batchQueue.keys()].forEach(dequeueNodeBatch);
-      if (window.showToast) window.showToast('✅ 批次已提交，請至「設定 > 批次狀態」查看進度');
+      // Dequeue only the entries that were processed in this call (supports group-filtered batch)
+      entries.forEach(n => dequeueNodeBatch(n.id));
+      if (_batchQueue.size === 0 && window.showToast) window.showToast('✅ 批次全部完成');
     } catch (err) {
       if (window.showToast) window.showToast('❌ 批次提交失敗：' + err.message, 5000);
     } finally {
@@ -2496,9 +2544,7 @@
       if (!outputFileId) throw new Error('結果尚未就緒（狀態：' + job.status + '）');
       resultMap = await window.AIService.getOpenAIBatchResults(outputFileId, apiKey);
     } else {
-      const gcpConfig = window.StudioSettings?.getGcpConfig?.() || {};
-      if (!job.outputUri) throw new Error('缺少 GCS output URI');
-      resultMap = await window.AIService.getVertexBatchResults(job.outputUri, gcpConfig);
+      throw new Error('不支援的批次提供者：' + job.provider);
     }
 
     let filled = 0;
@@ -2519,7 +2565,7 @@
       filled++;
     }
     window.StudioSettings?.updateBatchJob?.(jobId, { status: job.provider === 'openai' ? 'completed' : 'JOB_STATE_SUCCEEDED' });
-    saveWorkflow();
+    triggerAutoSave();
     if (window.showToast) window.showToast(`✅ 已回填 ${filled} 個節點圖像`);
   }
 
@@ -5150,7 +5196,7 @@
   document.getElementById('swfAddNote')?.addEventListener('click', () => { saveUndoState(); createNoteNode(); });
   document.getElementById('swfAddGroup')?.addEventListener('click', () => { saveUndoState(); createGroup(); });
   document.getElementById('swfRunAll')?.addEventListener('click', executeAll);
-  document.getElementById('swfBatchSubmit')?.addEventListener('click', executeBatch);
+  document.getElementById('swfBatchSubmit')?.addEventListener('click', () => executeBatch());
   document.getElementById('swfSaveBtn')?.addEventListener('click', saveWorkflow);
   document.getElementById('swfLoadBtn')?.addEventListener('click', loadWorkflow);
   document.getElementById('swfExportBtn')?.addEventListener('click', exportWorkflowJSON);

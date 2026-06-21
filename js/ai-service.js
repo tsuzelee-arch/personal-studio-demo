@@ -1014,190 +1014,41 @@ ${JSON.stringify(analysis)}`;
     return true;
   }
 
-  // ── Vertex AI Gemini Batch ──
-  // Uses Web Crypto API to sign a service-account JWT, exchanges it for an
-  // access token, uploads the JSONL to GCS, then submits a Batch Prediction Job.
-  // gcpConfig: { projectId, region, bucket, saKeyJson }
 
-  async function _getGcpAccessToken(saKeyJson) {
-    let sa;
-    try { sa = typeof saKeyJson === 'string' ? JSON.parse(saKeyJson) : saKeyJson; }
-    catch { throw new Error('Service Account JSON 格式不正確'); }
-
-    const now = Math.floor(Date.now() / 1000);
-    const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const claimSet = btoa(JSON.stringify({
-      iss: sa.client_email,
-      scope: 'https://www.googleapis.com/auth/cloud-platform',
-      aud: 'https://oauth2.googleapis.com/token',
-      iat: now,
-      exp: now + 3600
-    })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const signingInput = `${header}.${claimSet}`;
-
-    const pemBody = sa.private_key.replace(/-----[^-]+-----/g,'').replace(/\s/g,'');
-    const der = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-    const cryptoKey = await crypto.subtle.importKey(
-      'pkcs8', der.buffer,
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false, ['sign']
-    );
-    const sigBuffer = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(signingInput));
-    const sig = btoa(String.fromCharCode(...new Uint8Array(sigBuffer))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const jwt = `${signingInput}.${sig}`;
-
-    const tokenRes = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
-    }, 15000);
-    if (!tokenRes.ok) {
-      const err = await tokenRes.json().catch(() => ({}));
-      throw new Error(err.error_description || `GCP token exchange failed (${tokenRes.status})`);
-    }
-    const tokenData = await tokenRes.json();
-    return tokenData.access_token;
-  }
-
-  async function _uploadToGcs(jsonlContent, bucket, objectName, accessToken) {
-    const blob = new Blob([jsonlContent], { type: 'application/jsonl' });
-    const url = `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodeURIComponent(objectName)}`;
-    const res = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/jsonl' },
-      body: blob
-    }, 30000);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `GCS upload error (${res.status})`);
-    }
-    return await res.json();
-  }
-
-  async function _listGcsObjects(bucket, prefix, accessToken) {
-    const url = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o?prefix=${encodeURIComponent(prefix)}`;
-    const res = await fetchWithTimeout(url, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    }, 15000);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `GCS list error (${res.status})`);
-    }
-    const data = await res.json();
-    return (data.items || []).map(o => o.name);
-  }
-
-  // requests: [{ customId, contents, model }]
-  // contents follows Vertex AI prediction instance format
-  async function submitVertexBatch(requests, gcpConfig) {
-    const { projectId, region = 'us-central1', bucket, saKeyJson } = gcpConfig;
-    if (!projectId || !bucket || !saKeyJson) throw new Error('Vertex AI 設定不完整（需要 projectId、GCS Bucket、SA Key）');
-
-    const accessToken = await _getGcpAccessToken(saKeyJson);
-    const ts = Date.now();
-    const inputObject = `batch-jobs/${ts}/input.jsonl`;
-    const outputPrefix = `batch-jobs/${ts}/output/`;
-
-    // Each JSONL line: { request: { contents: [...], generationConfig: {} } }
-    const lines = requests.map(r => JSON.stringify({
-      request: {
-        contents: r.contents,
-        ...(r.generationConfig && { generationConfig: r.generationConfig })
+  // ── Gemini AI Studio Batch (parallel, uses existing API key) ──
+  // Runs all image generation requests in parallel via generativelanguage.googleapis.com.
+  // No GCP project, Service Account, or GCS needed — just the AI Studio API key.
+  async function submitGeminiBatch(requests, apiKey) {
+    const resultMap = new Map();
+    await Promise.all(requests.map(async (r) => {
+      try {
+        const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + r.model + ':generateContent?key=' + apiKey;
+        const res = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: r.contents, generationConfig: r.generationConfig })
+        }, 120000);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          resultMap.set(r.customId, { error: err.error?.message || 'Gemini error ' + res.status });
+          return;
+        }
+        const data = await res.json();
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        const imgPart = parts.find(p => p.inlineData?.mimeType?.startsWith('image/'));
+        if (!imgPart) {
+          resultMap.set(r.customId, { error: '無圖像輸出（模型可能未回傳圖片）' });
+          return;
+        }
+        const { mimeType, data: b64 } = imgPart.inlineData;
+        resultMap.set(r.customId, { imageUrl: 'data:' + mimeType + ';base64,' + b64 });
+      } catch (e) {
+        resultMap.set(r.customId, { error: e.message });
       }
     }));
-    await _uploadToGcs(lines.join('\n'), bucket, inputObject, accessToken);
-
-    const inputUri = `gs://${bucket}/${inputObject}`;
-    const outputUri = `gs://${bucket}/${outputPrefix}`;
-    const modelName = `publishers/google/models/${requests[0]?.model || 'gemini-2.0-flash-001'}`;
-
-    const jobBody = {
-      displayName: `studio-batch-${ts}`,
-      model: modelName,
-      inputConfig: { instancesFormat: 'jsonl', gcsSource: { uris: [inputUri] } },
-      outputConfig: { predictionsFormat: 'jsonl', gcsDestination: { outputUriPrefix: outputUri } }
-    };
-
-    const jobUrl = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/batchPredictionJobs`;
-    const jobRes = await fetchWithTimeout(jobUrl, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(jobBody)
-    }, 30000);
-    if (!jobRes.ok) {
-      const err = await jobRes.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Vertex AI batch job create error (${jobRes.status})`);
-    }
-    const jobData = await jobRes.json();
-    return { jobName: jobData.name, state: jobData.state, outputUri };
-  }
-
-  async function getVertexBatchStatus(jobName, gcpConfig) {
-    const accessToken = await _getGcpAccessToken(gcpConfig.saKeyJson);
-    const region = gcpConfig.region || 'us-central1';
-    // jobName is the full resource name: projects/.../locations/.../batchPredictionJobs/{id}
-    const url = `https://${region}-aiplatform.googleapis.com/v1/${jobName}`;
-    const res = await fetchWithTimeout(url, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    }, 15000);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Vertex AI status error (${res.status})`);
-    }
-    const data = await res.json();
-    return {
-      state: data.state,
-      outputUri: data.outputConfig?.gcsDestination?.outputUriPrefix || null,
-      error: data.error?.message || null
-    };
-  }
-
-  async function getVertexBatchResults(outputUri, gcpConfig) {
-    // outputUri: gs://bucket/prefix/
-    const match = outputUri.match(/^gs:\/\/([^/]+)\/(.+)$/);
-    if (!match) throw new Error('無效的 GCS output URI');
-    const [, bucket, prefix] = match;
-    const accessToken = await _getGcpAccessToken(gcpConfig.saKeyJson);
-
-    const objects = await _listGcsObjects(bucket, prefix, accessToken);
-    const jsonlFiles = objects.filter(n => n.endsWith('.jsonl') || n.includes('predictions'));
-
-    const resultMap = new Map();
-    for (const objName of jsonlFiles) {
-      const dlUrl = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(objName)}?alt=media`;
-      const dlRes = await fetchWithTimeout(dlUrl, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      }, 60000);
-      if (!dlRes.ok) continue;
-      const text = await dlRes.text();
-      for (const line of text.split('\n').filter(Boolean)) {
-        try {
-          const item = JSON.parse(line);
-          // Vertex AI output: { instance: {...}, prediction: {...} }
-          const customId = item.instance?.request?.customId || item.custom_id || null;
-          const content = item.prediction?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-          const error = item.prediction?.error?.message ?? null;
-          if (customId) resultMap.set(customId, { content, error });
-        } catch { /* skip malformed lines */ }
-      }
-    }
     return resultMap;
   }
 
-  async function testVertexAi(gcpConfig) {
-    const { projectId, region = 'us-central1', saKeyJson } = gcpConfig;
-    if (!projectId || !saKeyJson) throw new Error('需要填寫 Project ID 與 Service Account Key');
-    const accessToken = await _getGcpAccessToken(saKeyJson);
-    const url = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models`;
-    const res = await fetchWithTimeout(url, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    }, 15000);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Vertex AI test error (${res.status})`);
-    }
-    return true;
-  }
 
   // ── Public API ──
   return {
@@ -1229,10 +1080,7 @@ ${JSON.stringify(analysis)}`;
     getOpenAIBatchStatus,
     getOpenAIBatchResults,
     cancelOpenAIBatch,
-    submitVertexBatch,
-    getVertexBatchStatus,
-    getVertexBatchResults,
-    testVertexAi
+    submitGeminiBatch
   };
 
 })();
