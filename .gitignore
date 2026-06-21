@@ -1,40 +1,26 @@
-AGENT_SKILLS.md
+# Local environment / system files
+.env
+node_modules/
 .claude/
+.vscode/
 *.pdf
 
-# Node.js backend
-node_modules/
-.env
-n8n-data/
-
-# Agent Reports & Plans
-*plan*.md
-*report*.md
-implementation_plan_workflow.md
-implementation-plan-*.md
-
-
-# Local config with absolute paths — machine-specific, must not be committed
+# Machine-specific config
 server-config.json
-
-# Scratch / temp files
-step704*.txt
-test_insert.html
-test_iframe.html
-
-# Local VS Code settings
-.vscode/
-
-# Agent logs and large logs
-CLAUDE-FABLE-*.md
 
 # Git upload scripts
 upload_*.bat
 *.bat
 
-# Agent guides and skills
-STUDIO_GUIDE.md
-STUDIO_USER_GUIDE.md
+# Scratch / temp files
+step704*.txt
+test_insert.html
+test_iframe.html
+n8n-data/
 
+# Ignore all markdown documentation (plans, walkthroughs, guides)
+*.md
 
-
+# Ignore local audit screenshots and logs
+/audit/
+/dev_log.txt
