@@ -4,6 +4,21 @@ window.StudioState = {
   workflowSteps: [false, false, false, false]
 };
 
+// Mobile navigation drawer toggle helpers
+const closeMobileNav = () => {
+  const mainNav = document.getElementById('main-nav');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  if (mainNav) mainNav.classList.remove('open');
+  if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
+};
+
+const toggleMobileNav = () => {
+  const mainNav = document.getElementById('main-nav');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  if (mainNav) mainNav.classList.toggle('open');
+  if (sidebarBackdrop) sidebarBackdrop.classList.toggle('active');
+};
+
 // Navigation
 const panels = {
   'simple-workflow': '簡易工作流整合',
@@ -16,17 +31,52 @@ const panels = {
 };
 
 document.querySelectorAll('.nav-item').forEach(item => {
-  item.addEventListener('click', () => {
+  const selectTab = () => {
     const target = item.dataset.panel;
     if (!target) return;
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => {
+      n.classList.remove('active');
+      if (n.hasAttribute('aria-selected')) {
+        n.setAttribute('aria-selected', 'false');
+      }
+    });
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     item.classList.add('active');
+    if (item.hasAttribute('aria-selected')) {
+      item.setAttribute('aria-selected', 'true');
+    }
     document.getElementById(`panel-${target}`).classList.add('active');
     document.getElementById('pageTitle').textContent = panels[target] || item.textContent.trim();
     sessionStorage.setItem('activePanel', target);
+    closeMobileNav();
+  };
+
+  item.addEventListener('click', selectTab);
+  item.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      selectTab();
+    }
   });
 });
+
+// Bind mobile toggle and backdrop events
+const mobileNavToggleBtn = document.getElementById('mobileNavToggleBtn');
+const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+if (mobileNavToggleBtn) {
+  mobileNavToggleBtn.addEventListener('click', toggleMobileNav);
+  mobileNavToggleBtn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleMobileNav();
+    }
+  });
+}
+
+if (sidebarBackdrop) {
+  sidebarBackdrop.addEventListener('click', closeMobileNav);
+}
 
 // Restore last active panel on load
 (function restorePanel() {

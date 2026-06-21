@@ -11,7 +11,9 @@
   // ──────────── DOM Elements ────────────
   const dom = {
     btnAssetToggle: document.getElementById('ipBtnAssetToggle'),
+    btnInspectorToggle: document.getElementById('ipBtnInspectorToggle'),
     leftAssets: document.getElementById('ipLeftAssets'),
+    rightInspector: document.querySelector('.ip-right-inspector'),
     assetClose: document.getElementById('ipAssetClose'),
     assetResizer: document.getElementById('ipAssetResizer'),
     
@@ -2328,6 +2330,28 @@
         if (dom.assetResizer) dom.assetResizer.style.display = 'none';
         if (dom.btnAssetToggle) dom.btnAssetToggle.classList.remove('active');
       });
+    }
+
+    // Inspector Toggle
+    if (dom.btnInspectorToggle && dom.rightInspector) {
+      dom.btnInspectorToggle.addEventListener('click', () => {
+        dom.rightInspector.classList.toggle('hidden');
+        dom.btnInspectorToggle.classList.toggle('active');
+      });
+      dom.btnInspectorToggle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          dom.rightInspector.classList.toggle('hidden');
+          dom.btnInspectorToggle.classList.toggle('active');
+        }
+      });
+      // Under 1200px viewport, default inspector to hidden state
+      if (window.innerWidth < 1200) {
+        dom.rightInspector.classList.add('hidden');
+        dom.btnInspectorToggle.classList.remove('active');
+      } else {
+        dom.btnInspectorToggle.classList.add('active');
+      }
     }
 
     // Resizer Dragging

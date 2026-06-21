@@ -7,12 +7,6 @@
   <title>客制化 Studio</title>
   <meta name="description" content="客制化 Studio - 您的專屬 Creative AI 圖像編輯與提示詞工作流工作站">
   <link rel="stylesheet" href="css/style.css?v=__BUILD_TS__">
-  <link rel="stylesheet" href="css/assets.css?v=__BUILD_TS__">
-  <link rel="stylesheet" href="css/base.css?v=__BUILD_TS__">
-  <link rel="stylesheet" href="css/prompts.css?v=__BUILD_TS__">
-  <link rel="stylesheet" href="css/simple-workflow.css?v=__BUILD_TS__">
-  <link rel="stylesheet" href="css/image-process.css?v=__BUILD_TS__">
-  <link rel="stylesheet" href="css/dark.css?v=__BUILD_TS__">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"
     integrity="sha384-6LFfkTKLRlzFtgx8xsWyBdKGpcMMQTkv+dB7rAbugeJAu1Ym2q1Aji1cjHBG12Xh" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/nano.min.css" />
@@ -33,29 +27,38 @@
         <h1 class="logo-mark">客制化 Studio</h1>
         <div class="logo-sub">Creative AI Workspace</div>
       </div>
-      <div class="nav-group">
+      <div class="nav-group" role="tablist">
         <div class="nav-cat">工作室</div>
-        <div class="nav-item active" data-panel="simple-workflow">簡易工作流整合</div>
-        <div class="nav-item" data-panel="decode">圖像解構</div>
-        <div class="nav-item" data-panel="image-process">圖像處理</div>
-        <div class="nav-item" data-panel="prompts">提示詞庫與熔爐</div>
-        <div class="nav-item" data-panel="workflow" style="display: none;">自定工作流（暫時廢棄）</div>
-        <div class="nav-item" data-panel="workflow-library" style="display: none;"><i class="ico" data-icon="grid"></i> 工作流庫（暫時廢棄）</div>
-        <div class="nav-item" data-panel="assets-v2">資產庫</div>
-        <div class="nav-cat" style="margin-top:12px">系統</div>
-        <div class="nav-item" data-panel="settings"><i class="ico" data-icon="settings"></i> API 設定</div>
+        <div class="nav-item active" data-panel="simple-workflow" role="tab" tabindex="0" aria-selected="true">簡易工作流整合</div>
+        <div class="nav-item" data-panel="image-process" role="tab" tabindex="0" aria-selected="false">圖像處理</div>
+        <div class="nav-item" data-panel="decode" role="tab" tabindex="0" aria-selected="false">圖像解構</div>
+        <div class="nav-item" data-panel="prompts" role="tab" tabindex="0" aria-selected="false">提示詞與熔爐</div>
+        <div class="nav-item" data-panel="assets-v2" role="tab" tabindex="0" aria-selected="false">資產庫</div>
+        <div class="nav-item" data-panel="workflow" style="display: none;" role="tab" tabindex="-1">自定工作流（暫時廢棄）</div>
+        <div class="nav-item" data-panel="workflow-library" style="display: none;" role="tab" tabindex="-1"><i class="ico" data-icon="grid"></i> 工作流庫（暫時廢棄）</div>
       </div>
       <div class="sidebar-footer">
-        <div class="nav-item theme-toggle" id="themeToggleBtn" style="margin-bottom: 8px; justify-content: center;">
+        <div class="nav-item" data-panel="settings" role="tab" tabindex="0" aria-selected="false" style="margin-bottom: 8px;"><i class="ico" data-icon="settings"></i> API 設定</div>
+        <div class="nav-item theme-toggle" id="themeToggleBtn" style="margin-bottom: 8px; justify-content: center;" role="button" tabindex="0">
           <i class="ico" data-icon="moon"></i> <span class="theme-toggle-text">切換色彩模式</span>
         </div>
         <div class="sidebar-footer-text">客制化 Studio v1.0</div>
       </div>
     </nav>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
     <main class="main" id="main-content">
       <header class="topbar">
-        <div class="page-title" id="pageTitle">簡易工作流整合</div>
+        <div class="topbar-title-area">
+          <button class="mobile-nav-toggle" id="mobileNavToggleBtn" aria-label="開啟選單">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <div class="page-title" id="pageTitle">簡易工作流整合</div>
+        </div>
         <div class="topbar-actions" id="topbarActions">
           <button class="global-dev-log-btn" id="globalDevLogBtn" title="開啟開發日誌">
             <span class="ico" data-icon="clipboard"></span>
@@ -67,37 +70,41 @@
       <div class="content">
 
         <!-- Panel: 簡易工作流整合 -->
-        <section class="panel active" id="panel-simple-workflow">
+        <section class="panel active panel-full" id="panel-simple-workflow">
           <div class="swf-header">
-            <div class="swf-title">簡易工作流整合 (Simple Workflow)</div>
             <div class="swf-toolbar" id="swfToolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <!-- 新增節點組 -->
-              <div class="swf-tb-group" style="display:inline-flex; align-items:center; gap:4px; padding:2px 6px; background:rgba(0,0,0,0.15); border-radius:4px; border:1px solid var(--border);">
-                <span style="font-size:11px; color:var(--muted); margin-right:2px; font-weight:600;">新增:</span>
-                <button class="btn-ghost btn-sm" id="swfAddT2I"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>文生圖</button>
-                <button class="btn-ghost btn-sm" id="swfAddI2I"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>圖生圖</button>
-                <button class="btn-ghost btn-sm" id="swfAddMask"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>局部遮罩 (Mask)</button>
-                <button class="btn-ghost btn-sm" id="swfAddComfyUI" disabled style="opacity: 0.4; cursor: not-allowed;" title="暫不可用"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>ComfyUI</button>
+              <div class="swf-tb-group">
+                <div class="swf-dropdown" id="swfNodeDropdownContainer">
+                  <button class="btn-ghost btn-sm swf-dropdown-toggle" id="swfNodeDropdownBtn" title="新增節點"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Node ▾</button>
+                  <div class="swf-dropdown-menu" id="swfNodeDropdownMenu">
+                    <button class="swf-dropdown-item" id="swfAddT2I"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>文生圖</button>
+                    <button class="swf-dropdown-item" id="swfAddI2I"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>圖生圖</button>
+                    <button class="swf-dropdown-item" id="swfAddMask"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>局部遮罩 (Mask)</button>
+                    <button class="swf-dropdown-item" id="swfAddComfyUI" disabled style="opacity: 0.4; cursor: not-allowed;" title="暫不可用"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>ComfyUI</button>
+                    <button class="swf-dropdown-item" id="swfAddNote" title="新增備忘錄"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>備忘錄</button>
+
+                  </div>
+                </div>
                 <button class="btn-ghost btn-sm" id="swfAddGroup"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>群組</button>
-                <button class="btn-ghost btn-sm" id="swfAddNote" title="新增備忘錄"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>備忘錄</button>
               </div>
 
               <!-- 畫布管理組 -->
-              <div class="swf-tb-group" style="display:inline-flex; align-items:center; gap:4px; padding:2px 6px; background:rgba(0,0,0,0.15); border-radius:4px; border:1px solid var(--border);">
-                <span style="font-size:11px; color:var(--muted); margin-right:2px; font-weight:600;">畫布:</span>
+              <div class="swf-tb-group">
                 <button class="btn-ghost btn-sm" id="swfSaveBtn" title="儲存當前畫布"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>儲存</button>
                 <button class="btn-ghost btn-sm" id="swfLoadBtn" title="讀取已儲存畫布"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>讀取</button>
+                <button class="btn-ghost btn-sm" id="swfExportBtn" title="將當前工作流儲存為JSON"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>導出</button>
+                <button class="btn-ghost btn-sm" id="swfImportBtn" title="從JSON導入工作流"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>導入</button>
               </div>
 
               <!-- 側邊欄面板組 -->
-              <div class="swf-tb-group" style="display:inline-flex; align-items:center; gap:4px; padding:2px 6px; background:rgba(0,0,0,0.15); border-radius:4px; border:1px solid var(--border);">
-                <span style="font-size:11px; color:var(--muted); margin-right:2px; font-weight:600;">面板:</span>
+              <div class="swf-tb-group">
                 <button class="btn-ghost btn-sm" id="swfAssetToggle" title="資產瀏覽器"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>資產</button>
-                <button class="btn-ghost btn-sm" id="swfPromptToggle" title="Prompt 列表"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Prompt</button>
+                <button class="btn-ghost btn-sm" id="swfPromptToggle" title="Prompt 列表"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>提示詞</button>
               </div>
 
               <!-- 縮放與執行組 -->
-              <div class="swf-zoom-controls" style="display:inline-flex; align-items:center; gap:4px;">
+              <div class="swf-zoom-controls">
                 <button class="btn-ghost btn-sm" id="swfZoomOut" title="縮小">−</button>
                 <span class="swf-zoom-label" id="swfZoomLabel">100%</span>
                 <button class="btn-ghost btn-sm" id="swfZoomIn" title="放大">+</button>
@@ -106,6 +113,7 @@
 
               <div style="width:1px; background:var(--border); margin:0 2px;"></div>
               <button class="btn-primary btn-sm" id="swfRunAll"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>執行全部</button>
+              <button class="btn-ghost btn-sm" id="swfBatchSubmit" title="提交所有批次佇列中的節點" style="display:none;"><svg class="swf-tb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>提交批次</button>
             </div>
           </div>
 
@@ -153,8 +161,8 @@
         </section>
 
         <!-- Panel: 圖像解構 -->
-        <section class="panel" id="panel-decode">
-          <div class="decode-layout">
+        <section class="panel panel-scrollable" id="panel-decode">
+          <div class="decode-layout panel-container">
             <input type="file" id="imageInput" accept="image/*" hidden>
             <!-- Model Selector -->
             <div class="model-selector-bar" style="display: flex; align-items: center;">
@@ -217,9 +225,9 @@
               <!-- Dashboard Grid -->
               <div class="decode-dashboard">
                 <!-- Left Column: Preview + Palette -->
-                <div class="dashboard-left">
-                  <div class="dash-card dash-card-preview" id="cardPreview"
-                    style="position: relative; min-height: 250px;">
+                <div class="dashboard-left decode-region">
+                  <!-- Preview Section -->
+                  <section class="decode-section" id="cardPreview" style="position: relative; min-height: 250px;">
                     <div class="decode-preview-wrap" id="previewWrap"
                       style="height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
                       <label id="previewPlaceholder" for="imageInput"
@@ -231,78 +239,85 @@
                       <img id="previewImg" src="" alt="preview"
                         style="display: none; max-width: 100%; max-height: 100%; border-radius: 8px;">
                     </div>
-                  </div>
+                  </section>
 
-                  <div class="dash-card" id="cardPalette">
-                    <div class="dash-card-header">
+                  <hr class="decode-divider">
+
+                  <!-- Palette Section -->
+                  <section class="decode-section" id="cardPalette">
+                    <div class="decode-section-header">
                       <span class="dash-card-icon ico" data-icon="palette"></span>
-                      <span class="dash-card-title">色彩色盤 (Color Palette)</span>
+                      <span class="decode-section-title">色彩色盤 (Color Palette)</span>
                     </div>
                     <div class="palette-row" id="paletteRow"></div>
-                  </div>
+                  </section>
 
-                  <div class="dash-card" id="cardMood">
-                    <div class="dash-card-header">
+                  <hr class="decode-divider">
+
+                  <!-- Mood Section -->
+                  <section class="decode-section" id="cardMood">
+                    <div class="decode-section-header">
                       <span class="dash-card-icon ico" data-icon="cloud"></span>
-                      <span class="dash-card-title">氛圍與情緒 (Mood)</span>
+                      <span class="decode-section-title">氛圍與情緒 (Mood)</span>
                     </div>
-                    <div class="dash-card-body">
+                    <div class="decode-section-body">
                       <textarea class="editable-field" id="moodText" rows="3"></textarea>
                     </div>
-                  </div>
+                  </section>
 
-                  <!-- Prompt Output Card (Moved here) -->
-                  <div class="dash-card dash-card-prompt" id="cardPrompt">
-                    <div class="dash-card-header"
+                  <hr class="decode-divider">
+
+                  <!-- Prompt Output Section -->
+                  <section class="decode-section decode-section-prompt" id="cardPrompt">
+                    <div class="decode-section-header"
                       style="display: flex; justify-content: space-between; align-items: center;">
                       <div>
                         <span class="dash-card-icon ico" data-icon="sparkles"></span>
-                        <span class="dash-card-title">視覺解構提示詞 (Prompt)</span>
+                        <span class="decode-section-title">視覺解構提示詞 (Prompt)</span>
                       </div>
-                      <button class="btn-primary btn-sm" id="toNaturalBtn"
-                        style="font-size: 12px; padding: 4px 10px;">轉換為自然語言</button>
+                      <button class="btn-secondary btn-sm" id="toNaturalBtn">轉換為自然語言</button>
                     </div>
-                    <div class="dash-card-body">
+                    <div class="decode-section-body">
                       <textarea class="prompt-output" id="promptOutput"
                         style="width: 100%; min-height: 150px; resize: vertical; border: none; outline: none; background: transparent; color: inherit; font-family: inherit; font-size: inherit;"></textarea>
                     </div>
-                  </div>
+                  </section>
 
                 </div>
 
                 <!-- Right Column: Analysis Cards -->
-                <div class="dashboard-right">
-                  <!-- Metadata Card -->
-                  <div class="dash-card" id="cardMeta">
-                    <div class="dash-card-header">
+                <div class="dashboard-right decode-region">
+                  <!-- Basic Info Section (Style & Dimensions Merged) -->
+                  <section class="decode-section" id="cardMeta">
+                    <div class="decode-section-header">
                       <span class="dash-card-icon ico" data-icon="clipboard"></span>
-                      <span class="dash-card-title">推估風格與過程 (Style & Process)</span>
+                      <span class="decode-section-title">風格與圖像規格 (Style & Dimensions)</span>
                     </div>
-                    <div class="dash-card-body">
-                      <textarea class="editable-field" id="metaStyle" rows="2"
-                        style="font-size:14px; font-weight:500;"></textarea>
+                    <div class="decode-section-body" style="display: flex; flex-direction: column; gap: var(--space-md);">
+                      <div>
+                        <label class="form-label" style="font-size: 11px; color: var(--muted); margin-bottom: 4px; display: block;">推估風格與過程 (Style & Process)</label>
+                        <textarea class="editable-field" id="metaStyle" rows="2"
+                          style="font-size:14px; font-weight:500;"></textarea>
+                      </div>
+                      <div class="decode-divider" style="margin: var(--space-xs) 0;"></div>
+                      <div>
+                        <label class="form-label" style="font-size: 11px; color: var(--muted); margin-bottom: 4px; display: block;">圖像尺寸與解析度 (Dimensions)</label>
+                        <textarea class="editable-field" id="elDimensions" rows="1"></textarea>
+                      </div>
                     </div>
-                  </div>
+                  </section>
 
-                  <!-- Dimensions Card -->
-                  <div class="dash-card" id="cardDimensions">
-                    <div class="dash-card-header">
-                      <span class="dash-card-icon ico" data-icon="ruler"></span>
-                      <span class="dash-card-title">圖像尺寸與解析度 (Dimensions)</span>
-                    </div>
-                    <div class="dash-card-body">
-                      <textarea class="editable-field" id="elDimensions" rows="1"></textarea>
-                    </div>
-                  </div>
+                  <hr class="decode-divider">
 
-                  <!-- Elements Breakdown Card -->
-                  <div class="dash-card" id="cardElements">
-                    <div class="dash-card-header">
+                  <!-- Elements Breakdown Section -->
+                  <section class="decode-section" id="cardElements">
+                    <div class="decode-section-header">
                       <span class="dash-card-icon ico" data-icon="layers"></span>
-                      <span class="dash-card-title">畫面元素拆解 (Layers)</span>
+                      <span class="decode-section-title">畫面元素拆解 (Layers)</span>
                       <button class="dash-toggle" data-target="elementsBody">展開 ▾</button>
+                      <button class="btn-secondary btn-sm" id="saveSubjectBtn"><i class="ico" data-icon="save"></i> 保存角色</button>
                     </div>
-                    <div class="dash-card-body dash-collapsible" id="elementsBody">
+                    <div class="decode-section-body dash-collapsible" id="elementsBody">
                       <div class="element-section">
                         <div class="element-layer-badge">創作主題 (Creative Theme)</div>
                         <textarea class="editable-field" id="elCreativeTheme" rows="2"></textarea>
@@ -353,16 +368,18 @@
                         <textarea class="editable-field" id="elOther" rows="2"></textarea>
                       </div>
                     </div>
-                  </div>
+                  </section>
 
-                  <!-- Lighting & Camera Card -->
-                  <div class="dash-card" id="cardLighting">
-                    <div class="dash-card-header">
+                  <hr class="decode-divider">
+
+                  <!-- Lighting & Camera Section -->
+                  <section class="decode-section" id="cardLighting">
+                    <div class="decode-section-header">
                       <span class="dash-card-icon ico" data-icon="bulb"></span>
-                      <span class="dash-card-title">光影與攝影 (Lighting & Camera)</span>
+                      <span class="decode-section-title">光影與攝影 (Lighting & Camera)</span>
                       <button class="dash-toggle" data-target="lightingBody">展開 ▾</button>
                     </div>
-                    <div class="dash-card-body dash-collapsible" id="lightingBody">
+                    <div class="decode-section-body dash-collapsible" id="lightingBody">
                       <div class="lighting-grid">
                         <div class="lighting-section">
                           <div class="lighting-section-title">主光源 (Key Light)</div>
@@ -399,31 +416,34 @@
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </section>
 
-                  <!-- Materials & Textures Card -->
-                  <div class="dash-card" id="cardMaterials">
-                    <div class="dash-card-header">
+                  <hr class="decode-divider">
+
+                  <!-- Materials & Textures Section -->
+                  <section class="decode-section" id="cardMaterials">
+                    <div class="decode-section-header">
                       <span class="dash-card-icon ico" data-icon="box"></span>
-                      <span class="dash-card-title">材質與微觀紋理 (Material & Texture)</span>
+                      <span class="decode-section-title">材質與微觀紋理 (Material & Texture)</span>
                       <button class="dash-toggle" data-target="materialsBody">展開 ▾</button>
                     </div>
-                    <div class="dash-card-body dash-collapsible" id="materialsBody">
+                    <div class="decode-section-body dash-collapsible" id="materialsBody">
                       <div class="materials-list" id="materialsList"></div>
                     </div>
-                  </div>
+                  </section>
 
-                  <!-- Negative Constraints Card -->
-                  <div class="dash-card dash-card-negative" id="cardNegative">
-                    <div class="dash-card-header">
+                  <hr class="decode-divider">
+
+                  <!-- Negative Constraints Section -->
+                  <section class="decode-section decode-section-negative" id="cardNegative">
+                    <div class="decode-section-header">
                       <span class="dash-card-icon ico" data-icon="ban"></span>
-                      <span class="dash-card-title">推論負面約束 (Negative Space/Constraints)</span>
+                      <span class="decode-section-title">推論負面約束 (Negative Space/Constraints)</span>
                     </div>
-                    <div class="dash-card-body">
+                    <div class="decode-section-body">
                       <ul class="negative-list" id="negativeList"></ul>
                     </div>
-                  </div>
-
+                  </section>
                 </div>
               </div>
             </div>
@@ -431,18 +451,19 @@
         </section>
 
         <!-- Panel: 圖像處理 -->
-        <section class="panel" id="panel-image-process">
+        <section class="panel panel-full" id="panel-image-process">
           <!-- Header Bar (Lightroom-like top toolbar) -->
           <div class="ip-header">
             <div class="ip-title"><i class="ico" data-icon="image"></i> 圖像批次處理 (Image Batch Processor)</div>
             <div class="ip-toolbar">
               <button class="btn-ghost btn-sm" id="ipBtnAssetToggle" title="資產瀏覽器"><i class="ico" data-icon="folderOpen"></i> 本機資產</button>
+              <button class="btn-ghost btn-sm" id="ipBtnInspectorToggle" title="設定面板"><i class="ico" data-icon="settings"></i> 設定</button>
               <div style="width:1px; background:var(--border); margin:0 5px;"></div>
               <button id="ipBtnStitch" class="btn-ghost btn-sm" disabled><i class="ico" data-icon="link"></i> 拼合選取</button>
               <button id="ipBtnScript" class="btn-ghost btn-sm"><i class="ico" data-icon="bot"></i> 自動化腳本</button>
               <div style="width:1px; background:var(--border); margin:0 5px;"></div>
               <button id="ipBtnProcess" class="btn-primary btn-sm" disabled><i class="ico" data-icon="rocket"></i> 開始處理</button>
-              <button id="ipBtnUpload" class="btn-primary btn-sm" style="background: var(--success); color: #fff;"><i class="ico" data-icon="upload"></i> 上傳圖片</button>
+              <button id="ipBtnUpload" class="btn-success btn-sm"><i class="ico" data-icon="upload"></i> 上傳圖片</button>
               <button id="ipBtnClear" class="btn-ghost btn-sm" disabled><i class="ico" data-icon="trash"></i> 清除全部</button>
             </div>
           </div>
@@ -507,7 +528,7 @@
             <!-- Right Pane: Global Properties / Inspector -->
             <div class="ip-right-inspector">
               <button id="ipBtnUnify" class="btn-primary" style="width:100%; padding:10px; margin-bottom:12px; border-radius:6px;"><i class="ico" data-icon="sparkles"></i> 統一輸出參數</button>
-              <button id="ipBtnClearInspector" class="btn-ghost" style="width: 100%; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 8px; color: var(--danger, #ff4d4f); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; background: transparent;"><i class="ico" data-icon="trash"></i> 清空工作區</button>
+              <button id="ipBtnClearInspector" class="btn-destructive" style="width: 100%; margin-bottom: 12px;"><i class="ico" data-icon="trash"></i> 清空工作區</button>
               
               <div class="ip-inspector-section">
                 <div class="ip-inspector-title">全域參數設定 (Global Settings)</div>
@@ -563,7 +584,7 @@
           </div>
         </section>
 
-        <section class="panel" id="panel-prompts">
+        <section class="panel panel-full" id="panel-prompts">
           <div class="prompts-ide-layout">
             <!-- Left Pane: Library -->
             <div class="prompts-left-library">
@@ -724,198 +745,300 @@
         </section>
 
         <!-- Panel: API 設定 -->
-        <section class="panel" id="panel-settings">
-          <div class="settings-layout">
+        <section class="panel panel-scrollable" id="panel-settings">
+          <div class="settings-layout panel-container">
             <div class="settings-intro">
               <p>在此設定您的 AI 模型 API 金鑰。金鑰僅儲存在您的瀏覽器本地端 (localStorage)，不會傳送至任何第三方伺服器。</p>
             </div>
 
-            <!-- OpenAI Settings -->
-            <div class="settings-card">
-              <div class="settings-card-header">
-                <span class="settings-card-icon ico" data-icon="bot"></span>
-                <span class="settings-card-title">OpenAI (ChatGPT)</span>
-              </div>
-              <div class="settings-card-body">
-                <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
-                <div class="key-list" id="keyList_openai" data-provider="openai"></div>
-                <div class="key-toolbar">
-                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="openai">＋ 新增金鑰</button>
-                  <label class="key-mode-wrap">多金鑰模式
-                    <select class="key-mode-select" data-provider="openai">
-                      <option value="single">只用第一把</option>
-                      <option value="failover">容錯自動切換</option>
-                      <option value="roundrobin">輪流分流</option>
-                    </select>
+            <!-- API Keys Region -->
+            <div class="settings-region">
+              <!-- OpenAI Settings -->
+              <section class="settings-section">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="bot"></span>
+                  <span class="settings-section-title">OpenAI (ChatGPT)</span>
+                </div>
+                <div class="settings-section-body">
+                  <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
+                  <div class="key-list" id="keyList_openai" data-provider="openai"></div>
+                  <div class="key-toolbar">
+                    <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="openai">＋ 新增金鑰</button>
+                    <label class="key-mode-wrap">多金鑰模式
+                      <select class="key-mode-select" data-provider="openai">
+                        <option value="single">只用第一把</option>
+                        <option value="failover">容錯自動切換</option>
+                        <option value="roundrobin">輪流分流</option>
+                      </select>
+                    </label>
+                    <button class="btn-primary key-save-btn" type="button" data-provider="openai">儲存</button>
+                  </div>
+                  <div class="settings-hint">模型：chatgpt-5.5 · 需要有 Vision 存取權限</div>
+                </div>
+              </section>
+
+              <hr class="settings-divider">
+
+              <!-- Gemini Settings -->
+              <section class="settings-section">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="sparkles"></span>
+                  <span class="settings-section-title">Google Gemini</span>
+                </div>
+                <div class="settings-section-body">
+                  <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
+                  <div class="key-list" id="keyList_gemini" data-provider="gemini"></div>
+                  <div class="key-toolbar">
+                    <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="gemini">＋ 新增金鑰</button>
+                    <label class="key-mode-wrap">多金鑰模式
+                      <select class="key-mode-select" data-provider="gemini">
+                        <option value="single">只用第一把</option>
+                        <option value="failover">容錯自動切換</option>
+                        <option value="roundrobin">輪流分流</option>
+                      </select>
+                    </label>
+                    <button class="btn-primary key-save-btn" type="button" data-provider="gemini">儲存</button>
+                  </div>
+                  <div class="settings-hint">模型：gemini-3.5-flash · 使用 Google AI Studio 金鑰</div>
+                </div>
+              </section>
+
+              <hr class="settings-divider">
+
+              <!-- Gemini 2.5 Lite Settings -->
+              <section class="settings-section">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="star"></span>
+                  <span class="settings-section-title">Google Gemini 2.5 Lite</span>
+                </div>
+                <div class="settings-section-body">
+                  <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
+                  <div class="key-list" id="keyList_geminilite" data-provider="geminilite"></div>
+                  <div class="key-toolbar">
+                    <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="geminilite">＋ 新增金鑰</button>
+                    <label class="key-mode-wrap">多金鑰模式
+                      <select class="key-mode-select" data-provider="geminilite">
+                        <option value="single">只用第一把</option>
+                        <option value="failover">容錯自動切換</option>
+                        <option value="roundrobin">輪流分流</option>
+                      </select>
+                    </label>
+                    <button class="btn-primary key-save-btn" type="button" data-provider="geminilite">儲存</button>
+                  </div>
+                  <div class="settings-hint">模型：gemini-2.5-lite · 快速輕量版分析模型</div>
+                </div>
+              </section>
+
+              <hr class="settings-divider">
+
+              <!-- Nano Banana Pro Settings -->
+              <section class="settings-section">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="aperture"></span>
+                  <span class="settings-section-title">Nano Banana Pro</span>
+                </div>
+                <div class="settings-section-body">
+                  <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
+                  <div class="key-list" id="keyList_nanobanana" data-provider="nanobanana"></div>
+                  <div class="key-toolbar">
+                    <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="nanobanana">＋ 新增金鑰</button>
+                    <label class="key-mode-wrap">多金鑰模式
+                      <select class="key-mode-select" data-provider="nanobanana">
+                        <option value="single">只用第一把</option>
+                        <option value="failover">容錯自動切換</option>
+                        <option value="roundrobin">輪流分流</option>
+                      </select>
+                    </label>
+                    <button class="btn-primary key-save-btn" type="button" data-provider="nanobanana">儲存</button>
+                  </div>
+                  <div class="settings-hint">模型：gemini-3-pro-image (Nano Banana Pro) · 用於工作流的高階圖像生成 · 容錯/輪流模式可在多把金鑰間切換</div>
+                </div>
+              </section>
+
+              <hr class="settings-divider">
+
+              <!-- Replicate Settings -->
+              <section class="settings-section" style="opacity: 0.5;">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="aperture"></span>
+                  <span class="settings-section-title">Replicate 雲端設定 <span style="font-size:12px; color:var(--danger); font-weight:normal; margin-left:8px;">（測試中，暫不開放）</span></span>
+                </div>
+                <div class="settings-section-body">
+                  <label class="form-label">API KEY</label>
+                  <div class="key-list" id="keyList_replicate" data-provider="replicate"></div>
+                  <div class="key-toolbar">
+                    <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="replicate" disabled>＋ 新增金鑰</button>
+                    <label class="key-mode-wrap" style="opacity: 0.5; pointer-events: none;">多金鑰模式
+                      <select class="key-mode-select" data-provider="replicate" disabled>
+                        <option value="single">只用第一把</option>
+                        <option value="failover">容錯自動切換</option>
+                        <option value="roundrobin">輪流分流</option>
+                      </select>
+                    </label>
+                    <button class="btn-primary key-save-btn" type="button" data-provider="replicate" disabled>儲存</button>
+                  </div>
+                  <div style="margin-top: 10px; display:flex; flex-direction:column; gap:4px;">
+                    <label style="font-size:11px; color:var(--muted);">CORS 跨域代理位址 (Git 部署時使用)</label>
+                    <input type="text" class="form-input" id="replicateCorsProxy" placeholder="例如 https://cors-anywhere.herokuapp.com/" disabled>
+                  </div>
+                  <div class="settings-hint">用作雲端 SDXL 或 FLUX 生成管線 · 支援 Git 部署直連或本地後端轉發</div>
+                </div>
+              </section>
+
+              <hr class="settings-divider">
+
+              <!-- fal.ai Settings -->
+              <section class="settings-section" style="opacity: 0.5;">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="cloud"></span>
+                  <span class="settings-section-title">fal.ai 雲端設定 <span style="font-size:12px; color:var(--danger); font-weight:normal; margin-left:8px;">（測試中，暫不開放）</span></span>
+                </div>
+                <div class="settings-section-body">
+                  <label class="form-label">API KEY</label>
+                  <div class="key-list" id="keyList_fal" data-provider="fal"></div>
+                  <div class="key-toolbar">
+                    <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="fal" disabled>＋ 新增金鑰</button>
+                    <label class="key-mode-wrap" style="opacity: 0.5; pointer-events: none;">多金鑰模式
+                      <select class="key-mode-select" data-provider="fal" disabled>
+                        <option value="single">只用第一把</option>
+                        <option value="failover">容錯自動切換</option>
+                        <option value="roundrobin">輪流分流</option>
+                      </select>
+                    </label>
+                    <button class="btn-primary key-save-btn" type="button" data-provider="fal" disabled>儲存</button>
+                  </div>
+                  <div class="settings-hint">強大的 FLUX/SDXL 雲端極速生成後端 · 支持 CORS 前端直接安全呼叫</div>
+                </div>
+              </section>
+            </div>
+
+            <!-- Vertex AI + Batch Mode Region -->
+            <div class="settings-region">
+              <!-- Vertex AI Settings -->
+              <section class="settings-section" id="vertexAiSection">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="cloud"></span>
+                  <span class="settings-section-title">Vertex AI（Gemini 批次）</span>
+                </div>
+                <div class="settings-section-body">
+                  <div class="settings-hint" style="background:var(--warn-bg, #fff8e1); border-left:3px solid var(--warn, #f59e0b); padding:8px 12px; margin-bottom:10px; border-radius:4px; font-size:12px; line-height:1.6;">
+                    ⚠️ Service Account JSON 含私鑰，儲存於 localStorage 存在安全風險，請僅在可信任的私人裝置上使用。
+                  </div>
+                  <div class="key-input-row" style="gap:8px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:160px;">
+                      <label class="form-label" style="font-size:11px;">GCP Project ID</label>
+                      <input type="text" class="form-input" id="gcpProjectId" placeholder="my-project-123456">
+                    </div>
+                    <div style="flex:0 0 160px;">
+                      <label class="form-label" style="font-size:11px;">區域 (Region)</label>
+                      <select class="form-input" id="gcpRegion" style="height:36px;">
+                        <option value="us-central1">us-central1</option>
+                        <option value="asia-east1">asia-east1</option>
+                        <option value="asia-northeast1">asia-northeast1</option>
+                        <option value="europe-west1">europe-west1</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style="margin-top:8px;">
+                    <label class="form-label" style="font-size:11px;">GCS Bucket 名稱（用於批次 I/O）</label>
+                    <input type="text" class="form-input" id="gcpBucket" placeholder="my-studio-batch-bucket">
+                  </div>
+                  <div style="margin-top:8px;">
+                    <label class="form-label" style="font-size:11px;">Service Account JSON Key</label>
+                    <textarea class="form-input" id="gcpSaKey" rows="4" style="font-family:monospace; font-size:11px; resize:vertical;" placeholder='{"type":"service_account","project_id":"...","private_key":"-----BEGIN RSA PRIVATE KEY-----\n...","client_email":"...@....iam.gserviceaccount.com",...}'></textarea>
+                  </div>
+                  <div class="key-toolbar" style="margin-top:8px;">
+                    <button class="btn-primary" id="saveVertexAiBtn">儲存</button>
+                    <button class="btn-ghost" id="testVertexAiBtn">測試連線</button>
+                    <div class="conn-status" id="vertexSaveStatus"></div>
+                  </div>
+                </div>
+              </section>
+
+              <hr class="settings-divider">
+
+              <!-- Batch Mode Toggles -->
+              <section class="settings-section">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="layers"></span>
+                  <span class="settings-section-title">Batch 模式</span>
+                </div>
+                <div class="settings-section-body">
+                  <div class="settings-hint" style="margin-bottom:12px;">開啟後，工作流中的圖像節點點「批次」加入佇列，再按「提交批次」以非同步 Batch API 送出，費用節省約 50%。</div>
+                  <label class="batch-toggle-row">
+                    <input type="checkbox" id="openAiBatchToggle">
+                    <span class="batch-toggle-label">
+                      <strong>OpenAI Batch API</strong>
+                      <span class="settings-hint" style="display:block; margin:2px 0 0;">使用 /v1/batches 端點，最長 24 小時完成，節省 50% 費用</span>
+                    </span>
                   </label>
-                  <button class="btn-primary key-save-btn" type="button" data-provider="openai">儲存</button>
-                </div>
-                <div class="settings-hint">模型：chatgpt-5.5 · 需要有 Vision 存取權限</div>
-              </div>
-            </div>
-
-            <!-- Gemini Settings -->
-            <div class="settings-card">
-              <div class="settings-card-header">
-                <span class="settings-card-icon ico" data-icon="sparkles"></span>
-                <span class="settings-card-title">Google Gemini</span>
-              </div>
-              <div class="settings-card-body">
-                <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
-                <div class="key-list" id="keyList_gemini" data-provider="gemini"></div>
-                <div class="key-toolbar">
-                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="gemini">＋ 新增金鑰</button>
-                  <label class="key-mode-wrap">多金鑰模式
-                    <select class="key-mode-select" data-provider="gemini">
-                      <option value="single">只用第一把</option>
-                      <option value="failover">容錯自動切換</option>
-                      <option value="roundrobin">輪流分流</option>
-                    </select>
+                  <label class="batch-toggle-row" style="margin-top:8px;">
+                    <input type="checkbox" id="geminiBatchToggle">
+                    <span class="batch-toggle-label">
+                      <strong>Gemini Vertex AI Batch</strong>
+                      <span class="settings-hint" style="display:block; margin:2px 0 0;">需填寫上方 Vertex AI 設定，使用 GCS 作為 I/O</span>
+                    </span>
                   </label>
-                  <button class="btn-primary key-save-btn" type="button" data-provider="gemini">儲存</button>
                 </div>
-                <div class="settings-hint">模型：gemini-3.5-flash · 使用 Google AI Studio 金鑰</div>
-              </div>
+              </section>
+
+              <hr class="settings-divider">
+
+              <!-- Batch Status -->
+              <section class="settings-section">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="clipboard"></span>
+                  <span class="settings-section-title">批次狀態</span>
+                </div>
+                <div class="settings-section-body">
+                  <div id="batchJobList" class="batch-job-list">
+                    <div class="batch-empty">尚無批次工作</div>
+                  </div>
+                </div>
+              </section>
             </div>
 
-            <!-- Gemini 2.5 Lite Settings -->
-            <div class="settings-card">
-              <div class="settings-card-header">
-                <span class="settings-card-icon ico" data-icon="star"></span>
-                <span class="settings-card-title">Google Gemini 2.5 Lite</span>
-              </div>
-              <div class="settings-card-body">
-                <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
-                <div class="key-list" id="keyList_geminilite" data-provider="geminilite"></div>
-                <div class="key-toolbar">
-                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="geminilite">＋ 新增金鑰</button>
-                  <label class="key-mode-wrap">多金鑰模式
-                    <select class="key-mode-select" data-provider="geminilite">
-                      <option value="single">只用第一把</option>
-                      <option value="failover">容錯自動切換</option>
-                      <option value="roundrobin">輪流分流</option>
-                    </select>
-                  </label>
-                  <button class="btn-primary key-save-btn" type="button" data-provider="geminilite">儲存</button>
+            <!-- System Settings Region -->
+            <div class="settings-region">
+              <!-- File Naming Settings -->
+              <section class="settings-section">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="type"></span>
+                  <span class="settings-section-title">檔案命名</span>
                 </div>
-                <div class="settings-hint">模型：gemini-2.5-lite · 快速輕量版分析模型</div>
-              </div>
-            </div>
-
-
-
-            <!-- Nano Banana Pro Settings -->
-            <div class="settings-card">
-              <div class="settings-card-header">
-                <span class="settings-card-icon ico" data-icon="aperture"></span>
-                <span class="settings-card-title">Nano Banana Pro</span>
-              </div>
-              <div class="settings-card-body">
-                <label class="form-label">API KEY（可新增多把，依優先級使用）</label>
-                <div class="key-list" id="keyList_nanobanana" data-provider="nanobanana"></div>
-                <div class="key-toolbar">
-                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="nanobanana">＋ 新增金鑰</button>
-                  <label class="key-mode-wrap">多金鑰模式
-                    <select class="key-mode-select" data-provider="nanobanana">
-                      <option value="single">只用第一把</option>
-                      <option value="failover">容錯自動切換</option>
-                      <option value="roundrobin">輪流分流</option>
-                    </select>
-                  </label>
-                  <button class="btn-primary key-save-btn" type="button" data-provider="nanobanana">儲存</button>
+                <div class="settings-section-body">
+                  <label class="form-label">自動儲存檔名前綴（預設）</label>
+                  <div class="key-input-row">
+                    <input type="text" class="form-input key-input" id="swfNamePrefixInput" placeholder="留空＝1, 2, 3…（如 shot → shot1, shot2）">
+                    <button class="btn-primary" id="saveNamePrefixBtn">儲存</button>
+                  </div>
+                  <div class="conn-status" id="namePrefixStatus"></div>
+                  <div class="settings-hint">工作流自動儲存的檔名＝前綴＋群組編號。可在群組「統一參數」中為個別群組覆寫。</div>
                 </div>
-                <div class="settings-hint">模型：gemini-3-pro-image (Nano Banana Pro) · 用於工作流的高階圖像生成 · 容錯/輪流模式可在多把金鑰間切換</div>
-              </div>
-            </div>
+              </section>
 
-            <!-- Replicate Settings -->
-            <div class="settings-card" style="opacity: 0.5;">
-              <div class="settings-card-header">
-                <span class="settings-card-icon ico" data-icon="aperture"></span>
-                <span class="settings-card-title">Replicate 雲端設定 <span style="font-size:12px; color:var(--danger); font-weight:normal; margin-left:8px;">（測試中，暫不開放）</span></span>
-              </div>
-              <div class="settings-card-body">
-                <label class="form-label">API KEY</label>
-                <div class="key-list" id="keyList_replicate" data-provider="replicate"></div>
-                <div class="key-toolbar">
-                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="replicate" disabled>＋ 新增金鑰</button>
-                  <label class="key-mode-wrap" style="opacity: 0.5; pointer-events: none;">多金鑰模式
-                    <select class="key-mode-select" data-provider="replicate" disabled>
-                      <option value="single">只用第一把</option>
-                      <option value="failover">容錯自動切換</option>
-                      <option value="roundrobin">輪流分流</option>
-                    </select>
-                  </label>
-                  <button class="btn-primary key-save-btn" type="button" data-provider="replicate" disabled>儲存</button>
-                </div>
-                <div style="margin-top: 10px; display:flex; flex-direction:column; gap:4px;">
-                  <label style="font-size:11px; color:var(--muted);">CORS 跨域代理位址 (Git 部署時使用)</label>
-                  <input type="text" class="form-input" id="replicateCorsProxy" placeholder="例如 https://cors-anywhere.herokuapp.com/" disabled>
-                </div>
-                <div class="settings-hint">用作雲端 SDXL 或 FLUX 生成管線 · 支援 Git 部署直連或本地後端轉發</div>
-              </div>
-            </div>
+              <hr class="settings-divider">
 
-            <!-- fal.ai Settings -->
-            <div class="settings-card" style="opacity: 0.5;">
-              <div class="settings-card-header">
-                <span class="settings-card-icon ico" data-icon="cloud"></span>
-                <span class="settings-card-title">fal.ai 雲端設定 <span style="font-size:12px; color:var(--danger); font-weight:normal; margin-left:8px;">（測試中，暫不開放）</span></span>
-              </div>
-              <div class="settings-card-body">
-                <label class="form-label">API KEY</label>
-                <div class="key-list" id="keyList_fal" data-provider="fal"></div>
-                <div class="key-toolbar">
-                  <button class="btn-ghost btn-sm key-add-btn" type="button" data-provider="fal" disabled>＋ 新增金鑰</button>
-                  <label class="key-mode-wrap" style="opacity: 0.5; pointer-events: none;">多金鑰模式
-                    <select class="key-mode-select" data-provider="fal" disabled>
-                      <option value="single">只用第一把</option>
-                      <option value="failover">容錯自動切換</option>
-                      <option value="roundrobin">輪流分流</option>
-                    </select>
-                  </label>
-                  <button class="btn-primary key-save-btn" type="button" data-provider="fal" disabled>儲存</button>
+              <!-- Asset Source Settings -->
+              <section class="settings-section" id="assetSourceCard">
+                <div class="settings-section-header">
+                  <span class="settings-card-icon ico" data-icon="hardDrive"></span>
+                  <span class="settings-section-title">資產庫來源設定</span>
                 </div>
-                <div class="settings-hint">強大的 FLUX/SDXL 雲端極速生成後端 · 支持 CORS 前端直接安全呼叫</div>
-              </div>
-            </div>
-
-            <!-- File Naming Settings -->
-            <div class="settings-card">
-              <div class="settings-card-header">
-                <span class="settings-card-icon ico" data-icon="type"></span>
-                <span class="settings-card-title">檔案命名</span>
-              </div>
-              <div class="settings-card-body">
-                <label class="form-label">自動儲存檔名前綴（預設）</label>
-                <div class="key-input-row">
-                  <input type="text" class="form-input key-input" id="swfNamePrefixInput" placeholder="留空＝1, 2, 3…（如 shot → shot1, shot2）">
-                  <button class="btn-primary" id="saveNamePrefixBtn">儲存</button>
+                <div class="settings-section-body">
+                  <div class="settings-hint" style="margin-top:0; padding:10px 12px; background:var(--card-bg,#2a2a2a); border-radius:6px; line-height:1.6;">
+                    <i class="ico" data-icon="folder"></i> <strong>批次匯入</strong>：不需要填寫路徑或開啟伺服器。<br>
+                    請至「<strong>資產庫</strong>」面板 → 點「<i class="ico" data-icon="folder"></i> 匯入資料夾」按鈕，選擇包含您檔案的本機資料夾。系統會自動將所有檔案（包含子資料夾）無縫匯入本地資料庫中，永久保存且免除重新授權。
+                  </div>
                 </div>
-                <div class="conn-status" id="namePrefixStatus"></div>
-                <div class="settings-hint">工作流自動儲存的檔名＝前綴＋群組編號。可在群組「統一參數」中為個別群組覆寫。</div>
-              </div>
-            </div>
-
-            <!-- Asset Source Settings -->
-            <div class="settings-card" id="assetSourceCard">
-              <div class="settings-card-header">
-                <span class="settings-card-icon ico" data-icon="hardDrive"></span>
-                <span class="settings-card-title">資產庫來源設定</span>
-              </div>
-              <div class="settings-card-body">
-                <div class="settings-hint" style="margin-top:0; padding:10px 12px; background:var(--card-bg,#2a2a2a); border-radius:6px; line-height:1.6;">
-                  <i class="ico" data-icon="folder"></i> <strong>批次匯入</strong>：不需要填寫路徑或開啟伺服器。<br>
-                  請至「<strong>資產庫</strong>」面板 → 點「<i class="ico" data-icon="folder"></i> 匯入資料夾」按鈕，選擇包含您檔案的本機資料夾。系統會自動將所有檔案（包含子資料夾）無縫匯入本地資料庫中，永久保存且免除重新授權。
-                </div>
-              </div>
+              </section>
             </div>
 
           </div>
         </section>
 
         <!-- Panel: 資產庫 V2 -->
-        <section class="panel" id="panel-assets-v2">
+        <section class="panel panel-full" id="panel-assets-v2">
           <div class="assets-header-v2" style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
             <div style="font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px;">
               <span style="display:inline-flex; align-items:center; gap:6px;"><i class="ico" data-icon="archive"></i> 影像資產庫</span>
@@ -925,9 +1048,9 @@
               <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none;">
                 <input type="checkbox" id="v2-auto-link-check" style="cursor: pointer;"> 自動連結/授權
               </label>
-              <button class="btn-primary" id="v2-btn-link-folder" style="padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="ico" data-icon="link"></i> 連結本機工作夾</button>
-              <button class="btn-ghost" id="v2-btn-restore" style="display: none; color: #0d6efd;"><i class="ico" data-icon="refresh"></i> 恢復本機連線</button>
-              <button class="btn-ghost" id="v2-btn-clear-link" style="color: #dc3545;"><i class="ico" data-icon="trash"></i> 解除連結</button>
+              <button class="btn-primary" id="v2-btn-link-folder"><i class="ico" data-icon="link"></i> 連結本機工作夾</button>
+              <button class="btn-secondary" id="v2-btn-restore" style="display: none;"><i class="ico" data-icon="refresh"></i> 恢復本機連線</button>
+              <button class="btn-destructive" id="v2-btn-clear-link"><i class="ico" data-icon="trash"></i> 解除連結</button>
             </div>
           </div>
           <div class="assets-body-v2" style="display: flex; flex: 1; min-height: 0; overflow: hidden;">
@@ -1242,9 +1365,9 @@
         </div>
       </div>
       <div class="modal-footer" style="justify-content: center; gap: 12px; padding-bottom: 20px;">
-        <button class="btn-ghost" id="ipImportConflictCancel" style="border: 1px solid var(--border); padding: 6px 16px;">取消</button>
-        <button class="btn-primary" id="ipImportConflictReplace" style="background: var(--danger, #ff4d4f); color: white; border: none; padding: 6px 16px; cursor: pointer; display:inline-flex; align-items:center; gap:5px;"><i class="ico" data-icon="alertTriangle"></i> 替代現有</button>
-        <button class="btn-primary" id="ipImportConflictAppend" style="background: var(--success, #28a745); color: white; border: none; padding: 6px 16px; cursor: pointer; display:inline-flex; align-items:center; gap:5px;"><i class="ico" data-icon="plusSquare"></i> 疊加追加</button>
+        <button class="btn-ghost" id="ipImportConflictCancel">取消</button>
+        <button class="btn-destructive" id="ipImportConflictReplace"><i class="ico" data-icon="alertTriangle"></i> 替代現有</button>
+        <button class="btn-success" id="ipImportConflictAppend"><i class="ico" data-icon="plusSquare"></i> 疊加追加</button>
       </div>
     </div>
   </div>
@@ -1355,13 +1478,13 @@
           <div style="display:flex; gap:6px; align-items:center;">
             <button class="btn-ghost btn-sm active" id="maskToolBrush">🖌️ 筆刷</button>
             <button class="btn-ghost btn-sm" id="maskToolEraser">🧽 橡皮擦</button>
-            <button class="btn-ghost btn-sm btn-danger" id="maskToolClear" style="padding: 2px 8px; font-size:11px;">🗑️ 清空重畫</button>
+            <button class="btn-destructive btn-sm" id="maskToolClear">🗑️ 清空重畫</button>
             
             <div style="display:inline-flex; align-items:center; gap:4px; margin-left:12px; border-left:1px solid var(--border); padding-left:12px;">
-              <button class="btn-ghost btn-sm" id="maskZoomOut" title="縮小" style="padding: 2px 8px; font-weight: bold;">−</button>
+              <button class="btn-ghost btn-sm" id="maskZoomOut" title="縮小" style="font-weight: bold;">−</button>
               <span id="maskZoomLabel" style="font-size:11px; min-width:38px; text-align:center; display:inline-block;">100%</span>
-              <button class="btn-ghost btn-sm" id="maskZoomIn" title="放大" style="padding: 2px 8px; font-weight: bold;">+</button>
-              <button class="btn-ghost btn-sm" id="maskZoomFit" title="適配大小" style="font-size:11px; padding: 2px 6px;">適配</button>
+              <button class="btn-ghost btn-sm" id="maskZoomIn" title="放大" style="font-weight: bold;">+</button>
+              <button class="btn-ghost btn-sm" id="maskZoomFit" title="適配大小">適配</button>
             </div>
           </div>
         </div>
@@ -1427,7 +1550,7 @@
   <script src="js/prompts.js?v=__BUILD_TS__"></script>
   <script src="js/workflow.js?v=__BUILD_TS__"></script>
   <script src="js/workflow-library.js?v=__BUILD_TS__"></script>
-  <script src="js/simple-workflow.js?v=__BUILD_TS__"></script>
+  <script src="js/simple-workflow.js?v=1.0.3"></script>
   <script src="js/ide-agent.js?v=__BUILD_TS__"></script>
   <script src="js/dev-log.js?v=__BUILD_TS__"></script>
   <!-- JSZip & FileSaver for Image Processing page -->

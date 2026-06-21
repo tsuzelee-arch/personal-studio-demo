@@ -1,8 +1,10 @@
 :root {
+  /* Colors */
   --ink: #0e0e0e;
   --paper: #f5f2ed;
   --white: #faf8f5;
   --surface: #ffffff;
+  --surface-raised: #faf8f5;
   --warm: #c8a96e;
   --warm-dark: #a88a52;
   --border: #d4cfc6;
@@ -26,6 +28,73 @@
   --node-edge-color: #a0a0a0;
   --group-edge-color: rgba(34, 211, 238, 0.7);
   --node-shadow: 0 4px 10px rgba(0,0,0,0.15);
+
+  /* Typography - Font Sizes */
+  --font-xl: 18px;
+  --font-lg: 16px;
+  --font-md: 14px;
+  --font-base: 13px;
+  --font-sm: 11px;
+  --font-xs: 10px;
+
+  /* Typography - Semantic Sizes (Desktop) */
+  --font-page-title: 18px;
+  --font-section-title: 15px;
+  --font-component-title: 13.5px;
+  --font-body: 13px;
+  --font-body-secondary: 12px;
+  --font-label: 12.5px;
+  --font-caption: 11px;
+  --font-numeric-emphasis: 16px;
+
+  /* Typography - Semantic Weights */
+  --weight-page-title: 400;
+  --weight-section-title: 600;
+  --weight-component-title: 600;
+  --weight-body: 400;
+  --weight-body-secondary: 400;
+  --weight-label: 500;
+  --weight-caption: 400;
+  --weight-numeric-emphasis: 700;
+
+  /* Typography - Semantic Line Heights */
+  --lh-page-title: 1.3;
+  --lh-section-title: 1.35;
+  --lh-component-title: 1.4;
+  --lh-body: 1.5;
+  --lh-body-secondary: 1.5;
+  --lh-label: 1.35;
+  --lh-caption: 1.35;
+  --lh-numeric-emphasis: 1;
+
+  /* Typography - Line Heights */
+  --lh-none: 1;
+  --lh-tight: 1.35;
+  --lh-base: 1.5;
+  --lh-relaxed: 1.6;
+
+  /* Spacings */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+
+  /* Border Radii */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Height Constants */
+  --btn-height-sm: 24px;
+  --btn-height-md: 32px;
+  --btn-height-lg: 38px;
+  --input-height-sm: 26px;
+  --input-height-md: 32px;
 }
 
 [data-theme="dark"] {
@@ -33,7 +102,8 @@
   --ink: #f0f0f0;
   --paper: #121212;
   --white: #1e1e1e;
-  --surface: #262626;
+  --surface: #1e1e1e;
+  --surface-raised: #262626;
   --warm: #ba8b22;
   --warm-dark: #9e751a;
   --border: #333333;
@@ -66,7 +136,61 @@ body {
   background: var(--paper);
   color: var(--ink);
   min-height: 100vh;
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: var(--font-body);
+  line-height: var(--lh-body);
+}
+
+/* Typography Utility Classes */
+.t-page-title {
+  font-size: var(--font-page-title);
+  font-weight: var(--weight-page-title);
+  line-height: var(--lh-page-title);
+}
+.t-section-title {
+  font-size: var(--font-section-title);
+  font-weight: var(--weight-section-title);
+  line-height: var(--lh-section-title);
+}
+.t-component-title {
+  font-size: var(--font-component-title);
+  font-weight: var(--weight-component-title);
+  line-height: var(--lh-component-title);
+}
+.t-body {
+  font-size: var(--font-body);
+  font-weight: var(--weight-body);
+  line-height: var(--lh-body);
+}
+.t-body-secondary {
+  font-size: var(--font-body-secondary);
+  font-weight: var(--weight-body-secondary);
+  line-height: var(--lh-body-secondary);
+  color: var(--muted);
+}
+.t-label {
+  font-size: var(--font-label);
+  font-weight: var(--weight-label);
+  line-height: var(--lh-label);
+}
+.t-caption {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
+  color: var(--muted);
+}
+.t-numeric-emphasis {
+  font-size: var(--font-numeric-emphasis);
+  font-weight: var(--weight-numeric-emphasis);
+  line-height: var(--lh-numeric-emphasis);
+}
+
+/* Mobile overrides for responsive typography scale */
+@media (max-width: 768px) {
+  :root {
+    --font-page-title: 16px;
+    --font-section-title: 14px;
+    --font-component-title: 13px;
+    --font-body: 12.5px;
+  }
 }
 

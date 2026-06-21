@@ -926,3 +926,31 @@ window.AssetManager = (function() {
   };
 
 })();
+
+// Backwards Compatibility Adapter: bridges window.AssetsService to window.AssetManager
+window.AssetsService = {
+  getFolders: () => window.AssetManager.getAllFolderPaths(),
+  getAllAssets: async () => {
+    // Map current local image files to the legacy AssetsService asset format
+    const images = window.AssetManager.getImagesUnderFolder('根目錄') || [];
+    const assets = [];
+    for (let i = 0; i < images.length; i++) {
+      const f = images[i];
+      // Retrieve blob URL for visual elements
+      const url = await window.AssetManager.getFileBlobUrlByPath(f.path);
+      assets.push({
+        id: f.path,
+        name: f.name,
+        folder: f.folder,
+        data: url || ''
+      });
+    }
+    return assets;
+  },
+  openLightBox: (src, title) => window.AssetManager.openLightBox(src, title),
+  saveAsset: (name, src, folder) => window.AssetManager.saveAsset(name, src, folder, false),
+  getAsset: async (path) => {
+    const url = await window.AssetManager.getFileBlobUrlByPath(path);
+    return { data: url, name: path.split('/').pop() };
+  }
+};

@@ -735,6 +735,7 @@
     if (selectedModel === 'gemini-nano') {
       const originalText = btn.textContent;
       btn.disabled = true;
+      btn.classList.add('btn-loading');
       btn.textContent = '⏳ 本機轉換中...';
 
       try {
@@ -772,6 +773,7 @@ ${text}`;
         showToast('❌ 本機轉換失敗：' + err.message);
       } finally {
         btn.disabled = false;
+        btn.classList.remove('btn-loading');
         btn.textContent = originalText;
       }
       return; // 👈 退出本機流程，不走雲端 API Key 驗證
@@ -787,6 +789,7 @@ ${text}`;
 
     const originalText = btn.textContent;
     btn.disabled = true;
+    btn.classList.add('btn-loading');
     btn.textContent = '⏳ 轉換中...';
 
     try {
@@ -803,6 +806,7 @@ ${text}`;
       showToast('❌ 轉換失敗：' + err.message);
     } finally {
       btn.disabled = false;
+      btn.classList.remove('btn-loading');
       btn.textContent = originalText;
     }
   }

@@ -2,25 +2,25 @@
 [data-theme="dark"] .lightbox-content,
 [data-theme="dark"] .dash-card-preview .decode-preview-wrap,
 [data-theme="dark"] .prompts-right-forge,
-[data-theme="dark"] .settings-card-header,
+[data-theme="dark"] .settings-section-header,
 [data-theme="dark"] .model-selector-bar {
   background: var(--surface) !important;
 }
 
-[data-theme="dark"] .dash-card-negative {
+[data-theme="dark"] .decode-section-negative {
   background: rgba(181, 92, 92, 0.1) !important;
   border-color: var(--danger) !important;
 }
 
-[data-theme="dark"] .dash-card-negative .dash-card-header {
+[data-theme="dark"] .decode-section-negative .decode-section-header {
   border-bottom-color: rgba(181, 92, 92, 0.2) !important;
 }
 
-[data-theme="dark"] .dash-card-prompt {
+[data-theme="dark"] .decode-section-prompt {
   background: rgba(213, 185, 132, 0.05) !important;
 }
 
-[data-theme="dark"] .dash-card-prompt .dash-card-header {
+[data-theme="dark"] .decode-section-prompt .decode-section-header {
   border-bottom-color: rgba(213, 185, 132, 0.15) !important;
 }
 
@@ -68,13 +68,13 @@
   background: var(--surface) !important;
 }
 
-[data-theme="dark"] .dash-card,
-[data-theme="dark"] .settings-card {
+[data-theme="dark"] .decode-region,
+[data-theme="dark"] .settings-region {
   background: var(--white) !important;
 }
 
-[data-theme="dark"] .dash-card-header,
-[data-theme="dark"] .settings-card-header {
+[data-theme="dark"] .decode-section-header,
+[data-theme="dark"] .settings-section-header {
   border-bottom-color: var(--border) !important;
 }
 

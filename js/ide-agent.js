@@ -582,6 +582,10 @@ window.IDEAgent = (function() {
 
   function init() {
     if (!textarea || !sendBtn) return;
+    if (!window.AssetsService) {
+      setTimeout(init, 100);
+      return;
+    }
 
     // Toggle global floating panel
     if (agentBtn && agentPane) {
@@ -722,7 +726,7 @@ window.IDEAgent = (function() {
   }
 
   // Wait for AssetsService to be ready
-  if (window.AssetsService) {
+  if (window.AssetsService || document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(init, 300);
   } else {
     document.addEventListener('DOMContentLoaded', () => setTimeout(init, 300));

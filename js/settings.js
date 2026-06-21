@@ -25,7 +25,14 @@
     localAssetPaths: 'ps_local_asset_paths',
     gdriveClientId:  'ps_gdrive_client_id',
     filenamePrefix:  'ps_swf_name_prefix',
-    replicateCorsProxy: 'ps_replicate_cors_proxy'
+    replicateCorsProxy: 'ps_replicate_cors_proxy',
+    gcp_project_id:  'ps_gcp_project_id',
+    gcp_region:      'ps_gcp_region',
+    gcp_gcs_bucket:  'ps_gcp_gcs_bucket',
+    gcp_sa_key:      'ps_gcp_sa_key',
+    openai_batch:    'ps_openai_batch_mode',
+    gemini_batch:    'ps_gemini_batch_mode',
+    batch_jobs:      'ps_batch_jobs'
   };
 
   // Legacy single-key storage — migrated into the per-provider arrays on first
@@ -190,7 +197,7 @@
     if (!fn) { toast('測試功能尚未就緒'); return; }
 
     updateStatusIndicator(statusEl, 'testing');
-    btn.disabled = true; const old = btn.textContent; btn.textContent = '測試中...';
+    btn.disabled = true; btn.classList.add('btn-loading'); const old = btn.textContent; btn.textContent = '測試中...';
     try {
       await fn(key);
       updateStatusIndicator(statusEl, 'success');
@@ -199,13 +206,13 @@
       updateStatusIndicator(statusEl, 'error', err.message);
       toast(`❌ ${PROVIDERS[provider].label} 連線失敗：` + err.message, 4000);
     } finally {
-      btn.disabled = false; btn.textContent = old;
+      btn.disabled = false; btn.classList.remove('btn-loading'); btn.textContent = old;
     }
   }
 
-  // ── Event delegation for all provider cards ──
+  // ── Event delegation for all provider settings sections ──
   PROVIDER_IDS.forEach(provider => {
-    const card = document.getElementById(`keyList_${provider}`)?.closest('.settings-card');
+    const card = document.getElementById(`keyList_${provider}`)?.closest('.settings-section');
     if (!card) return;
 
     card.addEventListener('click', (e) => {
@@ -322,6 +329,20 @@
     },
     getGdriveClientId: () => localStorage.getItem(STORAGE_KEYS.gdriveClientId) || '',
     getFilenamePattern: () => localStorage.getItem(STORAGE_KEYS.filenamePrefix) || '',
+    getGcpConfig: () => ({
+      projectId: localStorage.getItem(STORAGE_KEYS.gcp_project_id) || '',
+      region:    localStorage.getItem(STORAGE_KEYS.gcp_region) || 'us-central1',
+      bucket:    localStorage.getItem(STORAGE_KEYS.gcp_gcs_bucket) || '',
+      saKeyJson: localStorage.getItem(STORAGE_KEYS.gcp_sa_key) || ''
+    }),
+    isBatchMode: (provider) => {
+      if (provider === 'openai') return localStorage.getItem(STORAGE_KEYS.openai_batch) === '1';
+      if (provider === 'gemini') return localStorage.getItem(STORAGE_KEYS.gemini_batch) === '1';
+      return false;
+    },
+    getBatchJobs,
+    saveBatchJob,
+    updateBatchJob,
     hasApiKey: function(model) {
       if (model.startsWith('openai')) return sortedKeys('openai').length > 0;
       if (model === 'gemini')      return sortedKeys('gemini').length > 0;
@@ -342,7 +363,7 @@
     if (themeToggleBtn) themeToggleBtn.innerHTML = (window.Icons ? '<span class="ico">' + window.Icons.get(isDark ? 'sun' : 'moon') + '</span> ' : '') + (isDark ? '切換日間模式' : '切換夜間模式');
   }
   if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
+    const toggleTheme = () => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       if (isDark) {
         document.documentElement.removeAttribute('data-theme');
@@ -352,6 +373,13 @@
         localStorage.setItem('ps_theme', 'dark');
       }
       updateThemeUI();
+    };
+    themeToggleBtn.addEventListener('click', toggleTheme);
+    themeToggleBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleTheme();
+      }
     });
     updateThemeUI();
   }
@@ -364,7 +392,176 @@
     });
   }
 
+  // ── Vertex AI settings ──
+  function loadVertexAiSettings() {
+    const pid = document.getElementById('gcpProjectId');
+    const reg = document.getElementById('gcpRegion');
+    const bkt = document.getElementById('gcpBucket');
+    const saKey = document.getElementById('gcpSaKey');
+    const oaiBatch = document.getElementById('openAiBatchToggle');
+    const gemBatch = document.getElementById('geminiBatchToggle');
+    if (pid) pid.value = localStorage.getItem(STORAGE_KEYS.gcp_project_id) || '';
+    if (reg) reg.value = localStorage.getItem(STORAGE_KEYS.gcp_region) || 'us-central1';
+    if (bkt) bkt.value = localStorage.getItem(STORAGE_KEYS.gcp_gcs_bucket) || '';
+    if (saKey) saKey.value = localStorage.getItem(STORAGE_KEYS.gcp_sa_key) || '';
+    if (oaiBatch) oaiBatch.checked = localStorage.getItem(STORAGE_KEYS.openai_batch) === '1';
+    if (gemBatch) gemBatch.checked = localStorage.getItem(STORAGE_KEYS.gemini_batch) === '1';
+  }
+
+  const saveVertexBtn = document.getElementById('saveVertexAiBtn');
+  if (saveVertexBtn) {
+    saveVertexBtn.addEventListener('click', () => {
+      const pid   = document.getElementById('gcpProjectId')?.value.trim() || '';
+      const reg   = document.getElementById('gcpRegion')?.value.trim() || 'us-central1';
+      const bkt   = document.getElementById('gcpBucket')?.value.trim() || '';
+      const saKey = document.getElementById('gcpSaKey')?.value.trim() || '';
+      localStorage.setItem(STORAGE_KEYS.gcp_project_id, pid);
+      localStorage.setItem(STORAGE_KEYS.gcp_region, reg);
+      localStorage.setItem(STORAGE_KEYS.gcp_gcs_bucket, bkt);
+      localStorage.setItem(STORAGE_KEYS.gcp_sa_key, saKey);
+      toast('Vertex AI 設定已儲存');
+      const st = document.getElementById('vertexSaveStatus');
+      if (st) updateStatusIndicator(st, 'saved');
+    });
+  }
+
+  const testVertexBtn = document.getElementById('testVertexAiBtn');
+  if (testVertexBtn) {
+    testVertexBtn.addEventListener('click', async () => {
+      const statusEl = document.getElementById('vertexSaveStatus');
+      testVertexBtn.disabled = true;
+      const old = testVertexBtn.textContent;
+      testVertexBtn.textContent = '測試中...';
+      updateStatusIndicator(statusEl, 'testing');
+      try {
+        const gcpConfig = window.StudioSettings.getGcpConfig();
+        await window.AIService.testVertexAi(gcpConfig);
+        updateStatusIndicator(statusEl, 'success');
+        toast('✅ Vertex AI 連線成功！');
+      } catch (err) {
+        updateStatusIndicator(statusEl, 'error', err.message);
+        toast('❌ Vertex AI 連線失敗：' + err.message, 4000);
+      } finally {
+        testVertexBtn.disabled = false;
+        testVertexBtn.textContent = old;
+      }
+    });
+  }
+
+  const oaiBatchToggle = document.getElementById('openAiBatchToggle');
+  if (oaiBatchToggle) {
+    oaiBatchToggle.addEventListener('change', () => {
+      localStorage.setItem(STORAGE_KEYS.openai_batch, oaiBatchToggle.checked ? '1' : '');
+    });
+  }
+  const gemBatchToggle = document.getElementById('geminiBatchToggle');
+  if (gemBatchToggle) {
+    gemBatchToggle.addEventListener('change', () => {
+      localStorage.setItem(STORAGE_KEYS.gemini_batch, gemBatchToggle.checked ? '1' : '');
+    });
+  }
+
+  // ── Batch job persistence helpers ──
+  function getBatchJobs() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.batch_jobs) || '[]'); } catch { return []; }
+  }
+  function saveBatchJob(job) {
+    const jobs = getBatchJobs();
+    jobs.unshift(job);
+    localStorage.setItem(STORAGE_KEYS.batch_jobs, JSON.stringify(jobs.slice(0, 50)));
+    renderBatchJobs();
+  }
+  function updateBatchJob(jobId, patch) {
+    const jobs = getBatchJobs().map(j => j.id === jobId ? { ...j, ...patch } : j);
+    localStorage.setItem(STORAGE_KEYS.batch_jobs, JSON.stringify(jobs));
+    renderBatchJobs();
+  }
+
+  function renderBatchJobs() {
+    const listEl = document.getElementById('batchJobList');
+    if (!listEl) return;
+    const jobs = getBatchJobs();
+    if (!jobs.length) { listEl.innerHTML = '<div class="batch-empty">尚無批次工作</div>'; return; }
+    listEl.innerHTML = '';
+    jobs.forEach(job => {
+      const row = document.createElement('div');
+      row.className = 'batch-job-row';
+      const stateClass = { pending:'pending', validating:'pending', in_progress:'running',
+        JOB_STATE_PENDING:'pending', JOB_STATE_RUNNING:'running',
+        completed:'done', JOB_STATE_SUCCEEDED:'done',
+        failed:'error', JOB_STATE_FAILED:'error', cancelled:'error' }[job.status] || 'pending';
+      const label = { pending:'排隊中', validating:'驗證中', in_progress:'處理中',
+        JOB_STATE_PENDING:'排隊中', JOB_STATE_RUNNING:'執行中',
+        completed:'完成', JOB_STATE_SUCCEEDED:'完成',
+        failed:'失敗', JOB_STATE_FAILED:'失敗', cancelled:'已取消' }[job.status] || job.status;
+      const ts = job.submittedAt ? new Date(job.submittedAt).toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+      row.innerHTML = `
+        <span class="batch-provider-badge batch-badge-${job.provider}">${job.provider === 'openai' ? 'OpenAI' : 'Vertex'}</span>
+        <span class="batch-job-status batch-job-status-${stateClass}"><span class="status-dot"></span>${label}</span>
+        <span class="batch-job-meta">${ts}・${(job.nodeIds||[]).length} 節點</span>
+        <span class="batch-job-actions">
+          ${(stateClass === 'done') ? `<button class="btn-ghost btn-sm batch-fetch-btn" data-jobid="${job.id}">取得結果</button>` : ''}
+          ${(stateClass === 'pending' || stateClass === 'running') ? `<button class="btn-ghost btn-sm batch-refresh-btn" data-jobid="${job.id}">刷新</button><button class="btn-ghost btn-sm batch-cancel-btn" data-jobid="${job.id}">取消</button>` : ''}
+        </span>`;
+      listEl.appendChild(row);
+    });
+  }
+
+  // Delegate batch job action clicks to the list container
+  const batchListEl = document.getElementById('batchJobList');
+  if (batchListEl) {
+    batchListEl.addEventListener('click', async (e) => {
+      const fetchBtn = e.target.closest('.batch-fetch-btn');
+      const refreshBtn = e.target.closest('.batch-refresh-btn');
+      const cancelBtn = e.target.closest('.batch-cancel-btn');
+      const jobId = (fetchBtn || refreshBtn || cancelBtn)?.dataset.jobid;
+      if (!jobId) return;
+      const job = getBatchJobs().find(j => j.id === jobId);
+      if (!job) return;
+
+      if (refreshBtn) {
+        try {
+          let newStatus;
+          if (job.provider === 'openai') {
+            const apiKey = window.StudioSettings.getOpenAIKey();
+            const s = await window.AIService.getOpenAIBatchStatus(job.batchId, apiKey);
+            newStatus = s.status;
+            updateBatchJob(jobId, { status: newStatus, outputFileId: s.outputFileId });
+          } else {
+            const gcpConfig = window.StudioSettings.getGcpConfig();
+            const s = await window.AIService.getVertexBatchStatus(job.jobName, gcpConfig);
+            newStatus = s.state;
+            updateBatchJob(jobId, { status: newStatus, outputUri: s.outputUri });
+          }
+          toast('狀態已更新：' + newStatus);
+        } catch (err) { toast('刷新失敗：' + err.message, 3000); }
+      }
+
+      if (cancelBtn) {
+        try {
+          if (job.provider === 'openai') {
+            const apiKey = window.StudioSettings.getOpenAIKey();
+            await window.AIService.cancelOpenAIBatch(job.batchId, apiKey);
+          }
+          updateBatchJob(jobId, { status: 'cancelled' });
+          toast('批次已取消');
+        } catch (err) { toast('取消失敗：' + err.message, 3000); }
+      }
+
+      if (fetchBtn) {
+        try {
+          if (!window.SWF || typeof window.SWF.applyBatchResults !== 'function') {
+            toast('請先切換到工作流面板再取得結果', 3000); return;
+          }
+          await window.SWF.applyBatchResults(jobId);
+          toast('✅ 結果已回填到工作流節點');
+        } catch (err) { toast('取得結果失敗：' + err.message, 4000); }
+      }
+    });
+  }
+
   // ── Initialize ──
   loadSettings();
+  loadVertexAiSettings();
 
 })();

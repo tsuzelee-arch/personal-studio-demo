@@ -1,8 +1,8 @@
 /* ── 提示詞庫 Panel ── */
 .prompts-toolbar {
   display: flex;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
   margin-bottom: 0;
   align-items: center;
   border-bottom: none;
@@ -12,10 +12,12 @@
   flex: 1;
   border: 1px solid var(--border);
   border-bottom: none;
-  border-radius: 4px;
-  padding: 8px 12px;
-  font-size: 13px;
-  background: var(--white);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-body);
+  font-weight: var(--weight-body);
+  line-height: var(--lh-body);
+  background: var(--surface);
   color: var(--ink);
   outline: none;
   transition: border-color .15s;
@@ -26,7 +28,9 @@
 .chip {
   padding: 4px 12px;
   border-radius: 20px;
-  font-size: 11.5px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   border: 1px solid var(--border);
   color: var(--muted);
   cursor: pointer;
@@ -35,30 +39,30 @@
   user-select: none;
 }
 .chip:hover { border-color: var(--warm); color: var(--warm); }
-.chip.active { background: var(--warm); border-color: var(--warm); color: var(--ink); font-weight: 600; }
+.chip.active { background: var(--warm); border-color: var(--warm); color: var(--ink); font-weight: var(--weight-component-title); }
 
 .prompts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
+  gap: var(--space-md);
 }
 
 .prompt-card {
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 14px;
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
   box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-sm);
   transition: box-shadow .15s;
   animation: cardFadeIn 0.4s ease both;
 }
 .prompt-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.1); }
-.prompt-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.prompt-card-title { font-size: 13.5px; font-weight: 600; flex: 1; }
-.prompt-card-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.prompt-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); }
+.prompt-card-title { font-size: var(--font-component-title); font-weight: var(--weight-component-title); line-height: var(--lh-component-title); flex: 1; }
+.prompt-card-actions { display: flex; gap: var(--space-xs); flex-shrink: 0; }
 .icon-btn {
   width: 26px; height: 26px;
   border: none;
@@ -66,7 +70,7 @@
   cursor: pointer;
   border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--muted);
   transition: all .15s;
 }
@@ -77,8 +81,9 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 3px;
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   letter-spacing: .05em;
   text-transform: uppercase;
 }
@@ -102,7 +107,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  font-size: 10px;
+  font-size: var(--font-xs);
   line-height: 1;
   background: transparent;
   color: var(--muted);
@@ -124,7 +129,7 @@
   color: var(--warm);
   border-color: var(--warm);
   background: transparent;
-  font-weight: 600;
+  font-weight: var(--weight-component-title);
 }
 .chip-add:hover {
   background: #fdf5e6;
@@ -147,7 +152,7 @@
 .cat-color_palette   { background: #f3e5f5; color: #6a2080; }
 .cat-other_elements  { background: #e8f5e9; color: #2e7d32; }
 .cat-custom          { background: #e8eaf6; color: #3040a0; }
-.cat-pinned-theme    { background: #fff3e0; color: #a05020; font-weight: 700; }
+.cat-pinned-theme    { background: #fff3e0; color: #a05020; font-weight: var(--weight-numeric-emphasis); }
 .other-badge         { background: #e8f5e9; color: #2e7d32; }
 
 /* ── Add to Vault Button (Decode Dashboard) ── */
@@ -160,7 +165,9 @@
   border-radius: 4px;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   cursor: pointer;
   transition: all .2s;
   opacity: 0;
@@ -208,9 +215,10 @@
 }
 
 .prompt-card-text {
-  font-size: 12px;
+  font-size: var(--font-body-secondary);
+  font-weight: var(--weight-body-secondary);
+  line-height: var(--lh-body-secondary);
   color: var(--muted);
-  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -254,7 +262,9 @@
 .prompt-thumb-preview .btn-sm {
   margin-top: 8px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
 }
 
 .empty-state {
@@ -263,13 +273,13 @@
   color: var(--muted);
 }
 .empty-icon { font-size: 32px; margin-bottom: 10px; }
-.empty-text { font-size: 13px; }
+.empty-text { font-size: var(--font-body); font-weight: var(--weight-body); line-height: var(--lh-body); }
 
 /* ── Prompts Body: Sidebar + Content ── */
 #panel-prompts {
   display: none;
   flex-direction: column;
-  height: calc(100vh - 100px);
+  height: 100%;
   overflow: hidden;
 }
 #panel-prompts.active {
@@ -298,7 +308,9 @@
 }
 .cat-sidebar-item {
   padding: 8px 14px;
-  font-size: 12.5px;
+  font-size: var(--font-body);
+  font-weight: var(--weight-body);
+  line-height: var(--lh-body);
   color: var(--muted);
   cursor: pointer;
   border-left: 3px solid transparent;
@@ -316,13 +328,13 @@
   background: rgba(199, 155, 104, .08);
   border-left-color: var(--warm);
   color: var(--warm);
-  font-weight: 600;
+  font-weight: var(--weight-component-title);
 }
 .cat-sidebar-item .cat-drag-handle {
   cursor: grab;
   opacity: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-xs);
   transition: opacity .15s;
 }
 .cat-sidebar-item:hover .cat-drag-handle {
@@ -336,7 +348,7 @@
 }
 .cat-sidebar-item .cat-count {
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--font-xs);
   color: var(--muted);
   background: var(--white);
   border: 1px solid var(--border);
@@ -347,7 +359,7 @@
 }
 .cat-sidebar-item .cat-delete-btn {
   margin-left: 6px;
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--muted);
   cursor: pointer;
   opacity: 0;
@@ -374,7 +386,7 @@
 }
 .cat-sidebar-add {
   padding: 8px 14px;
-  font-size: 12px;
+  font-size: var(--font-body-secondary);
   color: var(--warm);
   cursor: pointer;
   border-left: 3px solid transparent;
@@ -406,13 +418,15 @@
   border-bottom: 1px solid var(--border);
 }
 .prompt-row-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--font-component-title);
+  font-weight: var(--weight-component-title);
+  line-height: var(--lh-component-title);
   color: var(--ink);
 }
 .prompt-row-count {
-  font-size: 11px;
-  color: var(--muted);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
 }
 .prompt-row-scroll {
   display: flex;
@@ -458,7 +472,7 @@
   flex-shrink: 0;
   height: 100%;
   border-left: 2px solid var(--warm);
-  background: linear-gradient(180deg, #fdf6ec 0%, var(--white) 100%);
+  background: linear-gradient(180deg, var(--surface-raised) 0%, var(--surface) 100%);
   display: flex;
   flex-direction: column;
 }
@@ -475,29 +489,30 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 12px 14px 14px;
+  padding: var(--space-md) var(--space-md) var(--space-md);
 }
 .forge-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
   flex-shrink: 0;
 }
 .forge-icon {
-  font-size: 16px;
+  font-size: var(--font-numeric-emphasis);
 }
 .forge-title {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: var(--font-component-title);
+  font-weight: var(--weight-component-title);
+  line-height: var(--lh-component-title);
   color: var(--ink);
 }
 .forge-drop-zone {
   border: 2px dashed var(--border);
-  border-radius: 8px;
-  padding: 4px;
+  border-radius: var(--radius-md);
+  padding: var(--space-xs);
   transition: all .2s;
-  background: var(--white);
+  background: var(--surface);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -517,8 +532,8 @@
   resize: none; /* Disable manual resize since it fills flex space */
   overflow-y: auto; /* Enable scrollbar when content exceeds height */
   font-family: inherit;
-  font-size: 12.5px;
-  line-height: 1.6;
+  font-size: var(--font-body);
+  line-height: var(--lh-body);
   color: var(--ink);
   background: transparent;
   padding: 8px;
@@ -559,16 +574,20 @@
 }
 .forge-actions-options .form-select {
   flex: 1;
-  font-size: 11.5px;
+  font-size: var(--font-caption);
   padding: 4px 8px;
   min-width: 0;
 }
 .forge-actions .btn-primary.btn-sm {
-  font-size: 11.5px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   padding: 5px 12px;
 }
 .forge-actions .btn-ghost.btn-sm {
-  font-size: 11.5px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   padding: 5px 10px;
 }
 
@@ -577,7 +596,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--font-body-secondary);
   color: var(--warm);
   padding: 4px 0;
 }

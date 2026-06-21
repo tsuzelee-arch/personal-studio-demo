@@ -2203,7 +2203,7 @@
     if (isMask) {
       bodyHTML = `
         <div style="display:flex; gap: 8px; margin-bottom: 8px;">
-          <button class="btn-primary swf-edit-mask-btn" data-node="${id}" style="flex:1; height:32px; font-size:12px; background:var(--accent,#1783FF); border:none; border-radius:4px; color:#fff; cursor:pointer;">編輯遮罩</button>
+          <button class="btn-primary swf-edit-mask-btn" data-node="${id}" style="flex:1;">編輯遮罩</button>
         </div>
         <div style="margin-bottom: 8px;">
           <label style="font-size:11px; display:block; color:var(--muted); margin-bottom:4px;">輸出類型 (Output Type)</label>
@@ -2245,7 +2245,11 @@
         ${(isI2I || isComfy || isReplicate || isFal) ? `<div><div class="swf-section-label">參考圖片 (拖曳排序 / 拖入提示詞)</div><div class="swf-images-area" data-node="${id}"><input type="file" class="swf-file-input" accept="image/*" multiple hidden><button class="swf-upload-btn" title="上傳圖片">+</button></div></div>` : ''}
         <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label swf-prompt-label-row"><span>提示詞 (Prompt)</span><span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.save}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.folderOpen}</button></span></div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">${ICONS.download}</button></div>
-        <button class="swf-run-btn" data-node="${id}">${ICONS.play} 生成</button>
+        <div class="swf-run-row">
+          <button class="swf-run-btn" data-node="${id}">${ICONS.play} 生成</button>
+          <button class="swf-batch-btn btn-ghost btn-sm" data-node="${id}" title="加入批次佇列">批次</button>
+          <span class="swf-batch-badge" style="display:none" title="已在批次佇列中">⏳</span>
+        </div>
         <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
       `;
     }
@@ -2357,6 +2361,168 @@
     scheduleEdgeRender();
     return nodeData;
   }
+
+  // ═══════════════════════════════════════════
+  // ── IMAGE NODE BATCH QUEUE ──
+  // ─ _batchQueue: Map<nodeId, node> — in-memory pending set
+  // ═══════════════════════════════════════════
+  const _batchQueue = new Map();
+
+  function enqueueNodeBatch(node) {
+    _batchQueue.set(node.id, node);
+    const badge = node.el.querySelector('.swf-batch-badge');
+    if (badge) badge.style.display = '';
+    const batchBtn = node.el.querySelector('.swf-batch-btn');
+    if (batchBtn) { batchBtn.textContent = '移出批次'; batchBtn.classList.add('active'); }
+    const submitBtn = document.getElementById('swfBatchSubmit');
+    if (submitBtn) submitBtn.style.display = '';
+    if (window.showToast) window.showToast(`已加入批次（共 ${_batchQueue.size} 個節點）`);
+  }
+
+  function dequeueNodeBatch(nodeId) {
+    _batchQueue.delete(nodeId);
+    const node = nodes[nodeId];
+    if (node) {
+      const badge = node.el.querySelector('.swf-batch-badge');
+      if (badge) badge.style.display = 'none';
+      const batchBtn = node.el.querySelector('.swf-batch-btn');
+      if (batchBtn) { batchBtn.textContent = '批次'; batchBtn.classList.remove('active'); }
+    }
+    if (_batchQueue.size === 0) {
+      const submitBtn = document.getElementById('swfBatchSubmit');
+      if (submitBtn) submitBtn.style.display = 'none';
+    }
+  }
+
+  async function executeBatch() {
+    if (_batchQueue.size === 0) { if (window.showToast) window.showToast('批次佇列為空'); return; }
+    const submitBtn = document.getElementById('swfBatchSubmit');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '提交中...'; }
+
+    const entries = [..._batchQueue.values()];
+    const gptimageBatch = entries.filter(n => n.data.model === 'gptimage');
+    const otherBatch = entries.filter(n => n.data.model !== 'gptimage');
+
+    try {
+      // ── GPT Image 2 batch (/v1/images/generations) ──
+      if (gptimageBatch.length) {
+        if (!window.StudioSettings?.isBatchMode('openai')) {
+          throw new Error('請先在「設定 > Batch 模式」開啟 OpenAI 批次模式');
+        }
+        const apiKey = window.StudioSettings?.getOpenAIKey?.() || '';
+        if (!apiKey) throw new Error('OpenAI API Key 未設定');
+
+        const requests = gptimageBatch.map(n => {
+          const { text } = extractPromptData(n);
+          const params = n.data.params || {};
+          const allRefs = n.data.images || [];
+          const isEdit = allRefs.length > 0;
+          return {
+            customId: n.id,
+            endpoint: isEdit ? '/v1/images/edits' : '/v1/images/generations',
+            body: {
+              model: 'gpt-image-2',
+              prompt: text,
+              n: 1,
+              size: params.gptImageSize || '1024x1024',
+              quality: params.quality || 'high',
+              output_format: 'webp',
+              output_compression: 80,
+              moderation: 'auto',
+              background: 'auto'
+            }
+          };
+        });
+        const job = await window.AIService.submitOpenAIBatch(requests, apiKey);
+        window.StudioSettings?.saveBatchJob?.({
+          id: job.batchId, batchId: job.batchId, provider: 'openai', type: 'image',
+          status: job.status, nodeIds: gptimageBatch.map(n => n.id),
+          submittedAt: Date.now()
+        });
+      }
+
+      // ── Gemini / Nano Banana via Vertex AI batch ──
+      if (otherBatch.length) {
+        const gcpConfig = window.StudioSettings?.getGcpConfig?.() || {};
+        if (!gcpConfig.projectId || !gcpConfig.saKeyJson) {
+          throw new Error(`${otherBatch.length} 個 Gemini 節點需要 Vertex AI 設定，請至設定頁填入 GCP 資訊`);
+        }
+        if (!window.StudioSettings?.isBatchMode('gemini')) {
+          throw new Error('請先在「設定 > Batch 模式」開啟 Gemini 批次模式');
+        }
+        const requests = otherBatch.map(n => {
+          const { text } = extractPromptData(n);
+          const params = n.data.params || {};
+          const model = n.data.model === 'nanobanana' ? 'gemini-3-pro-image' : 'gemini-3.1-flash-image';
+          return {
+            customId: n.id,
+            model,
+            contents: [{ parts: [{ text }] }],
+            generationConfig: {
+              imageConfig: { aspectRatio: params.aspectRatio || '1:1' },
+              responseModalities: ['IMAGE']
+            }
+          };
+        });
+        const job = await window.AIService.submitVertexBatch(requests, gcpConfig);
+        window.StudioSettings?.saveBatchJob?.({
+          id: job.jobName, jobName: job.jobName, provider: 'gemini', type: 'image',
+          status: job.state, nodeIds: otherBatch.map(n => n.id),
+          outputUri: job.outputUri, submittedAt: Date.now()
+        });
+      }
+
+      [..._batchQueue.keys()].forEach(dequeueNodeBatch);
+      if (window.showToast) window.showToast('✅ 批次已提交，請至「設定 > 批次狀態」查看進度');
+    } catch (err) {
+      if (window.showToast) window.showToast('❌ 批次提交失敗：' + err.message, 5000);
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '提交批次'; }
+    }
+  }
+
+  async function applyBatchResults(jobId) {
+    const job = window.StudioSettings?.getBatchJobs?.().find(j => j.id === jobId);
+    if (!job) throw new Error('找不到批次工作：' + jobId);
+    let resultMap;
+    if (job.provider === 'openai') {
+      const apiKey = window.StudioSettings?.getOpenAIKey?.() || '';
+      let outputFileId = job.outputFileId;
+      if (!outputFileId) {
+        const s = await window.AIService.getOpenAIBatchStatus(job.batchId, apiKey);
+        outputFileId = s.outputFileId;
+        window.StudioSettings?.updateBatchJob?.(jobId, { status: s.status, outputFileId });
+      }
+      if (!outputFileId) throw new Error('結果尚未就緒（狀態：' + job.status + '）');
+      resultMap = await window.AIService.getOpenAIBatchResults(outputFileId, apiKey);
+    } else {
+      const gcpConfig = window.StudioSettings?.getGcpConfig?.() || {};
+      if (!job.outputUri) throw new Error('缺少 GCS output URI');
+      resultMap = await window.AIService.getVertexBatchResults(job.outputUri, gcpConfig);
+    }
+
+    let filled = 0;
+    for (const [nodeId, { imageUrl, content, error }] of resultMap) {
+      const node = nodes[nodeId];
+      if (!node) continue;
+      if (error) { if (window.showToast) window.showToast(`節點 ${nodeId} 錯誤：${error}`, 3000); continue; }
+      const resultImageUrl = imageUrl || content;
+      if (!resultImageUrl) continue;
+      node.resultImages = [resultImageUrl];
+      const imgEl = node.el.querySelector('.swf-preview-img');
+      const placeholder = node.el.querySelector('.swf-preview-placeholder');
+      const dlBtn = node.el.querySelector('.swf-download-btn');
+      if (imgEl) { imgEl.src = resultImageUrl; imgEl.style.display = ''; }
+      if (placeholder) placeholder.style.display = 'none';
+      if (dlBtn) dlBtn.style.display = '';
+      propagateVisualImages();
+      filled++;
+    }
+    window.StudioSettings?.updateBatchJob?.(jobId, { status: job.provider === 'openai' ? 'completed' : 'JOB_STATE_SUCCEEDED' });
+    saveWorkflow();
+    if (window.showToast) window.showToast(`✅ 已回填 ${filled} 個節點圖像`);
+  }
+
 
   // ═══════════════════════════════════════════
   // ── NODE DRAG ──
@@ -2778,6 +2944,14 @@
         e.dataTransfer.effectAllowed = 'copy';
       });
       runBtn.addEventListener('click', async () => await executeSingleNode(node));
+
+      const batchBtn = el.querySelector('.swf-batch-btn');
+      if (batchBtn) {
+        batchBtn.addEventListener('click', () => {
+          if (_batchQueue.has(node.id)) dequeueNodeBatch(node.id);
+          else enqueueNodeBatch(node);
+        });
+      }
     }
   }
 
@@ -3618,7 +3792,7 @@
     const imgEl = node.el.querySelector('.swf-preview-img');
     const dlBtn = node.el.querySelector('.swf-download-btn');
 
-    runBtn.disabled = true; runBtn.textContent = 'Generating...';
+    runBtn.disabled = true; runBtn.classList.add('btn-loading'); runBtn.textContent = 'Generating...';
     node.el.classList.add('swf-executing');
     placeholder.style.display = 'flex'; placeholder.textContent = 'Generating... (0s)';
     imgEl.style.display = 'none'; dlBtn.style.display = 'none';
@@ -4081,7 +4255,7 @@
       if (window.showToast) window.showToast('❌ ' + err.message);
     } finally {
       clearInterval(timer);
-      runBtn.disabled = false; runBtn.innerHTML = ICONS.play + ' 生成';
+      runBtn.disabled = false; runBtn.classList.remove('btn-loading'); runBtn.innerHTML = ICONS.play + ' 生成';
       node.el.classList.remove('swf-executing');
       propagateVisualImages(); // visually push the generated image to downstream nodes immediately
     }
@@ -4160,7 +4334,7 @@
   /** Execute all: topological sort across all entities */
   async function executeAll() {
     const runAllBtn = document.getElementById('swfRunAll');
-    runAllBtn.disabled = true; runAllBtn.textContent = '執行中...';
+    runAllBtn.disabled = true; runAllBtn.classList.add('btn-loading'); runAllBtn.textContent = '執行中...';
 
     // Build list of all executable entities (standalone nodes + groups)
     // Nodes inside groups are handled by executeGroup
@@ -4176,7 +4350,7 @@
     const allEntityIds = [...standaloneNodeIds, ...Object.keys(groups)];
 
     if (allEntityIds.length === 0) {
-      runAllBtn.disabled = false; runAllBtn.innerHTML = ICONS.play + ' 執行全部'; return;
+      runAllBtn.disabled = false; runAllBtn.classList.remove('btn-loading'); runAllBtn.innerHTML = ICONS.play + ' 執行全部'; return;
     }
 
     const sorted = topoSort(allEntityIds);
@@ -4188,7 +4362,7 @@
       }));
     }
 
-    runAllBtn.disabled = false; runAllBtn.innerHTML = ICONS.play + ' 執行全部';
+    runAllBtn.disabled = false; runAllBtn.classList.remove('btn-loading'); runAllBtn.innerHTML = ICONS.play + ' 執行全部';
     if (window.showToast) window.showToast('✅ 全部工作流執行完畢');
   }
 
@@ -4434,7 +4608,8 @@
               }
               continue;
             }
-            const n = createMacroNode(nd.type || 't2i', nd.x, nd.y);
+            // old t2t nodes from saved data fall through to createMacroNode('t2i')
+            const n = createMacroNode(nd.type === 't2t' ? 't2i' : (nd.type || 't2i'), nd.x, nd.y);
             idRemap[savedId] = n.id;
 
             // Restore dimensions and collapse state
@@ -4627,8 +4802,33 @@
     }
   }
 
-  // Setup asset panel on load
+  function setupSwfNodeDropdown() {
+    const btn = document.getElementById('swfNodeDropdownBtn');
+    const menu = document.getElementById('swfNodeDropdownMenu');
+    if (!btn || !menu) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = menu.style.display === 'block';
+      menu.style.display = isVisible ? 'none' : 'block';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+
+    menu.querySelectorAll('.swf-dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        menu.style.display = 'none';
+      });
+    });
+  }
+
+  // Setup asset panel and dropdown on load
   setupSwfAssetPanel();
+  setupSwfNodeDropdown();
 
   // Resizer: drag to resize left asset pane
   (function setupAssetPaneResizer() {
@@ -4653,6 +4853,54 @@
       document.addEventListener('mouseup', onUp);
     });
   })();
+
+  function exportWorkflowJSON() {
+    try {
+      const state = serializeState(true);
+      const dataStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `workflow-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      if (window.showToast) window.showToast('✅ 導出工作流成功');
+    } catch (err) {
+      console.error('Export failed:', err);
+      if (window.showToast) window.showToast('❌ 導出失敗：' + err.message);
+    }
+  }
+
+  function importWorkflowJSON() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = evt => {
+        try {
+          const contents = evt.target.result;
+          // Validate basic JSON structure
+          const parsed = JSON.parse(contents);
+          if (!parsed.nodes && !parsed.groups) {
+            throw new Error('無效的工作流 JSON 格式');
+          }
+          loadWorkflowData(contents);
+          if (window.showToast) window.showToast('✅ 導入工作流成功');
+        } catch (err) {
+          console.error('Import failed:', err);
+          if (window.showToast) window.showToast('❌ 導入失敗：' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }
 
   async function loadWorkflow() {
     let library = await loadWorkflows();
@@ -4902,19 +5150,28 @@
   document.getElementById('swfAddNote')?.addEventListener('click', () => { saveUndoState(); createNoteNode(); });
   document.getElementById('swfAddGroup')?.addEventListener('click', () => { saveUndoState(); createGroup(); });
   document.getElementById('swfRunAll')?.addEventListener('click', executeAll);
+  document.getElementById('swfBatchSubmit')?.addEventListener('click', executeBatch);
   document.getElementById('swfSaveBtn')?.addEventListener('click', saveWorkflow);
   document.getElementById('swfLoadBtn')?.addEventListener('click', loadWorkflow);
+  document.getElementById('swfExportBtn')?.addEventListener('click', exportWorkflowJSON);
+  document.getElementById('swfImportBtn')?.addEventListener('click', importWorkflowJSON);
 
   // Toggle side panels (Left handled by setupSwfAssetPanel)
   // (Asset close handled by setupSwfAssetPanel)
   document.getElementById('swfPromptToggle')?.addEventListener('click', () => {
+    const btn = document.getElementById('swfPromptToggle');
     const panel = document.getElementById('swfPromptQuickBar');
-    if (panel) panel.classList.toggle('active');
+    if (panel && btn) {
+      const isActive = panel.classList.toggle('active');
+      if (isActive) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
   });
 
   // Clicking the canvas closes the prompt quickbar
   document.getElementById('swfCanvas')?.addEventListener('click', () => {
     document.getElementById('swfPromptQuickBar')?.classList.remove('active');
+    document.getElementById('swfPromptToggle')?.classList.remove('active');
   });
 
   // Library (Load Workflow) Modal — close via ✕ or backdrop click (bound once here;
@@ -5025,9 +5282,12 @@
     createMacroNode, createGroup, executeAll, executeSingleNode, executeGroup,
     duplicateGroup,
     saveWorkflow, loadWorkflow,
+    exportWorkflowJSON, importWorkflowJSON,
     getNodes: () => nodes, getGroups: () => groups, getEdges: () => edges,
     renderSwfAssets, initSwfPromptQuickBar,
-    propagateVisualImages, resolveGroupFolderImages
+    propagateVisualImages, resolveGroupFolderImages,
+    executeBatch, applyBatchResults
   };
+  window.SWF = window.SimpleWorkflow;
 
 })();

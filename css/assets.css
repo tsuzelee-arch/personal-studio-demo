@@ -32,7 +32,9 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 12.5px;
+  font-size: var(--font-body-secondary);
+  font-weight: var(--weight-body-secondary);
+  line-height: var(--lh-body-secondary);
   color: var(--muted);
   transition: background 0.12s, color 0.12s;
 }
@@ -45,7 +47,7 @@
 .folder-item.active {
   background: var(--warm);
   color: var(--ink);
-  font-weight: 600;
+  font-weight: var(--weight-component-title);
 }
 
 .folder-add-btn {
@@ -56,7 +58,9 @@
   border: 1px dashed var(--border);
   background: transparent;
   cursor: pointer;
-  font-size: 11.5px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   color: var(--muted);
   margin-top: 6px;
   transition: border-color 0.12s, color 0.12s;
@@ -77,7 +81,9 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   color: #888;
   border: 1px dashed #ccc;
   overflow: hidden;
@@ -135,8 +141,9 @@
 }
 
 .ide-pane-title {
-  font-weight: 600;
-  font-size: 12.5px;
+  font-size: var(--font-component-title);
+  font-weight: var(--weight-component-title);
+  line-height: var(--lh-component-title);
   color: var(--ink);
   letter-spacing: 0.02em;
 }
@@ -158,7 +165,9 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-body-secondary);
+  font-weight: var(--weight-body-secondary);
+  line-height: var(--lh-body-secondary);
   color: var(--muted);
   text-align: left;
   transition: background 0.12s, color 0.12s;
@@ -175,7 +184,7 @@
 .ide-folder-item.active {
   background: var(--warm);
   color: var(--ink);
-  font-weight: 600;
+  font-weight: var(--weight-component-title);
 }
 
 .ide-assets-grid {
@@ -222,7 +231,9 @@
 }
 
 .ide-asset-name {
-  font-size: 10px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   color: var(--muted);
   text-align: center;
   padding: 3px 2px;
@@ -262,8 +273,9 @@
 }
 
 .agent-header-title {
-  font-weight: 700;
-  font-size: 13.5px;
+  font-size: var(--font-component-title);
+  font-weight: var(--weight-component-title);
+  line-height: var(--lh-component-title);
   color: var(--ink);
   letter-spacing: 0.02em;
 }
@@ -273,7 +285,9 @@
   border-radius: 20px;
   border: 1px solid var(--border);
   background: var(--white);
-  font-size: 11.5px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   color: var(--ink);
   cursor: pointer;
   outline: none;
@@ -314,16 +328,18 @@
 }
 
 .agent-welcome-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--font-section-title);
+  font-weight: var(--weight-section-title);
+  line-height: var(--lh-section-title);
   color: var(--ink);
 }
 
 .agent-welcome-sub {
-  font-size: 12.5px;
+  font-size: var(--font-body-secondary);
+  font-weight: var(--weight-body-secondary);
+  line-height: var(--lh-body-secondary);
   color: var(--muted);
   max-width: 260px;
-  line-height: 1.6;
 }
 
 /* Chat message — User (Right-aligned bubble) */
@@ -355,8 +371,9 @@
   border-radius: 18px 18px 4px 18px;
   padding: 10px 16px;
   max-width: 85%;
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: var(--font-body);
+  font-weight: var(--weight-body);
+  line-height: var(--lh-body);
   word-break: break-word;
 }
 
@@ -374,7 +391,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: var(--font-body);
+  font-weight: var(--weight-body);
+  line-height: var(--lh-none);
   flex-shrink: 0;
   color: #fff;
   margin-top: 2px;
@@ -382,8 +401,9 @@
 
 .chat-msg.ai .chat-content {
   max-width: 88%;
-  font-size: 13px;
-  line-height: 1.65;
+  font-size: var(--font-body);
+  font-weight: var(--weight-body);
+  line-height: var(--lh-body);
   color: var(--ink);
 }
 
@@ -418,7 +438,9 @@
   border: 1px solid var(--border);
   background: var(--white);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   color: var(--muted);
   transition: all 0.15s;
   margin-top: 4px;
@@ -539,8 +561,9 @@
   border: none;
   background: transparent;
   resize: none;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: var(--font-body);
+  font-weight: var(--weight-body);
+  line-height: var(--lh-body);
   padding: 8px 4px;
   outline: none;
   max-height: 120px;
@@ -707,8 +730,9 @@
 }
 
 .gen-param-label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-component-title);
+  line-height: var(--lh-caption);
   color: var(--warm-dark);
   white-space: nowrap;
   letter-spacing: 0.03em;
@@ -720,7 +744,9 @@
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--white);
-  font-size: 11px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   color: var(--ink);
   cursor: pointer;
   outline: none;
@@ -731,129 +757,7 @@
   border-color: var(--warm);
 }
 
-/* =========================================================================
-   22. IDE Agent Messages (Shared)
-   ========================================================================= */
-.agent-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.agent-header-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.agent-model-select {
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 11px;
-  background: var(--bg);
-  color: var(--ink);
-}
-
-.agent-messages {
-  flex: 1;
-  padding: 16px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.agent-welcome {
-  margin: auto;
-  text-align: center;
-  color: var(--text-light);
-}
-
-.agent-welcome-icon {
-  font-size: 32px;
-  margin-bottom: 12px;
-}
-
-.agent-welcome-title {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: var(--ink);
-}
-
-.agent-welcome-sub {
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.agent-input-area {
-  padding: 16px;
-  border-top: 1px solid var(--border);
-  background: var(--bg);
-  flex-shrink: 0;
-}
-
-.agent-input-container {
-  display: flex;
-  gap: 8px;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px;
-}
-
-.agent-textarea {
-  flex: 1;
-  border: none;
-  resize: none;
-  outline: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 12.5px;
-  padding: 4px;
-  min-height: 24px;
-  max-height: 120px;
-  color: var(--ink);
-}
-
-.agent-send-btn {
-  background: var(--warm);
-  color: white;
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all .2s;
-  flex-shrink: 0;
-}
-
-.agent-send-btn:disabled {
-  background: var(--border);
-  cursor: not-allowed;
-}
-
-
-.agent-close-btn {
-  background: none;
-  border: none;
-  font-size: 16px;
-  color: var(--text-light);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-}
-
-.agent-close-btn:hover {
-  background: var(--bg);
-  color: var(--ink);
-}
+/* Duplicate IDE Agent Messages block removed */
 
 /* =========================================================================
    24. Workflow Prompt Quick-Bar & Layout
@@ -889,8 +793,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--font-body);
+  font-weight: var(--weight-label);
+  line-height: var(--lh-body);
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
@@ -982,8 +887,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-weight: 600;
-  font-size: 13.5px;
+  font-size: var(--font-component-title);
+  font-weight: var(--weight-component-title);
+  line-height: var(--lh-component-title);
   color: var(--ink);
   flex-shrink: 0;
 }
@@ -1017,7 +923,9 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 12.5px;
+  font-size: var(--font-label);
+  font-weight: var(--weight-label);
+  line-height: var(--lh-label);
   cursor: grab;
   transition: all 0.2s;
   display: flex;
@@ -1037,7 +945,7 @@
 }
 
 .quickbar-prompt-title {
-  font-weight: 600;
+  font-weight: var(--weight-component-title);
   color: var(--ink);
 }
 
@@ -1061,7 +969,7 @@
    ========================================================================= */
 .v2-asset-card {
   position: relative;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1077,7 +985,7 @@
 .v2-asset-img-wrap {
   aspect-ratio: 1;
   overflow: hidden;
-  background: var(--bg, #f0f0f0);
+  background: var(--paper, #f0f0f0);
 }
 
 .v2-asset-img-wrap img {
@@ -1088,16 +996,17 @@
 }
 
 .v2-asset-info {
-  padding: 8px 10px;
+  padding: var(--space-sm) var(--space-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .v2-asset-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text);
+  font-size: var(--font-body);
+  font-weight: var(--weight-body);
+  line-height: var(--lh-body);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1105,10 +1014,10 @@
 
 .v2-asset-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: var(--space-sm);
+  right: var(--space-sm);
   display: flex;
-  gap: 4px;
+  gap: var(--space-xs);
   opacity: 0;
   transition: opacity 0.2s;
 }
@@ -1120,21 +1029,22 @@
 .v2-btn-icon {
   width: 28px;
   height: 28px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #333;
+  border-radius: var(--radius-full);
+  background: var(--surface-raised);
+  color: var(--ink);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: var(--font-body);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   transition: background 0.2s, transform 0.1s;
 }
 
 .v2-btn-icon:hover {
-  background: #fff;
+  background: var(--warm);
+  color: var(--white);
   transform: scale(1.1);
 }
 
@@ -1143,5 +1053,5 @@
 }
 
 .v2-btn-icon.danger {
-  color: #dc3545;
+  color: var(--danger);
 }

@@ -6,14 +6,7 @@
 #panel-simple-workflow.active {
   display: flex !important;
   flex-direction: column;
-  margin: -24px -28px !important;
-  width: calc(100% + 56px) !important;
-  height: calc(100vh - 56px) !important;
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
   min-height: 0;
-  overflow: hidden;
 }
 
 /* Header bar */
@@ -25,7 +18,7 @@
   border-right: none !important;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-shrink: 0;
   background: var(--surface, #f0f0f3);
 }
@@ -48,11 +41,18 @@
   gap: 4px;
 }
 .swf-zoom-label {
-  font-size: 12px;
-  color: var(--muted, #888);
-  min-width: 40px;
-  text-align: center;
-  user-select: none;
+  font-size: var(--font-caption) !important;
+  font-weight: var(--weight-caption) !important;
+  color: var(--muted, #888) !important;
+  min-width: 40px !important;
+  text-align: center !important;
+  user-select: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 28px !important;
+  box-sizing: border-box !important;
+  line-height: var(--lh-none) !important;
 }
 
 /* ═══════════════════════════════════════════
@@ -85,14 +85,15 @@
   border-bottom: 1px solid var(--border);
 }
 .swf-pane-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--font-body-secondary);
+  font-weight: var(--weight-component-title);
+  line-height: var(--lh-body-secondary);
   color: var(--text);
 }
 .swf-pane-close {
   background: none;
   border: none;
-  font-size: 14px;
+  font-size: var(--font-component-title);
   color: var(--muted);
   cursor: pointer;
   padding: 2px 6px;
@@ -122,7 +123,9 @@
   border-radius: 4px;
   border: 1px solid var(--border);
   background: none;
-  font-size: 11px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-caption);
+  line-height: var(--lh-caption);
   cursor: pointer;
   color: var(--muted);
   transition: all 0.15s;
@@ -865,8 +868,47 @@
 [data-theme="dark"] .swf-plib-cat-header { color: var(--node-text, #e0e0e0); border-color: var(--node-input-border, #444); }
 
 /* ═══ Inline icon sizing (emoji → SVG migration) ═══ */
-/* Toolbar buttons: icon + text, vertically centered */
-.swf-toolbar button { display: inline-flex; align-items: center; gap: 5px; }
+/* Toolbar groups for organizing buttons */
+.swf-tb-group {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  height: 32px !important;
+  padding: 0 6px !important;
+  box-sizing: border-box !important;
+  background: rgba(0, 0, 0, 0.15) !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Zoom controls container matching toolbar groups height */
+.swf-zoom-controls {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  height: 32px !important;
+  box-sizing: border-box !important;
+}
+
+/* Toolbar buttons: icon + text, vertically centered & standardized size */
+.swf-toolbar button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+  box-sizing: border-box !important;
+  border-radius: 4px !important;
+}
+
+/* Zoom buttons should remain compact squares */
+.swf-toolbar .swf-zoom-controls button {
+  padding: 0 !important;
+  width: 28px !important;
+  justify-content: center !important;
+}
 .swf-tb-icon { width: 14px; height: 14px; flex-shrink: 0; }
 /* Note node header title icon */
 .swf-note-title { display: inline-flex; align-items: center; gap: 5px; }
@@ -1780,4 +1822,105 @@
 
 .swf-gs-apply-btn:hover {
   background: var(--warm-dark) !important;
+}
+
+/* Node Dropdown Menu */
+.swf-dropdown {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 100% !important;
+  vertical-align: middle !important;
+}
+.swf-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #d4cfc6);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 145px;
+  padding: 4px 0;
+}
+.swf-dropdown-menu .swf-dropdown-item {
+  display: flex !important;
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  border: none !important;
+  background: none !important;
+  padding: 8px 12px !important;
+  font-size: 12.5px !important;
+  height: 32px !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  color: var(--ink, #0e0e0e) !important;
+  transition: background 0.15s !important;
+  box-sizing: border-box !important;
+  border-radius: 0 !important;
+}
+.swf-dropdown-menu .swf-dropdown-item:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+.swf-dropdown-menu .swf-dropdown-item[disabled] {
+  cursor: not-allowed !important;
+  opacity: 0.4 !important;
+}
+.swf-dropdown-menu .swf-dropdown-item[disabled]:hover {
+  background: none !important;
+}
+
+[data-theme="dark"] .swf-dropdown-menu {
+  background: var(--surface, #262626);
+  border-color: var(--border, #333333);
+}
+[data-theme="dark"] .swf-dropdown-menu .swf-dropdown-item {
+  color: var(--ink, #f0f0f0) !important;
+}
+[data-theme="dark"] .swf-dropdown-menu .swf-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Active Toggle Buttons style for Side Panels (Asset / Prompt) */
+.btn-ghost.active {
+  color: var(--warm);
+  border-color: var(--warm);
+  background: rgba(200, 169, 110, 0.1);
+}
+[data-theme="dark"] .btn-ghost.active {
+  color: var(--warm);
+  border-color: var(--warm);
+  background: rgba(186, 139, 34, 0.15);
+}
+
+
+/* ── Node Batch Button Row ── */
+.swf-run-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.swf-run-row .swf-run-btn { flex: 1; min-width: 0; width: auto; }
+.swf-batch-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--muted);
+  background: transparent;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.swf-batch-btn:hover { background: var(--surface); color: var(--warm); border-color: var(--warm); }
+.swf-batch-btn.active { color: var(--warm); border-color: var(--warm); background: rgba(var(--warm-rgb,.5,.3,.2), .08); }
+.swf-batch-badge {
+  font-size: 11px;
+  color: var(--warm-dark, #a16207);
+  flex-shrink: 0;
 }

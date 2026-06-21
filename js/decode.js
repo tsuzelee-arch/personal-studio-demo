@@ -356,7 +356,7 @@
         if (idx !== -1) currentAnalysis.analysis_metadata.color_palette.splice(idx, 1);
         renderPalette(currentAnalysis.analysis_metadata.color_palette);
         // Re-attach vault button after re-render
-        const paletteCard = paletteRow.closest('.dash-card');
+        const paletteCard = paletteRow.closest('.decode-section, .dash-card');
         const pal = currentAnalysis.analysis_metadata.color_palette;
         if (paletteCard && pal.length) {
           addVaultButton(paletteCard, '色彩色盤', 'color_palette', pal.join(', '), { type: 'palette', colors: pal.slice() });
@@ -369,7 +369,7 @@
     paletteRow.appendChild(frag);
 
     // Allow saving the whole palette to the vault (thumbnail = colour swatches)
-    const paletteCard = paletteRow.closest('.dash-card');
+    const paletteCard = paletteRow.closest('.decode-section, .dash-card');
     if (paletteCard && palette && palette.length) {
       addVaultButton(
         paletteCard,
@@ -507,7 +507,7 @@
     negativeList.appendChild(frag);
 
     // Whole-group vault button reads live textarea values
-    const negCard = negativeList.closest('.dash-card');
+    const negCard = negativeList.closest('.decode-section, .dash-card');
     if (negCard && list.length) {
       addVaultButton(negCard, '負面約束（整組）', 'negative', () =>
         Array.from(negativeList.querySelectorAll('textarea.negative-text')).map(t => t.value).join(', ')
