@@ -788,9 +788,8 @@
         </span>
         <span class="swf-grp-spacer"></span>
         <div class="swf-group-actions">
-          <button class="swf-grp-batch-all-btn" title="將群組內所有圖像節點加入批次佇列">批次全選</button>
-          <button class="swf-grp-batch-run-btn" title="只提交此群組的批次節點" style="display:none">執行批次</button>
-          <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>
+          <button class="swf-grp-run-btn" title="一般 API 即時執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>群組執行（API）</button>
+          <button class="swf-grp-batch-run-btn" title="OpenAI Batch API 執行群組（較省但較慢）"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>群組執行（Batch）</button>
           <button class="swf-grp-collapse-btn" title="摺疊/展開群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <button class="swf-grp-del-btn" title="關閉/刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
@@ -870,9 +869,8 @@
       priorityInput.addEventListener('mousedown', (e) => e.stopPropagation());
     }
     el.querySelector('.swf-grp-del-btn').addEventListener('click', () => { saveUndoState(); promptRemoveGroup(group.id); });
-    el.querySelector('.swf-grp-run-btn').addEventListener('click', () => executeGroup(group.id));
-    el.querySelector('.swf-grp-batch-all-btn').addEventListener('click', () => groupBatchSelectAll(group.id));
-    el.querySelector('.swf-grp-batch-run-btn').addEventListener('click', () => executeGroupBatch(group.id));
+    el.querySelector('.swf-grp-run-btn').addEventListener('click', () => executeGroup(group.id, false));
+    el.querySelector('.swf-grp-batch-run-btn').addEventListener('click', () => executeGroup(group.id, true));
     el.querySelector('.swf-grp-collapse-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleGroupCollapse(group); });
     el.querySelector('.swf-grp-lock-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleGroupLock(group); });
     el.querySelector('.swf-grp-fit-btn').addEventListener('click', (e) => { e.stopPropagation(); autoFitGroup(group); });
@@ -2250,8 +2248,8 @@
         <div class="swf-prompt-section"><div class="swf-section-label swf-prompt-label swf-prompt-label-row"><span>提示詞 (Prompt)</span><span class="swf-plib-btns"><button class="swf-plib-save" title="儲存至提示詞庫">${ICONS.save}</button><button class="swf-plib-load" title="從提示詞庫載入">${ICONS.folderOpen}</button></span></div><div class="swf-prompt-editor" id="swf-prompt-${id}" contenteditable="true" data-placeholder="輸入提示詞，可拖入圖片縮圖..." data-node="${id}"></div></div>
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">${ICONS.download}</button></div>
         <div class="swf-run-row">
-          <button class="swf-run-btn" data-node="${id}">${ICONS.play} 生成</button>
-          <button class="swf-batch-btn" data-node="${id}" title="加入批次佇列">批次</button>
+          <button class="swf-run-btn" data-node="${id}" title="一般 API 即時生成">${ICONS.play} 生成（API）</button>
+          <button class="swf-batch-btn" data-node="${id}" title="OpenAI Batch API 生成（較省但較慢）">${ICONS.play} 生成（Batch）</button>
         </div>
         <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
       `;
@@ -2365,78 +2363,6 @@
     return nodeData;
   }
 
-  // ═══════════════════════════════════════════
-  // ── IMAGE NODE BATCH QUEUE ──
-  // ─ _batchQueue: Map<nodeId, node> — in-memory pending set
-  // ═══════════════════════════════════════════
-  const _batchQueue = new Map();
-
-  // Sync each group's batch buttons with the queue:
-  //  - 執行批次 visible only when the group has queued nodes
-  //  - 批次全選 reflects select-all / deselect-all state (active + label)
-  function _updateGroupBatchBtns() {
-    for (const [gid, g] of Object.entries(groups)) {
-      const batchable = getGroupMembers(gid).filter(n => n.type !== 'note' && n.type !== 'mask');
-      const queuedCount = batchable.filter(m => _batchQueue.has(m.id)).length;
-      const allQueued = batchable.length > 0 && queuedCount === batchable.length;
-
-      const runBtn = g.el?.querySelector('.swf-grp-batch-run-btn');
-      if (runBtn) runBtn.style.display = queuedCount > 0 ? '' : 'none';
-
-      const allBtn = g.el?.querySelector('.swf-grp-batch-all-btn');
-      if (allBtn) {
-        allBtn.classList.toggle('active', allQueued);
-        allBtn.textContent = allQueued ? '取消全選' : '批次全選';
-      }
-    }
-  }
-
-  function enqueueNodeBatch(node, silent = false) {
-    _batchQueue.set(node.id, node);
-    const batchBtn = node.el.querySelector('.swf-batch-btn');
-    if (batchBtn) { batchBtn.textContent = '移出批次'; batchBtn.classList.add('active'); }
-    const submitBtn = document.getElementById('swfBatchSubmit');
-    if (submitBtn) {
-      submitBtn.style.display = '';
-      submitBtn.className = 'btn-primary btn-sm';
-    }
-    _updateGroupBatchBtns();
-    if (!silent && window.showToast) window.showToast(`已加入批次（共 ${_batchQueue.size} 個節點）`);
-  }
-
-  function dequeueNodeBatch(nodeId) {
-    _batchQueue.delete(nodeId);
-    const node = nodes[nodeId];
-    if (node) {
-      const batchBtn = node.el.querySelector('.swf-batch-btn');
-      if (batchBtn) { batchBtn.textContent = '批次'; batchBtn.classList.remove('active'); }
-    }
-    if (_batchQueue.size === 0) {
-      const submitBtn = document.getElementById('swfBatchSubmit');
-      if (submitBtn) { submitBtn.style.display = 'none'; submitBtn.className = 'btn-ghost btn-sm'; }
-    }
-    _updateGroupBatchBtns();
-  }
-
-  // Toggle: if every batchable member is already queued, remove them all; otherwise add all.
-  function groupBatchSelectAll(groupId) {
-    const batchable = getGroupMembers(groupId).filter(n => n.type !== 'note' && n.type !== 'mask');
-    if (batchable.length === 0) { if (window.showToast) window.showToast('群組內沒有可批次的圖像節點'); return; }
-    const allQueued = batchable.every(n => _batchQueue.has(n.id));
-    if (allQueued) {
-      batchable.forEach(n => dequeueNodeBatch(n.id));
-      if (window.showToast) window.showToast(`已移出群組批次（${batchable.length} 個節點）`);
-    } else {
-      batchable.forEach(n => { if (!_batchQueue.has(n.id)) enqueueNodeBatch(n, true); });
-      if (window.showToast) window.showToast(`已加入群組批次（${batchable.length} 個節點）`);
-    }
-  }
-
-  function executeGroupBatch(groupId) {
-    const memberIds = new Set(getGroupMembers(groupId).map(n => n.id));
-    executeBatch(memberIds);
-  }
-
   async function saveNodeResult(node, imageUrl, preprocessResults = null) {
     const imgEl = node.el.querySelector('.swf-preview-img');
     const placeholder = node.el.querySelector('.swf-preview-placeholder');
@@ -2501,40 +2427,6 @@
     }
   }
 
-  // Group-aware topological sort specifically for batch queue entries
-  function batchTopoSort(nodeIds) {
-    const idSet = new Set(nodeIds);
-    const inDegree = {};
-    const adj = {};
-    nodeIds.forEach(id => { inDegree[id] = 0; adj[id] = []; });
-    
-    nodeIds.forEach(id => {
-      // getNodeDependencies checks both direct connections and group port entries
-      const deps = getNodeDependencies(id);
-      deps.forEach(depId => {
-        if (idSet.has(depId)) {
-          // depId must execute before id (depId -> id)
-          adj[depId].push(id);
-          inDegree[id]++;
-        }
-      });
-    });
-
-    const batches = [];
-    let queue = nodeIds.filter(id => inDegree[id] === 0);
-    while (queue.length > 0) {
-      batches.push([...queue]);
-      const next = [];
-      queue.forEach(id => {
-        adj[id].forEach(target => {
-          inDegree[target]--;
-          if (inDegree[target] === 0) next.push(target);
-        });
-      });
-      queue = next;
-    }
-    return batches;
-  }
 
   // Helper to upload images/masks to OpenAI Files API for Batch reference
   async function uploadImageToOpenAI(dataUrlOrUrl, apiKey) {
@@ -2545,7 +2437,10 @@
     const res = await fetch(resolved);
     const blob = await res.blob();
     const formData = new FormData();
-    formData.append('purpose', 'batch');
+    // Reference images for gpt-image edits must use purpose 'vision'. Using 'batch'
+    // makes OpenAI validate the binary PNG as a JSONL batch-input file, which fails
+    // with "Invalid file for Batch API. Must be utf-8 encoded".
+    formData.append('purpose', 'vision');
     formData.append('file', blob, 'image.png');
 
     const uploadRes = await fetch('https://api.openai.com/v1/files', {
@@ -2563,323 +2458,66 @@
     return data.id;
   }
 
-  // Poll an OpenAI batch job until it finishes (resolves with outputFileId)
+  // Poll an OpenAI batch job until it finishes. Resolves on 'completed',
+  // rejects on failed/cancelled/expired. Used to keep dependency waves in order.
   function waitOpenAIBatch(batchId, apiKey) {
     return new Promise((resolve, reject) => {
-      const POLL_MS = 10000;
+      const POLL_MS = 15000;
       const tick = async () => {
         try {
           const s = await window.AIService.getOpenAIBatchStatus(batchId, apiKey);
-          window.StudioSettings?.updateBatchJob?.(batchId, { status: s.status, outputFileId: s.outputFileId });
-          if (s.status === 'completed') {
-            resolve(s.outputFileId);
-            return;
-          }
+          window.StudioSettings?.updateBatchJob?.(batchId, { status: s.status, outputFileId: s.outputFileId, errorFileId: s.errorFileId });
+          if (s.status === 'completed') { resolve(s); return; }
           if (['failed', 'cancelled', 'expired'].includes(s.status)) {
-            reject(new Error(`OpenAI 批次工作結束，狀態為：${s.status}`));
+            // Surface the REAL reason: batch-level errors, then per-request error file.
+            let detail = s.batchErrors || '';
+            if (!detail && s.errorFileId) {
+              try {
+                const em = await window.AIService.getOpenAIBatchResults(s.errorFileId, apiKey);
+                detail = [...em.values()].map(v => v.error).filter(Boolean).join('; ');
+              } catch { /* ignore */ }
+            }
+            reject(new Error(`OpenAI 批次 ${s.status}${detail ? '：' + detail : '（無錯誤詳情）'}`));
             return;
           }
-        } catch (e) {
-          // transient network/API error — keep polling
-        }
+        } catch (e) { /* transient — keep polling */ }
         setTimeout(tick, POLL_MS);
       };
       setTimeout(tick, POLL_MS);
     });
   }
 
-  async function executeBatch(filterNodeIds = null) {
-    const entries = filterNodeIds
-      ? [..._batchQueue.values()].filter(n => filterNodeIds.has(n.id))
-      : [..._batchQueue.values()];
-    if (entries.length === 0) { if (window.showToast) window.showToast('批次佇列為空'); return; }
-    const submitBtn = document.getElementById('swfBatchSubmit');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '執行中...'; }
 
-    try {
-      // 1. Perform group-aware topological sorting
-      const sortedBatches = batchTopoSort(entries.map(n => n.id));
-      
-      // Cycle safety fallback
-      const sortedNodeIdsSet = new Set(sortedBatches.flat());
-      const skippedEntries = entries.filter(n => !sortedNodeIdsSet.has(n.id));
-      if (skippedEntries.length > 0) {
-        if (window.showToast) window.showToast(`⚠️ 偵測到循環依賴，有 ${skippedEntries.length} 個節點將作為獨立批次執行`, 4000);
-        sortedBatches.push(skippedEntries.map(n => n.id));
-      }
-
-      // 2. Execute topologically sorted batches sequentially
-      for (let i = 0; i < sortedBatches.length; i++) {
-        const batchNodeIds = sortedBatches[i];
-        const batchEntries = batchNodeIds.map(id => nodes[id]).filter(Boolean);
-        if (batchEntries.length === 0) continue;
-
-        // A. Update reference images for all nodes in the current wave
-        batchEntries.forEach(n => {
-          n.data.images = assembleNodeImages(n, collectNodeUpstreamContribs(n));
-          renderImageThumbs(n);
-        });
-
-        // B. Separate OpenAI and Gemini nodes for this wave
-        const gptimageBatch = batchEntries.filter(n => n.data.model === 'gptimage');
-        const otherBatch = batchEntries.filter(n => n.data.model !== 'gptimage');
-
-        // C. Process OpenAI nodes
-        if (gptimageBatch.length) {
-          const apiKey = window.StudioSettings?.getOpenAIKey?.() || '';
-          if (!apiKey) throw new Error('OpenAI API Key 未設定');
-
-          if (window.StudioSettings?.isBatchMode('openai')) {
-            if (window.showToast) window.showToast('🕒 正在上傳參考圖片至 OpenAI 檔案庫...', 2000);
-            
-            gptimageBatch.forEach(n => _setNodeBatchPending(n, true));
-            try {
-              const requests = await Promise.all(gptimageBatch.map(async n => {
-                const { text, inlineImages } = extractPromptData(n);
-                const params = n.data.params || {};
-                const allRefs = [...(n.data.images || []), ...inlineImages];
-
-                let imageFileId = null;
-                let maskFileId = null;
-
-                // Search for upstream mask node and extract its mask and base image
-                let maskDataUrl = null;
-                let baseImageUrl = null;
-                const upstreamEdges = sortedUpstreamEdges(n.id);
-                for (const { e } of upstreamEdges) {
-                  const srcNode = nodes[e.source];
-                  if (srcNode && srcNode.type === 'mask') {
-                    const maskMode = srcNode.data.maskOutputMode || 'mask';
-                    if (maskMode === 'mask') {
-                      if (srcNode.data.bwMaskState) {
-                        maskDataUrl = srcNode.data.bwMaskState;
-                        baseImageUrl = srcNode.data.images[0] || null;
-                        break;
-                      }
-                    }
-                  }
-                }
-
-                const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
-                const isEdit = refsToSend.length > 0 || !!maskDataUrl;
-
-                if (isEdit) {
-                  const targetImage = baseImageUrl || refsToSend[0];
-                  if (targetImage) {
-                    imageFileId = await uploadImageToOpenAI(targetImage, apiKey);
-                  }
-                }
-
-                if (maskDataUrl) {
-                  maskFileId = await uploadImageToOpenAI(maskDataUrl, apiKey);
-                }
-
-                return {
-                  customId: n.id,
-                  endpoint: (imageFileId) ? '/v1/images/edits' : '/v1/images/generations',
-                  body: {
-                    model: 'gpt-image-2',
-                    prompt: text,
-                    n: 1,
-                    size: params.gptImageSize || '1024x1024',
-                    quality: params.quality || 'high',
-                    output_format: 'webp',
-                    output_compression: 80,
-                    moderation: 'auto',
-                    background: params.gptBackground || 'auto',
-                    response_format: 'b64_json',
-                    ...(imageFileId && { image: imageFileId }),
-                    ...(maskFileId && { mask: maskFileId })
-                  }
-                };
-              }));
-
-              if (window.showToast) window.showToast('🕒 正在向 OpenAI 提交批次工作...', 2000);
-              const job = await window.AIService.submitOpenAIBatch(requests, apiKey);
-              window.StudioSettings?.saveBatchJob?.({
-                id: job.batchId, batchId: job.batchId, provider: 'openai', type: 'image',
-                status: job.status, nodeIds: gptimageBatch.map(n => n.id),
-                submittedAt: Date.now()
-              });
-
-              if (window.showToast) window.showToast('🕒 OpenAI 批次已提交，正在等待遠端處理完成 (背景輪詢中)...', 5000);
-
-              // Wait for remote batch completion (blocks wave loop execution)
-              await waitOpenAIBatch(job.batchId, apiKey);
-
-              // Apply results to nodes immediately
-              await applyBatchResults(job.batchId);
-            } finally {
-              gptimageBatch.forEach(n => _setNodeBatchPending(n, false));
-            }
-          } else {
-            // Fallback: client-side parallel synchronous concurrent calls
-            await Promise.all(gptimageBatch.map(n => executeSingleNode(n, true)));
-          }
-        }
-
-        // D. Process Gemini/Other nodes
-        if (otherBatch.length) {
-          if (window.StudioSettings?.isBatchMode('gemini')) {
-            const geminiKey = (window.StudioSettings?.getApiKeys?.('gemini') || [])[0]
-                           || (window.StudioSettings?.getApiKeys?.('nanobanana') || [])[0] || '';
-            if (!geminiKey) throw new Error('Gemini API Key 未設定，請至設定頁填入');
-
-            otherBatch.forEach(n => _setNodeBatchPending(n, true));
-            try {
-              const requests = await Promise.all(otherBatch.map(async n => {
-                const { text, inlineImages } = extractPromptData(n);
-                const params = n.data.params || {};
-                const model = n.data.model === 'nanobanana' ? 'gemini-3-pro-image' : 'gemini-3.1-flash-image';
-
-                if (model === 'gemini-3.1-flash-image') {
-                  const stripPrefix = (dataUrl) => dataUrl ? dataUrl.replace(/^data:[^;]+;base64,/, '') : null;
-
-                  // Size and aspect ratio resolution
-                  const imageSize = params.imageSize || '';
-                  const aspectRatio = params.aspectRatio || '1:1';
-                  let baseDim = 1024;
-                  if (imageSize === '512') baseDim = 512;
-                  else if (imageSize === '2K') baseDim = 2048;
-                  else if (imageSize === '4K') baseDim = 4096;
-                  else if (imageSize === '1K') baseDim = 1024;
-
-                  let w = baseDim, h = baseDim;
-                  if (aspectRatio && aspectRatio.includes(':')) {
-                    const partsArr = aspectRatio.split(':');
-                    const rW = parseFloat(partsArr[0]);
-                    const rH = parseFloat(partsArr[1]);
-                    if (!isNaN(rW) && !isNaN(rH) && rH > 0) {
-                      if (rW > rH) {
-                        h = Math.round(baseDim * (rH / rW));
-                      } else {
-                        w = Math.round(baseDim * (rW / rH));
-                      }
-                    }
-                  }
-
-                  const sizedPrompt = `[${w}x${h}] ${text}`;
-
-                  // Mask retrieval
-                  let maskDataUrl = null;
-                  let baseImageUrl = null;
-                  const upstreamEdges = sortedUpstreamEdges(n.id);
-                  for (const { e } of upstreamEdges) {
-                    const srcNode = nodes[e.source];
-                    if (srcNode && srcNode.type === 'mask') {
-                      const maskMode = srcNode.data.maskOutputMode || 'mask';
-                      if (maskMode === 'mask') {
-                        if (srcNode.data.bwMaskState) {
-                          maskDataUrl = srcNode.data.bwMaskState;
-                          baseImageUrl = srcNode.data.images[0] || null;
-                          break;
-                        }
-                      }
-                    }
-                  }
-
-                  const allRefs = [...(n.data.images || []), ...inlineImages];
-                  const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
-
-                  let resolvedMask = null;
-                  if (maskDataUrl) {
-                    try {
-                      resolvedMask = await window.AIService.resolveImageToDataUrl(maskDataUrl);
-                    } catch (e) {
-                      console.error('Failed to resolve Gemini batch mask:', maskDataUrl, e);
-                    }
-                  }
-                  const compressedMask = resolvedMask ? await window.AIService.compressImage(resolvedMask, 1024, 1.0, 'image/png') : null;
-
-                  const parts = [{ text: sizedPrompt }];
-                  for (const img of refsToSend) {
-                    let resolved = null;
-                    try {
-                      resolved = await window.AIService.resolveImageToDataUrl(img);
-                    } catch (e) {
-                      console.error('Failed to resolve Gemini batch image ref:', img, e);
-                    }
-                    const compressed = resolved ? await window.AIService.compressImage(resolved, 1024, 0.85, 'image/jpeg') : null;
-                    if (compressed) {
-                      const mimeMatch = compressed.match(/^data:([^;]+);/);
-                      parts.push({ inline_data: { mime_type: mimeMatch?.[1] || 'image/jpeg', data: stripPrefix(compressed) } });
-                    }
-                  }
-
-                  if (compressedMask) {
-                    const mimeMask = compressedMask.match(/^data:([^;]+);/);
-                    parts.push({ inline_data: { mime_type: mimeMask ? mimeMask[1] : 'image/png', data: stripPrefix(compressedMask) } });
-                  }
-
-                  return {
-                    customId: n.id,
-                    model,
-                    contents: [{ role: 'user', parts }],
-                    generationConfig: {
-                      temperature: params.temperature ?? 0.4,
-                      ...(params.thinkingLevel && params.thinkingLevel !== 'none' && {
-                        thinkingConfig: { thinkingLevel: params.thinkingLevel === 'low' ? 'minimal' : params.thinkingLevel }
-                      }),
-                      responseModalities: ['IMAGE'],
-                      imageConfig: { aspectRatio }
-                    }
-                  };
-                } else {
-                  return {
-                    customId: n.id,
-                    model,
-                    contents: [{ role: 'user', parts: [{ text }] }],
-                    generationConfig: {
-                      temperature: params.temperature ?? 0.4,
-                      responseModalities: ['IMAGE'],
-                      ...(params.aspectRatio && { imageConfig: { aspectRatio: params.aspectRatio } })
-                    }
-                  };
-                }
-              }));
-
-              const resultMap = await window.AIService.submitGeminiBatch(requests, geminiKey);
-              let filled = 0;
-              for (const [nodeId, { imageUrl, error }] of resultMap) {
-                const node = nodes[nodeId];
-                if (!node) continue;
-                if (error) {
-                  if (window.showToast) window.showToast('節點錯誤：' + error, 3000);
-                  const placeholder = node.el?.querySelector('.swf-preview-placeholder');
-                  if (placeholder) {
-                    placeholder.style.display = 'flex';
-                    placeholder.textContent = '❌ ' + error;
-                  }
-                  continue;
-                }
-                if (!imageUrl) continue;
-                await saveNodeResult(node, imageUrl);
-                filled++;
-              }
-              propagateVisualImages();
-              triggerAutoSave();
-              if (window.showToast) window.showToast('✅ Gemini 批次完成，已回填 ' + filled + ' 個節點');
-            } finally {
-              otherBatch.forEach(n => _setNodeBatchPending(n, false));
-            }
-          } else {
-            // Fallback: client-side parallel synchronous concurrent calls
-            await Promise.all(otherBatch.map(n => executeSingleNode(n, true)));
-          }
-        }
-
-        // Dequeue only the entries that were processed in this topological wave
-        batchEntries.forEach(n => dequeueNodeBatch(n.id));
-      }
-
-      if (window.showToast) {
-        window.showToast('✅ 批次全部完成');
-      }
-    } catch (err) {
-      if (window.showToast) window.showToast('❌ 批次執行失敗：' + err.message, 5000);
-    } finally {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '提交批次'; }
-    }
+  // Generate one gpt-image node via the OpenAI Batch API. Same signature/return as
+  // AIService.generateWithGPTImage so executeSingleNode can swap it in transparently.
+  async function generateWithGPTImageBatch(prompt, apiKey, size, baseImage, options = {}) {
+    const refs = Array.isArray(baseImage) ? baseImage.filter(Boolean) : (baseImage ? [baseImage] : []);
+    const maskDataUrl = options.mask || null;
+    const images = [];
+    let maskObj = null;
+    // images[] / mask must be objects with a pre-uploaded file_id in batch JSON.
+    for (const r of refs) images.push({ file_id: await uploadImageToOpenAI(r, apiKey) });
+    if (maskDataUrl) maskObj = { file_id: await uploadImageToOpenAI(maskDataUrl, apiKey) };
+    const endpoint = images.length ? '/v1/images/edits' : '/v1/images/generations';
+    const body = {
+      model: 'gpt-image-2', prompt, n: 1, size: size || '1024x1024',
+      quality: options.quality || 'high', output_format: 'webp', output_compression: 80,
+      moderation: 'auto', background: options.background || 'auto',
+      ...(images.length && { images }),
+      ...(maskObj && { mask: maskObj })
+    };
+    const job = await window.AIService.submitOpenAIBatch([{ customId: 'single', endpoint, body }], apiKey);
+    window.StudioSettings?.saveBatchJob?.({ id: job.batchId, batchId: job.batchId, provider: 'openai',
+      type: 'image', status: job.status, nodeIds: [], submittedAt: Date.now() });
+    const s = await waitOpenAIBatch(job.batchId, apiKey); // resolves on completed; throws specific reason on fail
+    const fileId = s.outputFileId || s.errorFileId;
+    if (!fileId) throw new Error('批次完成但無結果檔');
+    const resultMap = await window.AIService.getOpenAIBatchResults(fileId, apiKey);
+    const r = resultMap.get('single') || [...resultMap.values()][0];
+    if (!r) throw new Error('批次完成但無結果');
+    if (r.error) throw new Error(r.error);
+    if (!r.imageUrl) throw new Error('批次完成但回應無圖片');
+    return r.imageUrl;
   }
 
   async function applyBatchResults(jobId) {
@@ -2888,32 +2526,68 @@
     let resultMap;
     if (job.provider === 'openai') {
       const apiKey = window.StudioSettings?.getOpenAIKey?.() || '';
-      let outputFileId = job.outputFileId;
-      if (!outputFileId) {
-        const s = await window.AIService.getOpenAIBatchStatus(job.batchId, apiKey);
-        outputFileId = s.outputFileId;
-        window.StudioSettings?.updateBatchJob?.(jobId, { status: s.status, outputFileId });
+      const s = await window.AIService.getOpenAIBatchStatus(job.batchId, apiKey);
+      window.StudioSettings?.updateBatchJob?.(jobId, { status: s.status, outputFileId: s.outputFileId, errorFileId: s.errorFileId });
+      if (!s.outputFileId && !s.errorFileId) throw new Error('結果尚未就緒（狀態：' + s.status + '）');
+      resultMap = new Map();
+      // Successful requests live in the output file; failed ones in the error file.
+      if (s.outputFileId) {
+        const m = await window.AIService.getOpenAIBatchResults(s.outputFileId, apiKey);
+        for (const [k, v] of m) resultMap.set(k, v);
       }
-      if (!outputFileId) throw new Error('結果尚未就緒（狀態：' + job.status + '）');
-      resultMap = await window.AIService.getOpenAIBatchResults(outputFileId, apiKey);
+      if (s.errorFileId) {
+        const em = await window.AIService.getOpenAIBatchResults(s.errorFileId, apiKey);
+        for (const [k, v] of em) if (!resultMap.has(k)) resultMap.set(k, v);
+      }
     } else {
       throw new Error('不支援的批次提供者：' + job.provider);
     }
 
-    let filled = 0;
+    console.log('[Batch] applyBatchResults: resultMap 共', resultMap.size, '筆，job.nodeIds=', job.nodeIds);
+    let filled = 0, failed = 0, lastError = '';
     for (const [nodeId, { imageUrl, content, error }] of resultMap) {
       const node = nodes[nodeId];
-      if (!node) continue;
-      if (error) { if (window.showToast) window.showToast(`節點 ${nodeId} 錯誤：${error}`, 3000); continue; }
+      if (!node) {
+        console.warn(`[Batch] 找不到節點 ${nodeId}（可能已刪除）`);
+        continue;
+      }
+      if (error) {
+        failed++; lastError = error;
+        console.error(`[Batch] 節點 ${nodeId} 失敗：`, error);
+        _setNodeError(node, error);
+        continue;
+      }
       const resultImageUrl = imageUrl || content;
-      if (!resultImageUrl) continue;
+      if (!resultImageUrl) {
+        failed++; lastError = '回應中沒有圖片資料';
+        console.error(`[Batch] 節點 ${nodeId} 完成但回應無圖片資料`);
+        _setNodeError(node, '完成但無圖片資料');
+        continue;
+      }
+      console.log(`[Batch] 節點 ${nodeId} 成功，回填圖片（${resultImageUrl.slice(0, 40)}…）`);
       await saveNodeResult(node, resultImageUrl);
       propagateVisualImages();
       filled++;
     }
     window.StudioSettings?.updateBatchJob?.(jobId, { status: job.provider === 'openai' ? 'completed' : 'JOB_STATE_SUCCEEDED' });
     triggerAutoSave();
-    if (window.showToast) window.showToast(`✅ 已回填 ${filled} 個節點圖像`);
+    console.log(`[Batch] 回填結束：成功 ${filled}，失敗 ${failed}${lastError ? '，最後錯誤：' + lastError : ''}`);
+    if (window.showToast) {
+      if (filled > 0) window.showToast(`✅ 已回填 ${filled} 個節點圖像${failed ? `（${failed} 個失敗）` : ''}`);
+      // Persistent (duration 0) so the failure reason doesn't vanish before you read it.
+      else window.showToast(`❌ 批次全部失敗（${failed} 個）${lastError ? '：' + lastError : ''}`, 0);
+    }
+  }
+
+  // Show a persistent error directly on the node's preview placeholder (doesn't vanish).
+  function _setNodeError(node, msg) {
+    if (!node || !node.el) return;
+    node.el.classList.remove('swf-executing');
+    const placeholder = node.el.querySelector('.swf-preview-placeholder');
+    if (placeholder) {
+      placeholder.style.display = 'flex';
+      placeholder.textContent = '❌ ' + msg;
+    }
   }
 
   // Mark/unmark a node as awaiting remote-batch results (reuses the executing visual).
@@ -3421,14 +3095,12 @@
         e.dataTransfer.setData('text/swf-image-src', previewImg.src);
         e.dataTransfer.effectAllowed = 'copy';
       });
-      runBtn.addEventListener('click', async () => await executeSingleNode(node));
+      runBtn.addEventListener('click', async () => await executeSingleNode(node, false, false));
 
+      // 批次 button = same generation as 生成, but routes gpt-image through Batch API.
       const batchBtn = el.querySelector('.swf-batch-btn');
       if (batchBtn) {
-        batchBtn.addEventListener('click', () => {
-          if (_batchQueue.has(node.id)) dequeueNodeBatch(node.id);
-          else enqueueNodeBatch(node);
-        });
+        batchBtn.addEventListener('click', async () => await executeSingleNode(node, false, true));
       }
     }
   }
@@ -4254,7 +3926,7 @@
    * @param {Object} node - The node to execute
    * @param {boolean} skipImageReset - When true (called from executeGroup), don't reset node images
    */
-  async function executeSingleNode(node, skipImageReset) {
+  async function executeSingleNode(node, skipImageReset, useBatchApi = false) {
     if (node.type === 'note') return; // note nodes have no generation
     if (node.type === 'mask') {
       // Mask nodes have no run button, their mask is generated manually in the editor modal.
@@ -4265,11 +3937,15 @@
       propagateVisualImages();
       return;
     }
-    const runBtn = node.el.querySelector('.swf-run-btn');
+    // The button that triggered this run shows the loading state (生成 vs 生成（Batch）).
+    const runBtn = node.el.querySelector(useBatchApi ? '.swf-batch-btn' : '.swf-run-btn');
+    const otherBtn = node.el.querySelector(useBatchApi ? '.swf-run-btn' : '.swf-batch-btn');
+    const runBtnLabel = ICONS.play + (useBatchApi ? ' 生成（Batch）' : ' 生成（API）');
     const placeholder = node.el.querySelector('.swf-preview-placeholder');
     const imgEl = node.el.querySelector('.swf-preview-img');
     const dlBtn = node.el.querySelector('.swf-download-btn');
 
+    if (otherBtn) otherBtn.disabled = true; // prevent firing the other variant mid-run
     runBtn.disabled = true; runBtn.classList.add('btn-loading'); runBtn.textContent = 'Generating...';
     node.el.classList.add('swf-executing');
     placeholder.style.display = 'flex'; placeholder.textContent = 'Generating... (0s)';
@@ -4602,7 +4278,9 @@
         const genOnce = async (apiKey) => {
           if (model === 'gptimage') {
             const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
-            return await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', refsToSend.length > 0 ? refsToSend : null, {
+            // Only gpt-image splits sync vs batch — the sole API/Batch-API difference.
+            const genFn = useBatchApi ? generateWithGPTImageBatch : window.AIService.generateWithGPTImage;
+            return await genFn(text, apiKey, params.gptImageSize || '1024x1024', refsToSend.length > 0 ? refsToSend : null, {
               quality: params.quality || 'low',
               background: params.gptBackground || 'auto',
               input_fidelity: params.gptFidelity || 'high',
@@ -4676,14 +4354,15 @@
       if (window.showToast) window.showToast('❌ ' + err.message);
     } finally {
       clearInterval(timer);
-      runBtn.disabled = false; runBtn.classList.remove('btn-loading'); runBtn.innerHTML = ICONS.play + ' 生成';
+      runBtn.disabled = false; runBtn.classList.remove('btn-loading'); runBtn.innerHTML = runBtnLabel;
+      if (otherBtn) otherBtn.disabled = false;
       node.el.classList.remove('swf-executing');
       propagateVisualImages(); // visually push the generated image to downstream nodes immediately
     }
   }
 
   /** Group execution: find entry & exit nodes, aggregate results */
-  async function executeGroup(groupId) {
+  async function executeGroup(groupId, useBatchApi = false) {
     const group = groups[groupId]; if (!group) return;
     const members = getGroupMembers(groupId);
     if (members.length === 0) {
@@ -4708,7 +4387,7 @@
         n.data.images = assembleNodeImages(n, collectNodeUpstreamContribs(n));
 
         // Execute passing true for skipImageReset so it doesn't clear our carefully gathered images
-        return executeSingleNode(n, true);
+        return executeSingleNode(n, true, useBatchApi);
       }));
     }
 
@@ -4753,9 +4432,16 @@
   }
 
   /** Execute all: topological sort across all entities */
-  async function executeAll() {
-    const runAllBtn = document.getElementById('swfRunAll');
-    runAllBtn.disabled = true; runAllBtn.classList.add('btn-loading'); runAllBtn.textContent = '執行中...';
+  // useBatchApi=false → sync "執行全部" (swfRunAll); true → "提交批次" (swfBatchSubmit).
+  // Both run the identical topo-wave logic; only gpt-image's underlying API differs.
+  async function executeAll(useBatchApi = false) {
+    const btn = document.getElementById(useBatchApi ? 'swfBatchSubmit' : 'swfRunAll');
+    const origHTML = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.classList.add('btn-loading'); btn.textContent = useBatchApi ? '批次執行中...' : '執行中...'; }
+
+    const restore = () => {
+      if (btn) { btn.disabled = false; btn.classList.remove('btn-loading'); btn.innerHTML = origHTML; }
+    };
 
     // Build list of all executable entities (standalone nodes + groups)
     // Nodes inside groups are handled by executeGroup
@@ -4770,21 +4456,21 @@
     }
     const allEntityIds = [...standaloneNodeIds, ...Object.keys(groups)];
 
-    if (allEntityIds.length === 0) {
-      runAllBtn.disabled = false; runAllBtn.classList.remove('btn-loading'); runAllBtn.innerHTML = ICONS.play + ' 執行全部'; return;
-    }
+    if (allEntityIds.length === 0) { restore(); return; }
 
-    const sorted = topoSort(allEntityIds);
-    for (const batch of sorted) {
-      await Promise.all(batch.map(id => {
-        if (isGroup(id)) return executeGroup(id);
-        if (nodes[id]) return executeSingleNode(nodes[id]);
-        return Promise.resolve();
-      }));
+    try {
+      const sorted = topoSort(allEntityIds);
+      for (const batch of sorted) {
+        await Promise.all(batch.map(id => {
+          if (isGroup(id)) return executeGroup(id, useBatchApi);
+          if (nodes[id]) return executeSingleNode(nodes[id], false, useBatchApi);
+          return Promise.resolve();
+        }));
+      }
+      if (window.showToast) window.showToast(useBatchApi ? '✅ 批次工作流執行完畢' : '✅ 全部工作流執行完畢');
+    } finally {
+      restore();
     }
-
-    runAllBtn.disabled = false; runAllBtn.classList.remove('btn-loading'); runAllBtn.innerHTML = ICONS.play + ' 執行全部';
-    if (window.showToast) window.showToast('✅ 全部工作流執行完畢');
   }
 
   // ═══════════════════════════════════════════
@@ -5570,8 +5256,8 @@
   document.getElementById('swfAddFal')?.addEventListener('click', () => { saveUndoState(); createMacroNode('fal'); });
   document.getElementById('swfAddNote')?.addEventListener('click', () => { saveUndoState(); createNoteNode(); });
   document.getElementById('swfAddGroup')?.addEventListener('click', () => { saveUndoState(); createGroup(); });
-  document.getElementById('swfRunAll')?.addEventListener('click', executeAll);
-  document.getElementById('swfBatchSubmit')?.addEventListener('click', () => executeBatch());
+  document.getElementById('swfRunAll')?.addEventListener('click', () => executeAll(false));
+  document.getElementById('swfBatchSubmit')?.addEventListener('click', () => executeAll(true));
   document.getElementById('swfSaveBtn')?.addEventListener('click', saveWorkflow);
   document.getElementById('swfLoadBtn')?.addEventListener('click', loadWorkflow);
   document.getElementById('swfExportBtn')?.addEventListener('click', exportWorkflowJSON);
@@ -5709,7 +5395,7 @@
     getNodes: () => nodes, getGroups: () => groups, getEdges: () => edges,
     renderSwfAssets, initSwfPromptQuickBar,
     propagateVisualImages, resolveGroupFolderImages,
-    executeBatch, applyBatchResults
+    applyBatchResults
   };
   window.SWF = window.SimpleWorkflow;
 

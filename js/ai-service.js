@@ -1040,11 +1040,16 @@ ${JSON.stringify(analysis)}`;
       throw new Error(err.error?.message || `OpenAI batch status error (${res.status})`);
     }
     const data = await res.json();
+    // Batch-level failures (bad input file, invalid endpoint, etc.) are reported
+    // in data.errors.data[].message — surface them so callers can show the reason.
+    const batchErrors = (data.errors?.data || [])
+      .map(e => e.message || e.code).filter(Boolean).join('; ') || null;
     return {
       status: data.status,
       outputFileId: data.output_file_id || null,
       errorFileId: data.error_file_id || null,
-      requestCounts: data.request_counts || {}
+      requestCounts: data.request_counts || {},
+      batchErrors
     };
   }
 
@@ -1057,21 +1062,29 @@ ${JSON.stringify(analysis)}`;
       throw new Error(err.error?.message || `OpenAI file download error (${res.status})`);
     }
     const text = await res.text();
+    console.log('[Batch] 原始結果檔內容 (' + outputFileId + '):\n', text);
     const resultMap = new Map();
     for (const line of text.split('\n').filter(Boolean)) {
       try {
         const item = JSON.parse(line);
         const body = item.response?.body;
+        const statusCode = item.response?.status_code;
         // Image generation response: data[].b64_json
         const b64 = body?.data?.[0]?.b64_json ?? null;
         const urlResult = body?.data?.[0]?.url ?? null;
         const imageUrl = b64 ? `data:image/webp;base64,${b64}` : urlResult;
         // Text chat completion response: choices[].message.content
         const content = body?.choices?.[0]?.message?.content ?? null;
-        const error = item.error?.message ?? null;
+        // Per-request failures live in response.body.error (error file) or the
+        // top-level error field — surface whichever is present.
+        const error = item.error?.message ?? body?.error?.message ?? null;
+        console.log(`[Batch] custom_id=${item.custom_id} status=${statusCode} hasImage=${!!imageUrl} error=${error || '無'}`);
         resultMap.set(item.custom_id, { imageUrl, content, error });
-      } catch { /* skip malformed lines */ }
+      } catch (e) {
+        console.warn('[Batch] 無法解析結果行：', line, e);
+      }
     }
+    console.log('[Batch] 解析完成，共', resultMap.size, '筆結果');
     return resultMap;
   }
 

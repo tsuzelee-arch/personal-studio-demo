@@ -93,10 +93,17 @@ window.showToast = function(msg, duration = 2000) {
   t.classList.remove('hidden');
   t.classList.add('show');
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => {
-    t.classList.add('hidden');
-    t.classList.remove('show');
-  }, duration);
+  const dismiss = () => { t.classList.add('hidden'); t.classList.remove('show'); };
+  // duration <= 0 → persistent (won't auto-vanish); click the toast to dismiss it.
+  if (duration > 0) {
+    t._timer = setTimeout(dismiss, duration);
+    t.style.cursor = '';
+    t.onclick = null;
+  } else {
+    t.style.cursor = 'pointer';
+    t.title = '點擊關閉';
+    t.onclick = dismiss;
+  }
 };
 
 // Switch to a panel programmatically

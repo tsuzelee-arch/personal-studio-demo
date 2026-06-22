@@ -594,8 +594,9 @@
   border-color: var(--border);
 }
 
-/* Prominent "同步執行" (synchronized group run) button */
-.swf-grp-run-btn {
+/* 同步執行 + 執行批次: identical solid-warm pair (same spec). */
+.swf-grp-run-btn,
+.swf-grp-batch-run-btn {
   background: var(--warm) !important;
   color: var(--ink) !important;
   font-weight: 600;
@@ -605,39 +606,8 @@
   font-size: 12px !important;
   border: none !important;
 }
-.swf-grp-run-btn:hover { background: var(--warm-dark) !important; filter: none; }
-
-/* Group batch buttons — unified dimensions with 同步執行 (12px / 600 / 0 10px) */
-.swf-grp-batch-all-btn,
-.swf-grp-batch-run-btn {
-  width: auto !important;
-  padding: 0 10px !important;
-  font-size: 12px !important;
-  font-weight: 600;
-  gap: 5px;
-  border-radius: 4px;
-  transition: background .15s, color .15s, border-color .15s;
-}
-/* 批次全選: outlined warm → active solid warm (matches node 批次 button) */
-.swf-grp-batch-all-btn {
-  background: transparent !important;
-  color: var(--warm-dark, #a16207) !important;
-  border: 1.5px solid var(--warm) !important;
-}
-.swf-grp-batch-all-btn:hover { background: rgba(200,169,110,0.18) !important; }
-.swf-grp-batch-all-btn.active {
-  background: var(--warm) !important;
-  color: var(--ink) !important;
-  border-color: var(--warm) !important;
-}
-.swf-grp-batch-all-btn.active:hover { background: var(--warm-dark) !important; }
-/* 執行批次: solid warm action button, prominent like 同步執行 */
-.swf-grp-batch-run-btn {
-  background: var(--warm) !important;
-  color: var(--ink) !important;
-  border: none !important;
-}
-.swf-grp-batch-run-btn:hover { background: var(--warm-dark) !important; }
+.swf-grp-run-btn:hover,
+.swf-grp-batch-run-btn:hover { background: var(--warm-dark) !important; filter: none; }
 
 /* Group Ports (larger than node ports) */
 .swf-group-port {
@@ -1955,27 +1925,24 @@
   align-items: stretch;
   gap: 6px;
 }
-.swf-run-row .swf-run-btn { flex: 2; min-width: 0; width: auto; box-sizing: border-box; }
-.swf-run-row .swf-batch-btn { flex: 1; min-width: 0; box-sizing: border-box; }
+/* 生成（API） and 生成（Batch）: identical spec, equal width (1:1) matched pair. */
+.swf-run-row .swf-run-btn,
+.swf-run-row .swf-batch-btn { flex: 1; min-width: 0; width: auto; box-sizing: border-box; }
 .swf-batch-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  padding: 7px 10px;
-  border: 1.5px solid var(--warm);
+  padding: 7px;
+  border: none;
   border-radius: 6px;
   cursor: pointer;
-  color: var(--warm);
-  background: transparent;
-  transition: background .15s, color .15s;
-}
-.swf-batch-btn:hover { background: rgba(200,169,110,0.12); }
-.swf-batch-btn:active { transform: scale(0.97); }
-.swf-batch-btn.active {
-  background: var(--warm);
   color: var(--ink);
-  border-color: var(--warm);
+  background: var(--warm);
+  transition: background .15s;
 }
-.swf-batch-btn.active:hover { background: var(--warm-dark); border-color: var(--warm-dark); }
+.swf-batch-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.swf-batch-btn:hover { background: var(--warm-dark); }
+.swf-batch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
