@@ -994,14 +994,13 @@ ${JSON.stringify(analysis)}`;
       url: r.endpoint || '/v1/images/generations',
       body: r.body
     }));
-    const jsonlText = lines.join('\n');
+    const jsonlText = lines.join('\n') + '\n';
     const encoder = new TextEncoder();
     const jsonlUint8 = encoder.encode(jsonlText);
     const jsonlBlob = new Blob([jsonlUint8], { type: 'application/jsonl; charset=utf-8' });
-    const jsonlFile = new File([jsonlBlob], 'batch_input.jsonl', { type: 'application/jsonl' });
     const formData = new FormData();
     formData.append('purpose', 'batch');
-    formData.append('file', jsonlFile);
+    formData.append('file', jsonlBlob, 'batch_input.jsonl');
 
     const uploadRes = await fetchWithTimeout('https://api.openai.com/v1/files', {
       method: 'POST',
@@ -1109,13 +1108,14 @@ ${JSON.stringify(analysis)}`;
         }
         const data = await res.json();
         const parts = data.candidates?.[0]?.content?.parts || [];
-        const imgPart = parts.find(p => p.inlineData?.mimeType?.startsWith('image/'));
+        const imgPart = parts.find(p => p.inlineData && (p.inlineData.mimeType || p.inlineData.mime_type || '').startsWith('image/'));
         if (!imgPart) {
           resultMap.set(r.customId, { error: '無圖像輸出（模型可能未回傳圖片）' });
           return;
         }
-        const { mimeType, data: b64 } = imgPart.inlineData;
-        resultMap.set(r.customId, { imageUrl: 'data:' + mimeType + ';base64,' + b64 });
+        const mime = imgPart.inlineData.mimeType || imgPart.inlineData.mime_type || 'image/png';
+        const b64 = imgPart.inlineData.data;
+        resultMap.set(r.customId, { imageUrl: 'data:' + mime + ';base64,' + b64 });
       } catch (e) {
         resultMap.set(r.customId, { error: e.message });
       }

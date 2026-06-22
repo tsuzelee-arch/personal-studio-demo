@@ -2926,7 +2926,13 @@
     } else {
       node.el.classList.remove('swf-executing');
       const hasImg = node.resultImages && node.resultImages.length;
-      if (placeholder && !hasImg) { placeholder.style.display = 'flex'; placeholder.textContent = '生成結果將顯示於此'; }
+      if (placeholder && !hasImg) {
+        // Keep the placeholder content if it indicates an error (starts with ❌)
+        if (!placeholder.textContent.startsWith('❌')) {
+          placeholder.style.display = 'flex';
+          placeholder.textContent = '生成結果將顯示於此';
+        }
+      }
     }
   }
 
@@ -2957,7 +2963,21 @@
           return;
         }
         if (['failed', 'cancelled', 'expired'].includes(s.status)) {
+          const errMsg = `❌ 批次${s.status}`;
           if (window.showToast) window.showToast('❌ GPT Image 批次：' + s.status, 4000);
+          
+          // Fill error info into placeholders before clearing pending state
+          const job = window.StudioSettings?.getBatchJobs?.().find(j => j.batchId === batchId);
+          if (job && job.nodeIds) {
+            job.nodeIds.forEach(id => {
+              const n = nodes[id];
+              const placeholder = n?.el?.querySelector('.swf-preview-placeholder');
+              if (placeholder) {
+                placeholder.style.display = 'flex';
+                placeholder.textContent = errMsg;
+              }
+            });
+          }
           finish();
           return;
         }
