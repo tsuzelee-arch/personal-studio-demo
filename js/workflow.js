@@ -1596,7 +1596,8 @@
                 imageUrl = await window.AIService.generateWithGPTImage(finalPrompt, apiKey, gptSize, i2iBase, {
                   quality:        state.quality       || 'low',
                   background:     state.gptBackground || 'auto',
-                  input_fidelity: state.gptFidelity   || 'high'
+                  input_fidelity: state.gptFidelity   || 'high',
+                  mask:           state.mask          || null
                 });
               } else if (finalModel === 'nanobanana2') {
                 imageUrl = await window.AIService.generateWithNanoBanana2(

@@ -13,19 +13,56 @@ window.AIService = (function() {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
-        let { width, height } = img;
-        if (width <= maxDim && height <= maxDim) { resolve(dataUrl); return; }
-        if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
-        else { width = Math.round(width * maxDim / height); height = maxDim; }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL(outputFormat, quality));
+        try {
+          let { width, height } = img;
+          if (width <= maxDim && height <= maxDim) { resolve(dataUrl); return; }
+          if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+          else { width = Math.round(width * maxDim / height); height = maxDim; }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL(outputFormat, quality));
+        } catch (e) {
+          console.error('compressImage canvas process failed, resolving with original dataUrl:', e);
+          resolve(dataUrl);
+        }
       };
       img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
     });
+  }
+
+  async function resolveImageToDataUrl(img) {
+    if (!img) return null;
+    if (img.startsWith('data:')) return img;
+    
+    let target = img;
+    if (!img.startsWith('blob:') && !img.startsWith('http:') && !img.startsWith('https:')) {
+      if (window.AssetManager && typeof window.AssetManager.getFileBlobUrlByPath === 'function' && window.AssetManager.isConnected()) {
+        try {
+          const blobUrl = await window.AssetManager.getFileBlobUrlByPath(img);
+          if (blobUrl) {
+            target = blobUrl;
+          }
+        } catch (e) {
+          console.error('[AI Service] AssetManager failed to resolve path:', img, e);
+        }
+      }
+    }
+    
+    const r = await fetch(target);
+    const blob = await r.blob();
+    if (window.StudioUtils && typeof window.StudioUtils.fileToDataURL === 'function') {
+      return await window.StudioUtils.fileToDataURL(blob);
+    } else {
+      return await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onloadend = () => res(reader.result);
+        reader.onerror = rej;
+        reader.readAsDataURL(blob);
+      });
+    }
   }
 
   function fetchWithTimeout(url, opts = {}, timeoutMs = 60000) {
@@ -538,21 +575,23 @@ ${JSON.stringify(analysis)}`;
     }
 
     const sizedPrompt = `[${w}x${h}] ${prompt}`;
-    const compressedMask = mask ? await compressImage(mask, 1024, 1.0, 'image/png') : null;
+    let resolvedMask = null;
+    if (mask) {
+      try {
+        resolvedMask = await resolveImageToDataUrl(mask);
+      } catch (e) {
+        console.error('Failed to resolve mask URL/path to base64 dataUrl:', mask, e);
+      }
+    }
+    const compressedMask = resolvedMask ? await compressImage(resolvedMask, 1024, 1.0, 'image/png') : null;
     const parts = [{ text: sizedPrompt }];
     const imageArray = Array.isArray(images) ? images : (images ? [images] : []);
     for (const img of imageArray) {
-      // Defensive: a stale blob: URL (e.g. from an old saved workflow) cannot be
-      // base64-decoded by the API. Resolve it to a dataURL first, or skip it.
-      let resolved = img;
-      if (img && img.startsWith('blob:')) {
-        try {
-          const r = await fetch(img);
-          const blob = await r.blob();
-          resolved = await window.StudioUtils.fileToDataURL(blob);
-        } catch {
-          resolved = null;
-        }
+      let resolved = null;
+      try {
+        resolved = await resolveImageToDataUrl(img);
+      } catch (e) {
+        console.error('Failed to resolve image URL/path to base64 dataUrl:', img, e);
       }
       const compressed = resolved ? await compressImage(resolved, 1024, 0.85, 'image/jpeg') : null;
       if (compressed) {
@@ -591,7 +630,28 @@ ${JSON.stringify(analysis)}`;
     const refImages = Array.isArray(baseImage)
       ? baseImage.filter(Boolean)
       : (baseImage ? [baseImage] : []);
-    const isEdit = refImages.length > 0;
+
+    // Resolve all references to base64 data URLs
+    const resolvedRefs = [];
+    for (const ref of refImages) {
+      try {
+        const resolved = await resolveImageToDataUrl(ref);
+        if (resolved) resolvedRefs.push(resolved);
+      } catch (e) {
+        console.error('[GPT Image 2] Failed to resolve reference image:', ref, e);
+      }
+    }
+
+    let resolvedMask = null;
+    if (options.mask) {
+      try {
+        resolvedMask = await resolveImageToDataUrl(options.mask);
+      } catch (e) {
+        console.error('[GPT Image 2] Failed to resolve mask image:', options.mask, e);
+      }
+    }
+
+    const isEdit = resolvedRefs.length > 0 || !!resolvedMask;
     const url = isEdit ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations';
     
     let body;
@@ -615,12 +675,21 @@ ${JSON.stringify(analysis)}`;
       formData.append('output_compression', '80');
       formData.append('moderation', 'auto');
 
-      // Convert each dataURL to Blob and append as image[] so gpt-image-2 edits
-      // receives every reference image (not just the first).
-      for (let i = 0; i < refImages.length; i++) {
-        const blobRes = await fetch(refImages[i]);
-        const blob = await blobRes.blob();
-        formData.append('image[]', blob, `ref_${i}.png`);
+      // The base image: use the first item in resolvedRefs. Convert to PNG.
+      const baseImg = resolvedRefs[0];
+      if (baseImg) {
+        const pngDataUrl = await compressImage(baseImg, 1024, 1.0, 'image/png');
+        const baseRes = await fetch(pngDataUrl);
+        const baseBlob = await baseRes.blob();
+        formData.append('image', baseBlob, 'image.png');
+      }
+
+      // The mask image: use resolvedMask if available. Convert to PNG.
+      if (resolvedMask) {
+        const maskPngDataUrl = await compressImage(resolvedMask, 1024, 1.0, 'image/png');
+        const maskRes = await fetch(maskPngDataUrl);
+        const maskBlob = await maskRes.blob();
+        formData.append('mask', maskBlob, 'mask.png');
       }
       body = formData;
     } else {
@@ -919,13 +988,10 @@ ${JSON.stringify(analysis)}`;
     // Each request: { customId, endpoint, body }
     // endpoint defaults to '/v1/images/generations' for image nodes;
     // can also be '/v1/chat/completions', '/v1/images/edits', etc.
-    const lines = requests.map(r => JSON.stringify({
-      custom_id: r.customId,
-      method: 'POST',
-      url: r.endpoint || '/v1/images/generations',
-      body: r.body
-    }));
-    const jsonlBlob = new Blob([lines.join('\n')], { type: 'application/jsonl' });
+    const jsonlText = lines.join('\n');
+    const encoder = new TextEncoder();
+    const jsonlUint8 = encoder.encode(jsonlText);
+    const jsonlBlob = new Blob([jsonlUint8], { type: 'text/plain' });
     const formData = new FormData();
     formData.append('purpose', 'batch');
     formData.append('file', jsonlBlob, 'batch_input.jsonl');
@@ -992,7 +1058,8 @@ ${JSON.stringify(analysis)}`;
         const body = item.response?.body;
         // Image generation response: data[].b64_json
         const b64 = body?.data?.[0]?.b64_json ?? null;
-        const imageUrl = b64 ? `data:image/webp;base64,${b64}` : null;
+        const urlResult = body?.data?.[0]?.url ?? null;
+        const imageUrl = b64 ? `data:image/webp;base64,${b64}` : urlResult;
         // Text chat completion response: choices[].message.content
         const content = body?.choices?.[0]?.message?.content ?? null;
         const error = item.error?.message ?? null;
@@ -1073,6 +1140,7 @@ ${JSON.stringify(analysis)}`;
     resolveApiKey,
     analyze,
     compressImage,
+    resolveImageToDataUrl,
     SYSTEM_PROMPT,
     checkNanoAvailability,
     generateTextNano,

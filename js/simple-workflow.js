@@ -788,9 +788,9 @@
         </span>
         <span class="swf-grp-spacer"></span>
         <div class="swf-group-actions">
-          <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>
           <button class="swf-grp-batch-all-btn" title="將群組內所有圖像節點加入批次佇列">批次全選</button>
           <button class="swf-grp-batch-run-btn" title="只提交此群組的批次節點" style="display:none">執行批次</button>
+          <button class="swf-grp-run-btn" title="同步執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>同步執行</button>
           <button class="swf-grp-collapse-btn" title="摺疊/展開群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <button class="swf-grp-del-btn" title="關閉/刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
@@ -2251,8 +2251,7 @@
         <div class="swf-preview-area" data-node="${id}"><span class="swf-preview-placeholder">生成結果將顯示於此</span><img class="swf-preview-img" style="display:none;"><button class="swf-download-btn" title="下載">${ICONS.download}</button></div>
         <div class="swf-run-row">
           <button class="swf-run-btn" data-node="${id}">${ICONS.play} 生成</button>
-          <button class="swf-batch-btn btn-ghost btn-sm" data-node="${id}" title="加入批次佇列">批次</button>
-          <span class="swf-batch-badge" style="display:none">批次中</span>
+          <button class="swf-batch-btn" data-node="${id}" title="加入批次佇列">批次</button>
         </div>
         <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
       `;
@@ -2372,20 +2371,28 @@
   // ═══════════════════════════════════════════
   const _batchQueue = new Map();
 
-  // Update group "執行批次" button visibility for a given node's parent groups
-  function _updateGroupBatchRunBtns() {
+  // Sync each group's batch buttons with the queue:
+  //  - 執行批次 visible only when the group has queued nodes
+  //  - 批次全選 reflects select-all / deselect-all state (active + label)
+  function _updateGroupBatchBtns() {
     for (const [gid, g] of Object.entries(groups)) {
-      const members = getGroupMembers(gid);
-      const hasBatch = members.some(m => _batchQueue.has(m.id));
-      const btn = g.el?.querySelector('.swf-grp-batch-run-btn');
-      if (btn) btn.style.display = hasBatch ? '' : 'none';
+      const batchable = getGroupMembers(gid).filter(n => n.type !== 'note' && n.type !== 'mask');
+      const queuedCount = batchable.filter(m => _batchQueue.has(m.id)).length;
+      const allQueued = batchable.length > 0 && queuedCount === batchable.length;
+
+      const runBtn = g.el?.querySelector('.swf-grp-batch-run-btn');
+      if (runBtn) runBtn.style.display = queuedCount > 0 ? '' : 'none';
+
+      const allBtn = g.el?.querySelector('.swf-grp-batch-all-btn');
+      if (allBtn) {
+        allBtn.classList.toggle('active', allQueued);
+        allBtn.textContent = allQueued ? '取消全選' : '批次全選';
+      }
     }
   }
 
-  function enqueueNodeBatch(node) {
+  function enqueueNodeBatch(node, silent = false) {
     _batchQueue.set(node.id, node);
-    const badge = node.el.querySelector('.swf-batch-badge');
-    if (badge) badge.style.display = '';
     const batchBtn = node.el.querySelector('.swf-batch-btn');
     if (batchBtn) { batchBtn.textContent = '移出批次'; batchBtn.classList.add('active'); }
     const submitBtn = document.getElementById('swfBatchSubmit');
@@ -2393,16 +2400,14 @@
       submitBtn.style.display = '';
       submitBtn.className = 'btn-primary btn-sm';
     }
-    _updateGroupBatchRunBtns();
-    if (window.showToast) window.showToast(`已加入批次（共 ${_batchQueue.size} 個節點）`);
+    _updateGroupBatchBtns();
+    if (!silent && window.showToast) window.showToast(`已加入批次（共 ${_batchQueue.size} 個節點）`);
   }
 
   function dequeueNodeBatch(nodeId) {
     _batchQueue.delete(nodeId);
     const node = nodes[nodeId];
     if (node) {
-      const badge = node.el.querySelector('.swf-batch-badge');
-      if (badge) badge.style.display = 'none';
       const batchBtn = node.el.querySelector('.swf-batch-btn');
       if (batchBtn) { batchBtn.textContent = '批次'; batchBtn.classList.remove('active'); }
     }
@@ -2410,19 +2415,177 @@
       const submitBtn = document.getElementById('swfBatchSubmit');
       if (submitBtn) { submitBtn.style.display = 'none'; submitBtn.className = 'btn-ghost btn-sm'; }
     }
-    _updateGroupBatchRunBtns();
+    _updateGroupBatchBtns();
   }
 
+  // Toggle: if every batchable member is already queued, remove them all; otherwise add all.
   function groupBatchSelectAll(groupId) {
-    const members = getGroupMembers(groupId);
-    const batchable = members.filter(n => n.type !== 'note' && n.type !== 'mask');
+    const batchable = getGroupMembers(groupId).filter(n => n.type !== 'note' && n.type !== 'mask');
     if (batchable.length === 0) { if (window.showToast) window.showToast('群組內沒有可批次的圖像節點'); return; }
-    batchable.forEach(n => { if (!_batchQueue.has(n.id)) enqueueNodeBatch(n); });
+    const allQueued = batchable.every(n => _batchQueue.has(n.id));
+    if (allQueued) {
+      batchable.forEach(n => dequeueNodeBatch(n.id));
+      if (window.showToast) window.showToast(`已移出群組批次（${batchable.length} 個節點）`);
+    } else {
+      batchable.forEach(n => { if (!_batchQueue.has(n.id)) enqueueNodeBatch(n, true); });
+      if (window.showToast) window.showToast(`已加入群組批次（${batchable.length} 個節點）`);
+    }
   }
 
   function executeGroupBatch(groupId) {
     const memberIds = new Set(getGroupMembers(groupId).map(n => n.id));
     executeBatch(memberIds);
+  }
+
+  async function saveNodeResult(node, imageUrl, preprocessResults = null) {
+    const imgEl = node.el.querySelector('.swf-preview-img');
+    const placeholder = node.el.querySelector('.swf-preview-placeholder');
+    const dlBtn = node.el.querySelector('.swf-download-btn');
+
+    let savedImages = preprocessResults || [imageUrl];
+    const model = node.data.model || '';
+    const autoCfg = (model === 'preprocess') ? null : getNodePostAutomationConfig(node);
+    if (autoCfg && window.ImageProcess?.processImageInMemory && imageUrl) {
+      try {
+        const results = await window.ImageProcess.processImageInMemory(imageUrl, autoCfg);
+        if (Array.isArray(results) && results.length) savedImages = results;
+      } catch (e) {
+        console.error('Post-automation failed:', e);
+        if (window.showToast) window.showToast('⚠️ 完成後自動化失敗，存原圖：' + e.message, 3000);
+      }
+    }
+
+    if (imgEl) { imgEl.src = savedImages[0]; imgEl.style.display = 'block'; }
+    if (placeholder) placeholder.style.display = 'none';
+    if (dlBtn) dlBtn.style.display = 'block';
+    node.resultImages = [...savedImages];
+
+    let targetFolder = '';
+    const nodeInput = node.el.querySelector('.swf-node-folder');
+    if (nodeInput && nodeInput.value.trim()) {
+      targetFolder = nodeInput.value.trim();
+    } else {
+      // Inherit from parent group if exists
+      let parentGroup = null;
+      for (const gid in groups) {
+        const g = groups[gid];
+        if (node.x >= g.x && node.y >= g.y && node.x + node.width <= g.x + g.width && node.y + node.el.offsetHeight <= g.y + g.height) {
+          parentGroup = g; break;
+        }
+      }
+      if (parentGroup) {
+        const groupInput = parentGroup.el.querySelector('.swf-gps-folder');
+        if (groupInput && groupInput.value.trim()) {
+          targetFolder = groupInput.value.trim();
+        }
+      }
+    }
+    if (!targetFolder || targetFolder === '已完成') targetFolder = '根目錄';
+
+    const num = getNodeGroupNumber(node);
+    const prefix = (node.data.namePrefix || '').trim()
+                || (window.StudioSettings?.getFilenamePattern?.() || '');
+    const suffix = (node.data.nameSuffix || '').trim();
+    const baseName = (num != null)
+      ? `${prefix}${num}${suffix}`
+      : `${prefix || 'SWF'}_${Date.now()}${suffix}`;
+
+    if (window.AssetManager) {
+      for (let i = 0; i < savedImages.length; i++) {
+        const outName = savedImages.length === 1 ? baseName : `${baseName}_${i + 1}`;
+        await window.AssetManager.saveAsset(outName, savedImages[i], targetFolder, node.data.overwrite === true);
+        window.dispatchEvent(new CustomEvent('node-saved-asset', {
+          detail: { filename: outName, folder: targetFolder, node }
+        }));
+      }
+    }
+  }
+
+  // Group-aware topological sort specifically for batch queue entries
+  function batchTopoSort(nodeIds) {
+    const idSet = new Set(nodeIds);
+    const inDegree = {};
+    const adj = {};
+    nodeIds.forEach(id => { inDegree[id] = 0; adj[id] = []; });
+    
+    nodeIds.forEach(id => {
+      // getNodeDependencies checks both direct connections and group port entries
+      const deps = getNodeDependencies(id);
+      deps.forEach(depId => {
+        if (idSet.has(depId)) {
+          // depId must execute before id (depId -> id)
+          adj[depId].push(id);
+          inDegree[id]++;
+        }
+      });
+    });
+
+    const batches = [];
+    let queue = nodeIds.filter(id => inDegree[id] === 0);
+    while (queue.length > 0) {
+      batches.push([...queue]);
+      const next = [];
+      queue.forEach(id => {
+        adj[id].forEach(target => {
+          inDegree[target]--;
+          if (inDegree[target] === 0) next.push(target);
+        });
+      });
+      queue = next;
+    }
+    return batches;
+  }
+
+  // Helper to upload images/masks to OpenAI Files API for Batch reference
+  async function uploadImageToOpenAI(dataUrlOrUrl, apiKey) {
+    let resolved = await window.AIService.resolveImageToDataUrl(dataUrlOrUrl);
+    // Compress base/mask image to PNG as required for Batch gpt-image-2 edits
+    resolved = await window.AIService.compressImage(resolved, 1024, 1.0, 'image/png');
+
+    const res = await fetch(resolved);
+    const blob = await res.blob();
+    const formData = new FormData();
+    formData.append('purpose', 'batch');
+    formData.append('file', blob, 'image.png');
+
+    const uploadRes = await fetch('https://api.openai.com/v1/files', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      body: formData
+    });
+
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json().catch(() => ({}));
+      throw new Error(err.error?.message || `OpenAI 參考圖片上傳失敗 (${uploadRes.status})`);
+    }
+
+    const data = await uploadRes.json();
+    return data.id;
+  }
+
+  // Poll an OpenAI batch job until it finishes (resolves with outputFileId)
+  function waitOpenAIBatch(batchId, apiKey) {
+    return new Promise((resolve, reject) => {
+      const POLL_MS = 10000;
+      const tick = async () => {
+        try {
+          const s = await window.AIService.getOpenAIBatchStatus(batchId, apiKey);
+          window.StudioSettings?.updateBatchJob?.(batchId, { status: s.status, outputFileId: s.outputFileId });
+          if (s.status === 'completed') {
+            resolve(s.outputFileId);
+            return;
+          }
+          if (['failed', 'cancelled', 'expired'].includes(s.status)) {
+            reject(new Error(`OpenAI 批次工作結束，狀態為：${s.status}`));
+            return;
+          }
+        } catch (e) {
+          // transient network/API error — keep polling
+        }
+        setTimeout(tick, POLL_MS);
+      };
+      setTimeout(tick, POLL_MS);
+    });
   }
 
   async function executeBatch(filterNodeIds = null) {
@@ -2431,99 +2594,289 @@
       : [..._batchQueue.values()];
     if (entries.length === 0) { if (window.showToast) window.showToast('批次佇列為空'); return; }
     const submitBtn = document.getElementById('swfBatchSubmit');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '提交中...'; }
-
-    const gptimageBatch = entries.filter(n => n.data.model === 'gptimage');
-    const otherBatch = entries.filter(n => n.data.model !== 'gptimage');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '執行中...'; }
 
     try {
-      // ── GPT Image 2 batch (/v1/images/generations) ──
-      if (gptimageBatch.length) {
-        if (!window.StudioSettings?.isBatchMode('openai')) {
-          throw new Error('請先在「設定 > Batch 模式」開啟 OpenAI 批次模式');
-        }
-        const apiKey = window.StudioSettings?.getOpenAIKey?.() || '';
-        if (!apiKey) throw new Error('OpenAI API Key 未設定');
-
-        const requests = gptimageBatch.map(n => {
-          const { text } = extractPromptData(n);
-          const params = n.data.params || {};
-          const allRefs = n.data.images || [];
-          const isEdit = allRefs.length > 0;
-          return {
-            customId: n.id,
-            endpoint: isEdit ? '/v1/images/edits' : '/v1/images/generations',
-            body: {
-              model: 'gpt-image-2',
-              prompt: text,
-              n: 1,
-              size: params.gptImageSize || '1024x1024',
-              quality: params.quality || 'high',
-              output_format: 'webp',
-              output_compression: 80,
-              moderation: 'auto',
-              background: 'auto'
-            }
-          };
-        });
-        const job = await window.AIService.submitOpenAIBatch(requests, apiKey);
-        window.StudioSettings?.saveBatchJob?.({
-          id: job.batchId, batchId: job.batchId, provider: 'openai', type: 'image',
-          status: job.status, nodeIds: gptimageBatch.map(n => n.id),
-          submittedAt: Date.now()
-        });
+      // 1. Perform group-aware topological sorting
+      const sortedBatches = batchTopoSort(entries.map(n => n.id));
+      
+      // Cycle safety fallback
+      const sortedNodeIdsSet = new Set(sortedBatches.flat());
+      const skippedEntries = entries.filter(n => !sortedNodeIdsSet.has(n.id));
+      if (skippedEntries.length > 0) {
+        if (window.showToast) window.showToast(`⚠️ 偵測到循環依賴，有 ${skippedEntries.length} 個節點將作為獨立批次執行`, 4000);
+        sortedBatches.push(skippedEntries.map(n => n.id));
       }
 
-      // ── Gemini / Nano Banana via Google AI Studio API key (parallel) ──
-      if (otherBatch.length) {
-        if (!window.StudioSettings?.isBatchMode('gemini')) {
-          throw new Error('請先在「設定 > Batch 模式」開啟 Gemini 批次模式');
-        }
-        const geminiKey = (window.StudioSettings?.getApiKeys?.('gemini') || [])[0]
-                       || (window.StudioSettings?.getApiKeys?.('nanobanana') || [])[0] || '';
-        if (!geminiKey) throw new Error('Gemini API Key 未設定，請至設定頁填入');
+      // 2. Execute topologically sorted batches sequentially
+      for (let i = 0; i < sortedBatches.length; i++) {
+        const batchNodeIds = sortedBatches[i];
+        const batchEntries = batchNodeIds.map(id => nodes[id]).filter(Boolean);
+        if (batchEntries.length === 0) continue;
 
-        const requests = otherBatch.map(n => {
-          const { text } = extractPromptData(n);
-          const params = n.data.params || {};
-          const model = n.data.model === 'nanobanana' ? 'gemini-3-pro-image' : 'gemini-3.1-flash-image';
-          return {
-            customId: n.id,
-            model,
-            contents: [{ role: 'user', parts: [{ text }] }],
-            generationConfig: {
-              responseModalities: ['IMAGE', 'TEXT'],
-              ...(params.aspectRatio && { imageConfig: { aspectRatio: params.aspectRatio } })
-            }
-          };
+        // A. Update reference images for all nodes in the current wave
+        batchEntries.forEach(n => {
+          n.data.images = assembleNodeImages(n, collectNodeUpstreamContribs(n));
+          renderImageThumbs(n);
         });
 
-        const resultMap = await window.AIService.submitGeminiBatch(requests, geminiKey);
-        let filled = 0;
-        for (const [nodeId, { imageUrl, error }] of resultMap) {
-          const node = nodes[nodeId];
-          if (!node) continue;
-          if (error) { if (window.showToast) window.showToast('節點錯誤：' + error, 3000); continue; }
-          if (!imageUrl) continue;
-          node.resultImages = [imageUrl];
-          const imgEl = node.el.querySelector('.swf-preview-img');
-          const placeholder = node.el.querySelector('.swf-preview-placeholder');
-          const dlBtn = node.el.querySelector('.swf-download-btn');
-          if (imgEl) { imgEl.src = imageUrl; imgEl.style.display = ''; }
-          if (placeholder) placeholder.style.display = 'none';
-          if (dlBtn) dlBtn.style.display = '';
-          filled++;
+        // B. Separate OpenAI and Gemini nodes for this wave
+        const gptimageBatch = batchEntries.filter(n => n.data.model === 'gptimage');
+        const otherBatch = batchEntries.filter(n => n.data.model !== 'gptimage');
+
+        // C. Process OpenAI nodes
+        if (gptimageBatch.length) {
+          const apiKey = window.StudioSettings?.getOpenAIKey?.() || '';
+          if (!apiKey) throw new Error('OpenAI API Key 未設定');
+
+          if (window.StudioSettings?.isBatchMode('openai')) {
+            if (window.showToast) window.showToast('🕒 正在上傳參考圖片至 OpenAI 檔案庫...', 2000);
+            
+            gptimageBatch.forEach(n => _setNodeBatchPending(n, true));
+            try {
+              const requests = await Promise.all(gptimageBatch.map(async n => {
+                const { text, inlineImages } = extractPromptData(n);
+                const params = n.data.params || {};
+                const allRefs = [...(n.data.images || []), ...inlineImages];
+
+                let imageFileId = null;
+                let maskFileId = null;
+
+                // Search for upstream mask node and extract its mask and base image
+                let maskDataUrl = null;
+                let baseImageUrl = null;
+                const upstreamEdges = sortedUpstreamEdges(n.id);
+                for (const { e } of upstreamEdges) {
+                  const srcNode = nodes[e.source];
+                  if (srcNode && srcNode.type === 'mask') {
+                    const maskMode = srcNode.data.maskOutputMode || 'mask';
+                    if (maskMode === 'mask') {
+                      if (srcNode.data.bwMaskState) {
+                        maskDataUrl = srcNode.data.bwMaskState;
+                        baseImageUrl = srcNode.data.images[0] || null;
+                        break;
+                      }
+                    }
+                  }
+                }
+
+                const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
+                const isEdit = refsToSend.length > 0 || !!maskDataUrl;
+
+                if (isEdit) {
+                  const targetImage = baseImageUrl || refsToSend[0];
+                  if (targetImage) {
+                    imageFileId = await uploadImageToOpenAI(targetImage, apiKey);
+                  }
+                }
+
+                if (maskDataUrl) {
+                  maskFileId = await uploadImageToOpenAI(maskDataUrl, apiKey);
+                }
+
+                return {
+                  customId: n.id,
+                  endpoint: (imageFileId) ? '/v1/images/edits' : '/v1/images/generations',
+                  body: {
+                    model: 'gpt-image-2',
+                    prompt: text,
+                    n: 1,
+                    size: params.gptImageSize || '1024x1024',
+                    quality: params.quality || 'high',
+                    output_format: 'webp',
+                    output_compression: 80,
+                    moderation: 'auto',
+                    background: params.gptBackground || 'auto',
+                    response_format: 'b64_json',
+                    ...(imageFileId && { image: imageFileId }),
+                    ...(maskFileId && { mask: maskFileId })
+                  }
+                };
+              }));
+
+              if (window.showToast) window.showToast('🕒 正在向 OpenAI 提交批次工作...', 2000);
+              const job = await window.AIService.submitOpenAIBatch(requests, apiKey);
+              window.StudioSettings?.saveBatchJob?.({
+                id: job.batchId, batchId: job.batchId, provider: 'openai', type: 'image',
+                status: job.status, nodeIds: gptimageBatch.map(n => n.id),
+                submittedAt: Date.now()
+              });
+
+              if (window.showToast) window.showToast('🕒 OpenAI 批次已提交，正在等待遠端處理完成 (背景輪詢中)...', 5000);
+
+              // Wait for remote batch completion (blocks wave loop execution)
+              await waitOpenAIBatch(job.batchId, apiKey);
+
+              // Apply results to nodes immediately
+              await applyBatchResults(job.batchId);
+            } finally {
+              gptimageBatch.forEach(n => _setNodeBatchPending(n, false));
+            }
+          } else {
+            // Fallback: client-side parallel synchronous concurrent calls
+            await Promise.all(gptimageBatch.map(n => executeSingleNode(n, true)));
+          }
         }
-        propagateVisualImages();
-        triggerAutoSave();
-        if (window.showToast) window.showToast('✅ Gemini 批次完成，已回填 ' + filled + ' 個節點');
+
+        // D. Process Gemini/Other nodes
+        if (otherBatch.length) {
+          if (window.StudioSettings?.isBatchMode('gemini')) {
+            const geminiKey = (window.StudioSettings?.getApiKeys?.('gemini') || [])[0]
+                           || (window.StudioSettings?.getApiKeys?.('nanobanana') || [])[0] || '';
+            if (!geminiKey) throw new Error('Gemini API Key 未設定，請至設定頁填入');
+
+            otherBatch.forEach(n => _setNodeBatchPending(n, true));
+            try {
+              const requests = await Promise.all(otherBatch.map(async n => {
+                const { text, inlineImages } = extractPromptData(n);
+                const params = n.data.params || {};
+                const model = n.data.model === 'nanobanana' ? 'gemini-3-pro-image' : 'gemini-3.1-flash-image';
+
+                if (model === 'gemini-3.1-flash-image') {
+                  const stripPrefix = (dataUrl) => dataUrl ? dataUrl.replace(/^data:[^;]+;base64,/, '') : null;
+
+                  // Size and aspect ratio resolution
+                  const imageSize = params.imageSize || '';
+                  const aspectRatio = params.aspectRatio || '1:1';
+                  let baseDim = 1024;
+                  if (imageSize === '512') baseDim = 512;
+                  else if (imageSize === '2K') baseDim = 2048;
+                  else if (imageSize === '4K') baseDim = 4096;
+                  else if (imageSize === '1K') baseDim = 1024;
+
+                  let w = baseDim, h = baseDim;
+                  if (aspectRatio && aspectRatio.includes(':')) {
+                    const partsArr = aspectRatio.split(':');
+                    const rW = parseFloat(partsArr[0]);
+                    const rH = parseFloat(partsArr[1]);
+                    if (!isNaN(rW) && !isNaN(rH) && rH > 0) {
+                      if (rW > rH) {
+                        h = Math.round(baseDim * (rH / rW));
+                      } else {
+                        w = Math.round(baseDim * (rW / rH));
+                      }
+                    }
+                  }
+
+                  const sizedPrompt = `[${w}x${h}] ${text}`;
+
+                  // Mask retrieval
+                  let maskDataUrl = null;
+                  let baseImageUrl = null;
+                  const upstreamEdges = sortedUpstreamEdges(n.id);
+                  for (const { e } of upstreamEdges) {
+                    const srcNode = nodes[e.source];
+                    if (srcNode && srcNode.type === 'mask') {
+                      const maskMode = srcNode.data.maskOutputMode || 'mask';
+                      if (maskMode === 'mask') {
+                        if (srcNode.data.bwMaskState) {
+                          maskDataUrl = srcNode.data.bwMaskState;
+                          baseImageUrl = srcNode.data.images[0] || null;
+                          break;
+                        }
+                      }
+                    }
+                  }
+
+                  const allRefs = [...(n.data.images || []), ...inlineImages];
+                  const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
+
+                  let resolvedMask = null;
+                  if (maskDataUrl) {
+                    try {
+                      resolvedMask = await window.AIService.resolveImageToDataUrl(maskDataUrl);
+                    } catch (e) {
+                      console.error('Failed to resolve Gemini batch mask:', maskDataUrl, e);
+                    }
+                  }
+                  const compressedMask = resolvedMask ? await window.AIService.compressImage(resolvedMask, 1024, 1.0, 'image/png') : null;
+
+                  const parts = [{ text: sizedPrompt }];
+                  for (const img of refsToSend) {
+                    let resolved = null;
+                    try {
+                      resolved = await window.AIService.resolveImageToDataUrl(img);
+                    } catch (e) {
+                      console.error('Failed to resolve Gemini batch image ref:', img, e);
+                    }
+                    const compressed = resolved ? await window.AIService.compressImage(resolved, 1024, 0.85, 'image/jpeg') : null;
+                    if (compressed) {
+                      const mimeMatch = compressed.match(/^data:([^;]+);/);
+                      parts.push({ inline_data: { mime_type: mimeMatch?.[1] || 'image/jpeg', data: stripPrefix(compressed) } });
+                    }
+                  }
+
+                  if (compressedMask) {
+                    const mimeMask = compressedMask.match(/^data:([^;]+);/);
+                    parts.push({ inline_data: { mime_type: mimeMask ? mimeMask[1] : 'image/png', data: stripPrefix(compressedMask) } });
+                  }
+
+                  return {
+                    customId: n.id,
+                    model,
+                    contents: [{ role: 'user', parts }],
+                    generationConfig: {
+                      temperature: params.temperature ?? 0.4,
+                      ...(params.thinkingLevel && params.thinkingLevel !== 'none' && {
+                        thinkingConfig: { thinkingLevel: params.thinkingLevel === 'low' ? 'minimal' : params.thinkingLevel }
+                      }),
+                      responseModalities: ['IMAGE'],
+                      imageConfig: { aspectRatio }
+                    }
+                  };
+                } else {
+                  return {
+                    customId: n.id,
+                    model,
+                    contents: [{ role: 'user', parts: [{ text }] }],
+                    generationConfig: {
+                      temperature: params.temperature ?? 0.4,
+                      responseModalities: ['IMAGE'],
+                      ...(params.aspectRatio && { imageConfig: { aspectRatio: params.aspectRatio } })
+                    }
+                  };
+                }
+              }));
+
+              const resultMap = await window.AIService.submitGeminiBatch(requests, geminiKey);
+              let filled = 0;
+              for (const [nodeId, { imageUrl, error }] of resultMap) {
+                const node = nodes[nodeId];
+                if (!node) continue;
+                if (error) {
+                  if (window.showToast) window.showToast('節點錯誤：' + error, 3000);
+                  const placeholder = node.el?.querySelector('.swf-preview-placeholder');
+                  if (placeholder) {
+                    placeholder.style.display = 'flex';
+                    placeholder.textContent = '❌ ' + error;
+                  }
+                  continue;
+                }
+                if (!imageUrl) continue;
+                await saveNodeResult(node, imageUrl);
+                filled++;
+              }
+              propagateVisualImages();
+              triggerAutoSave();
+              if (window.showToast) window.showToast('✅ Gemini 批次完成，已回填 ' + filled + ' 個節點');
+            } finally {
+              otherBatch.forEach(n => _setNodeBatchPending(n, false));
+            }
+          } else {
+            // Fallback: client-side parallel synchronous concurrent calls
+            await Promise.all(otherBatch.map(n => executeSingleNode(n, true)));
+          }
+        }
+
+        // Dequeue only the entries that were processed in this topological wave
+        batchEntries.forEach(n => dequeueNodeBatch(n.id));
       }
 
-      // Dequeue only the entries that were processed in this call (supports group-filtered batch)
-      entries.forEach(n => dequeueNodeBatch(n.id));
-      if (_batchQueue.size === 0 && window.showToast) window.showToast('✅ 批次全部完成');
+      if (window.showToast) {
+        window.showToast('✅ 批次全部完成');
+      }
     } catch (err) {
-      if (window.showToast) window.showToast('❌ 批次提交失敗：' + err.message, 5000);
+      if (window.showToast) window.showToast('❌ 批次執行失敗：' + err.message, 5000);
     } finally {
       if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '提交批次'; }
     }
@@ -2554,19 +2907,78 @@
       if (error) { if (window.showToast) window.showToast(`節點 ${nodeId} 錯誤：${error}`, 3000); continue; }
       const resultImageUrl = imageUrl || content;
       if (!resultImageUrl) continue;
-      node.resultImages = [resultImageUrl];
-      const imgEl = node.el.querySelector('.swf-preview-img');
-      const placeholder = node.el.querySelector('.swf-preview-placeholder');
-      const dlBtn = node.el.querySelector('.swf-download-btn');
-      if (imgEl) { imgEl.src = resultImageUrl; imgEl.style.display = ''; }
-      if (placeholder) placeholder.style.display = 'none';
-      if (dlBtn) dlBtn.style.display = '';
+      await saveNodeResult(node, resultImageUrl);
       propagateVisualImages();
       filled++;
     }
     window.StudioSettings?.updateBatchJob?.(jobId, { status: job.provider === 'openai' ? 'completed' : 'JOB_STATE_SUCCEEDED' });
     triggerAutoSave();
     if (window.showToast) window.showToast(`✅ 已回填 ${filled} 個節點圖像`);
+  }
+
+  // Mark/unmark a node as awaiting remote-batch results (reuses the executing visual).
+  function _setNodeBatchPending(node, on) {
+    if (!node || !node.el) return;
+    const placeholder = node.el.querySelector('.swf-preview-placeholder');
+    if (on) {
+      node.el.classList.add('swf-executing');
+      if (placeholder) { placeholder.style.display = 'flex'; placeholder.textContent = '批次處理中…（背景）'; }
+    } else {
+      node.el.classList.remove('swf-executing');
+      const hasImg = node.resultImages && node.resultImages.length;
+      if (placeholder && !hasImg) { placeholder.style.display = 'flex'; placeholder.textContent = '生成結果將顯示於此'; }
+    }
+  }
+
+  // Poll an OpenAI batch job until it finishes, then auto-fill node images via
+  // applyBatchResults(). Survives the whole session; resumed on reload by initBatchPolling().
+  const _activePolls = new Set();
+  function _pollOpenAIBatch(batchId) {
+    if (!batchId || _activePolls.has(batchId)) return;
+    _activePolls.add(batchId);
+    const apiKey = window.StudioSettings?.getOpenAIKey?.() || '';
+    const POLL_MS = 20000;
+
+    const finish = () => {
+      _activePolls.delete(batchId);
+      const job = window.StudioSettings?.getBatchJobs?.().find(j => j.batchId === batchId);
+      (job?.nodeIds || []).forEach(id => { const n = nodes[id]; if (n) _setNodeBatchPending(n, false); });
+    };
+
+    const tick = async () => {
+      if (!_activePolls.has(batchId)) return;
+      try {
+        const s = await window.AIService.getOpenAIBatchStatus(batchId, apiKey);
+        window.StudioSettings?.updateBatchJob?.(batchId, { status: s.status, outputFileId: s.outputFileId });
+        if (s.status === 'completed') {
+          try { await applyBatchResults(batchId); }
+          catch (e) { if (window.showToast) window.showToast('批次回填失敗：' + e.message, 4000); }
+          finish();
+          return;
+        }
+        if (['failed', 'cancelled', 'expired'].includes(s.status)) {
+          if (window.showToast) window.showToast('❌ GPT Image 批次：' + s.status, 4000);
+          finish();
+          return;
+        }
+      } catch (e) {
+        // transient network/API error — keep polling
+      }
+      setTimeout(tick, POLL_MS);
+    };
+    setTimeout(tick, POLL_MS);
+  }
+
+  // On load, resume polling for any OpenAI batch jobs still in progress.
+  function initBatchPolling() {
+    const jobs = window.StudioSettings?.getBatchJobs?.() || [];
+    jobs.forEach(j => {
+      if (j.provider === 'openai' && j.batchId &&
+          !['completed', 'failed', 'cancelled', 'expired'].includes(j.status)) {
+        (j.nodeIds || []).forEach(id => { const n = nodes[id]; if (n) _setNodeBatchPending(n, true); });
+        _pollOpenAIBatch(j.batchId);
+      }
+    });
   }
 
 
@@ -4169,8 +4581,12 @@
 
         const genOnce = async (apiKey) => {
           if (model === 'gptimage') {
-            return await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', allRefs.length > 0 ? allRefs : null, {
-              quality: params.quality || 'low', background: params.gptBackground || 'auto', input_fidelity: params.gptFidelity || 'high'
+            const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
+            return await window.AIService.generateWithGPTImage(text, apiKey, params.gptImageSize || '1024x1024', refsToSend.length > 0 ? refsToSend : null, {
+              quality: params.quality || 'low',
+              background: params.gptBackground || 'auto',
+              input_fidelity: params.gptFidelity || 'high',
+              mask: maskDataUrl || null
             });
           } else if (model === 'nanobanana2') {
             const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
@@ -4232,68 +4648,7 @@
         if (lastErr) throw lastErr;
       }
 
-      // Post-generation automation: if this node belongs to a group with a bound
-      // "完成後自動化" script, transform the freshly generated image in-memory NOW —
-      // before it is displayed / propagated / saved — so the node's own save path
-      // stays the single save location (the script's output folder is ignored).
-      let savedImages = preprocessResults || [imageUrl];
-      // 預處理 already IS the image-processing step — don't re-apply 完成後自動化 on top.
-      const autoCfg = (model === 'preprocess') ? null : getNodePostAutomationConfig(node);
-      if (autoCfg && window.ImageProcess?.processImageInMemory) {
-        try {
-          const results = await window.ImageProcess.processImageInMemory(imageUrl, autoCfg);
-          if (Array.isArray(results) && results.length) savedImages = results;
-        } catch (e) {
-          console.error('Post-automation failed:', e);
-          if (window.showToast) window.showToast('⚠️ 完成後自動化失敗，存原圖：' + e.message, 3000);
-        }
-      }
-
-      imgEl.src = savedImages[0]; imgEl.style.display = 'block';
-      placeholder.style.display = 'none'; dlBtn.style.display = 'block';
-      node.resultImages = [...savedImages];
-
-      let targetFolder = '';
-      const nodeInput = node.el.querySelector('.swf-node-folder');
-      if (nodeInput && nodeInput.value.trim()) {
-        targetFolder = nodeInput.value.trim();
-      } else {
-        // Inherit from parent group if exists
-        let parentGroup = null;
-        for (const gid in groups) {
-          const g = groups[gid];
-          if (node.x >= g.x && node.y >= g.y && node.x + node.width <= g.x + g.width && node.y + node.el.offsetHeight <= g.y + g.height) {
-            parentGroup = g; break;
-          }
-        }
-        if (parentGroup) {
-          const groupInput = parentGroup.el.querySelector('.swf-gps-folder');
-          if (groupInput && groupInput.value.trim()) {
-            targetFolder = groupInput.value.trim();
-          }
-        }
-      }
-      if (!targetFolder || targetFolder === '已完成') targetFolder = '根目錄';
-
-      // Filename: slot-based on the node's group number (re-run overwrites its
-      // own slot), with a configurable prefix + suffix (per-node, else the global default).
-      const num = getNodeGroupNumber(node);
-      const prefix = (node.data.namePrefix || '').trim()
-                  || (window.StudioSettings?.getFilenamePattern?.() || '');
-      const suffix = (node.data.nameSuffix || '').trim();
-      const baseName = (num != null)
-        ? `${prefix}${num}${suffix}`
-        : `${prefix || 'SWF'}_${Date.now()}${suffix}`;
-      if (window.AssetManager) {
-        // When automation produced multiple parts (e.g. refcrop), suffix each file _1.._N.
-        for (let i = 0; i < savedImages.length; i++) {
-          const outName = savedImages.length === 1 ? baseName : `${baseName}_${i + 1}`;
-          await window.AssetManager.saveAsset(outName, savedImages[i], targetFolder, node.data.overwrite === true);
-          window.dispatchEvent(new CustomEvent('node-saved-asset', {
-            detail: { filename: outName, folder: targetFolder, node }
-          }));
-        }
-      }
+      await saveNodeResult(node, imageUrl, preprocessResults);
       if (window.showToast) window.showToast('✅ 生成完成');
     } catch (err) {
       console.error(err);
@@ -5296,6 +5651,8 @@
       localStorage.removeItem('swf_autosave_state');
       createMacroNode('t2i', 40, 40);
     }
+    // Resume auto-polling for any OpenAI batch jobs that were still running
+    try { initBatchPolling(); } catch (e) { console.warn('initBatchPolling failed:', e); }
   }, 100);
 
   // ── Auto-Revive Broken FSA Images on Restore ──
