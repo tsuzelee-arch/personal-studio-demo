@@ -997,10 +997,11 @@ ${JSON.stringify(analysis)}`;
     const jsonlText = lines.join('\n');
     const encoder = new TextEncoder();
     const jsonlUint8 = encoder.encode(jsonlText);
-    const jsonlBlob = new Blob([jsonlUint8], { type: 'text/plain' });
+    const jsonlBlob = new Blob([jsonlUint8], { type: 'application/jsonl; charset=utf-8' });
+    const jsonlFile = new File([jsonlBlob], 'batch_input.jsonl', { type: 'application/jsonl' });
     const formData = new FormData();
     formData.append('purpose', 'batch');
-    formData.append('file', jsonlBlob, 'batch_input.jsonl');
+    formData.append('file', jsonlFile);
 
     const uploadRes = await fetchWithTimeout('https://api.openai.com/v1/files', {
       method: 'POST',
