@@ -988,6 +988,12 @@ ${JSON.stringify(analysis)}`;
     // Each request: { customId, endpoint, body }
     // endpoint defaults to '/v1/images/generations' for image nodes;
     // can also be '/v1/chat/completions', '/v1/images/edits', etc.
+    const lines = requests.map(r => JSON.stringify({
+      custom_id: r.customId,
+      method: 'POST',
+      url: r.endpoint || '/v1/images/generations',
+      body: r.body
+    }));
     const jsonlText = lines.join('\n');
     const encoder = new TextEncoder();
     const jsonlUint8 = encoder.encode(jsonlText);
