@@ -26,8 +26,6 @@
     gdriveClientId:  'ps_gdrive_client_id',
     filenamePrefix:  'ps_swf_name_prefix',
     replicateCorsProxy: 'ps_replicate_cors_proxy',
-    openai_batch:    'ps_openai_batch_mode',
-    gemini_batch:    'ps_gemini_batch_mode',
     batch_jobs:      'ps_batch_jobs'
   };
 
@@ -325,11 +323,6 @@
     },
     getGdriveClientId: () => localStorage.getItem(STORAGE_KEYS.gdriveClientId) || '',
     getFilenamePattern: () => localStorage.getItem(STORAGE_KEYS.filenamePrefix) || '',
-    isBatchMode: (provider) => {
-      if (provider === 'openai') return localStorage.getItem(STORAGE_KEYS.openai_batch) === '1';
-      if (provider === 'gemini') return localStorage.getItem(STORAGE_KEYS.gemini_batch) === '1';
-      return false;
-    },
     getBatchJobs,
     saveBatchJob,
     updateBatchJob,
@@ -382,27 +375,6 @@
     });
   }
 
-  // ── Batch Mode toggles ──
-  function loadBatchSettings() {
-    const oaiBatch = document.getElementById('openAiBatchToggle');
-    const gemBatch = document.getElementById('geminiBatchToggle');
-    if (oaiBatch) oaiBatch.checked = localStorage.getItem(STORAGE_KEYS.openai_batch) === '1';
-    if (gemBatch) gemBatch.checked = localStorage.getItem(STORAGE_KEYS.gemini_batch) === '1';
-  }
-
-  const oaiBatchToggle = document.getElementById('openAiBatchToggle');
-  if (oaiBatchToggle) {
-    oaiBatchToggle.addEventListener('change', () => {
-      localStorage.setItem(STORAGE_KEYS.openai_batch, oaiBatchToggle.checked ? '1' : '');
-    });
-  }
-  const gemBatchToggle = document.getElementById('geminiBatchToggle');
-  if (gemBatchToggle) {
-    gemBatchToggle.addEventListener('change', () => {
-      localStorage.setItem(STORAGE_KEYS.gemini_batch, gemBatchToggle.checked ? '1' : '');
-    });
-  }
-
   // ── Batch job persistence helpers ──
   function getBatchJobs() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.batch_jobs) || '[]'); } catch { return []; }
@@ -449,61 +421,7 @@
     });
   }
 
-  // Delegate batch job action clicks to the list container
-  const batchListEl = document.getElementById('batchJobList');
-  if (batchListEl) {
-    batchListEl.addEventListener('click', async (e) => {
-      const fetchBtn = e.target.closest('.batch-fetch-btn');
-      const refreshBtn = e.target.closest('.batch-refresh-btn');
-      const cancelBtn = e.target.closest('.batch-cancel-btn');
-      const jobId = (fetchBtn || refreshBtn || cancelBtn)?.dataset.jobid;
-      if (!jobId) return;
-      const job = getBatchJobs().find(j => j.id === jobId);
-      if (!job) return;
-
-      if (refreshBtn) {
-        try {
-          let newStatus;
-          if (job.provider === 'openai') {
-            const apiKey = window.StudioSettings.getOpenAIKey();
-            const s = await window.AIService.getOpenAIBatchStatus(job.batchId, apiKey);
-            newStatus = s.status;
-            updateBatchJob(jobId, { status: newStatus, outputFileId: s.outputFileId });
-          } else {
-            const gcpConfig = window.StudioSettings.getGcpConfig();
-            const s = await window.AIService.getVertexBatchStatus(job.jobName, gcpConfig);
-            newStatus = s.state;
-            updateBatchJob(jobId, { status: newStatus, outputUri: s.outputUri });
-          }
-          toast('狀態已更新：' + newStatus);
-        } catch (err) { toast('刷新失敗：' + err.message, 3000); }
-      }
-
-      if (cancelBtn) {
-        try {
-          if (job.provider === 'openai') {
-            const apiKey = window.StudioSettings.getOpenAIKey();
-            await window.AIService.cancelOpenAIBatch(job.batchId, apiKey);
-          }
-          updateBatchJob(jobId, { status: 'cancelled' });
-          toast('批次已取消');
-        } catch (err) { toast('取消失敗：' + err.message, 3000); }
-      }
-
-      if (fetchBtn) {
-        try {
-          if (!window.SWF || typeof window.SWF.applyBatchResults !== 'function') {
-            toast('請先切換到工作流面板再取得結果', 3000); return;
-          }
-          await window.SWF.applyBatchResults(jobId);
-          toast('✅ 結果已回填到工作流節點');
-        } catch (err) { toast('取得結果失敗：' + err.message, 4000); }
-      }
-    });
-  }
-
   // ── Initialize ──
   loadSettings();
-  loadBatchSettings();
 
 })();

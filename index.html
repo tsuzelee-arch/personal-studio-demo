@@ -912,48 +912,6 @@
               </section>
             </div>
 
-            <!-- Batch Mode Region -->
-            <div class="settings-region">
-              <!-- Batch Mode Toggles -->
-              <section class="settings-section">
-                <div class="settings-section-header">
-                  <span class="settings-card-icon ico" data-icon="layers"></span>
-                  <span class="settings-section-title">Batch 模式</span>
-                </div>
-                <div class="settings-section-body">
-                  <div class="settings-hint" style="margin-bottom:12px;">開啟後，工作流中的圖像節點點「批次」加入佇列，再按「提交批次」以非同步 Batch API 送出，費用節省約 50%。</div>
-                  <label class="batch-toggle-row">
-                    <input type="checkbox" id="openAiBatchToggle">
-                    <span class="batch-toggle-label">
-                      <strong>OpenAI Batch API</strong>
-                      <span class="settings-hint" style="display:block; margin:2px 0 0;">使用 /v1/batches 端點，最長 24 小時完成，節省 50% 費用</span>
-                    </span>
-                  </label>
-                  <label class="batch-toggle-row" style="margin-top:8px;">
-                    <input type="checkbox" id="geminiBatchToggle">
-                    <span class="batch-toggle-label">
-                      <strong>Gemini AI Studio Batch</strong>
-                      <span class="settings-hint" style="display:block; margin:2px 0 0;">使用設定頁的 Gemini API Key 並行送出，結果即時回填；不需要 Vertex AI 或 GCP</span>
-                    </span>
-                  </label>
-                </div>
-              </section>
-
-              <hr class="settings-divider">
-
-              <!-- Batch Status -->
-              <section class="settings-section">
-                <div class="settings-section-header">
-                  <span class="settings-card-icon ico" data-icon="clipboard"></span>
-                  <span class="settings-section-title">批次狀態</span>
-                </div>
-                <div class="settings-section-body">
-                  <div id="batchJobList" class="batch-job-list">
-                    <div class="batch-empty">尚無批次工作</div>
-                  </div>
-                </div>
-              </section>
-            </div>
 
             <!-- System Settings Region -->
             <div class="settings-region">
