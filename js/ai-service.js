@@ -71,6 +71,21 @@ window.AIService = (function() {
     return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
   }
 
+  // Link an external user-abort signal to an internal (timeout) controller so a
+  // user "中斷" aborts the in-flight fetch. Handles the already-aborted case.
+  function linkAbort(controller, externalSignal) {
+    if (!externalSignal) return;
+    if (externalSignal.aborted) { controller.abort(); return; }
+    externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  // True when an error came from a user abort (vs a timeout / network failure).
+  // Used by callers to show "已中斷" instead of a scary error.
+  function isAbortError(err, externalSignal) {
+    return (err && (err.name === 'AbortError' || err.aborted === true)) ||
+           (externalSignal && externalSignal.aborted);
+  }
+
   const OPENAI_MODELS = {
     'openai':        'gpt-5.5',
     'openai-54':     'gpt-5.4',
@@ -449,9 +464,10 @@ ${JSON.stringify(analysis)}`;
     }));
   }
 
-  async function _executeGeminiRequest(url, payload, modelName) {
+  async function _executeGeminiRequest(url, payload, modelName, signal = null) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 90000);
+    linkAbort(controller, signal); // user 中斷 aborts the in-flight fetch
 
     let response;
     try {
@@ -462,6 +478,8 @@ ${JSON.stringify(analysis)}`;
         signal: controller.signal
       });
     } catch (fetchErr) {
+      // Distinguish a user abort from a timeout: both surface as AbortError.
+      if (isAbortError(fetchErr, signal)) { const e = new Error(`${modelName} 已中斷`); e.aborted = true; throw e; }
       if (fetchErr.name === 'AbortError') throw new Error(`${modelName} 請求逾時（90秒），伺服器無回應`);
       throw new Error('網路錯誤：' + fetchErr.message);
     } finally {
@@ -493,11 +511,41 @@ ${JSON.stringify(analysis)}`;
   const NB_IMAGE_SIZES = ['512','1K','2K','4K'];
   const NB_THINKING_LEVELS = ['minimal','high'];
 
-  // Build a valid imageConfig, dropping anything unsupported (defaults to 1:1).
+  // Build a valid imageConfig. Standard ratios go through imageConfig.aspectRatio;
+  // a custom ratio (not in the allowed set) is OMITTED here — the API would reject or
+  // square it — and is instead conveyed via the [WxH] magic string in the prompt.
   function _buildImageConfig(aspectRatio, imageSize) {
-    const cfg = { aspectRatio: NB_ASPECT_RATIOS.includes(aspectRatio) ? aspectRatio : '1:1' };
+    const cfg = {};
+    if (NB_ASPECT_RATIOS.includes(aspectRatio)) cfg.aspectRatio = aspectRatio;
     if (imageSize && NB_IMAGE_SIZES.includes(imageSize)) cfg.imageSize = imageSize;
     return cfg;
+  }
+
+  // Compute target pixel W×H for the [WxH] magic-string size hint. Accepts an explicit
+  // "1280x800" pixel string or a "W:H" ratio (scaled against the imageSize base dim).
+  function _computeWH(aspectRatio, imageSize) {
+    let baseDim = 1024;
+    if (imageSize === '512') baseDim = 512;
+    else if (imageSize === '2K') baseDim = 2048;
+    else if (imageSize === '4K') baseDim = 4096;
+    else if (imageSize === '1K') baseDim = 1024;
+    let w = baseDim, h = baseDim;
+    const px = aspectRatio && aspectRatio.match(/^(\d+)[xX](\d+)$/);
+    if (px) {
+      w = parseInt(px[1], 10); h = parseInt(px[2], 10);
+    } else if (aspectRatio && aspectRatio.includes(':')) {
+      const [rW, rH] = aspectRatio.split(':').map(parseFloat);
+      if (!isNaN(rW) && !isNaN(rH) && rH > 0) {
+        if (rW > rH) h = Math.round(baseDim * (rH / rW));
+        else w = Math.round(baseDim * (rW / rH));
+      }
+    }
+    return { w, h };
+  }
+
+  // True for a user-supplied custom ratio/pixel value (not one of the standard ratios).
+  function _isCustomAspect(aspectRatio) {
+    return !!aspectRatio && !NB_ASPECT_RATIOS.includes(aspectRatio);
   }
 
   // Map UI thinking level to a valid API value, or null to omit thinkingConfig.
@@ -527,13 +575,21 @@ ${JSON.stringify(analysis)}`;
     const _tlPro = _resolveThinkingLevel(thinkingLevel);
     if (_tlPro) generationConfig.thinkingConfig = { thinkingLevel: _tlPro };
 
+    // For a custom (non-standard) ratio, imageConfig.aspectRatio was omitted, so convey
+    // the requested size via the [WxH] magic-string hint in the prompt instead.
+    let proPrompt = prompt;
+    if (_isCustomAspect(aspectRatio)) {
+      const { w, h } = _computeWH(aspectRatio, imageSize);
+      proPrompt = `[${w}x${h}] ${prompt}`;
+    }
+
     const payload = {
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts: [{ text: proPrompt }] }],
       generationConfig,
       tools: googleSearch ? [{ google_search: {} }] : undefined,
     };
 
-    return await _executeGeminiRequest(url, payload, 'Nano Banana Pro');
+    return await _executeGeminiRequest(url, payload, 'Nano Banana Pro', options.signal);
   }
 
   async function generateWithNanoBanana2(prompt, apiKey, images = null, mask = null, options = {}) {
@@ -553,26 +609,9 @@ ${JSON.stringify(analysis)}`;
 
     const stripPrefix = (dataUrl) => dataUrl ? dataUrl.replace(/^data:[^;]+;base64,/, '') : null;
 
-    // Calculate width/height from imageSize and aspectRatio for the magic string
-    let baseDim = 1024;
-    if (imageSize === '512') baseDim = 512;
-    else if (imageSize === '2K') baseDim = 2048;
-    else if (imageSize === '4K') baseDim = 4096;
-    else if (imageSize === '1K') baseDim = 1024;
-
-    let w = baseDim, h = baseDim;
-    if (aspectRatio && aspectRatio.includes(':')) {
-      const partsArr = aspectRatio.split(':');
-      const rW = parseFloat(partsArr[0]);
-      const rH = parseFloat(partsArr[1]);
-      if (!isNaN(rW) && !isNaN(rH) && rH > 0) {
-        if (rW > rH) {
-          h = Math.round(baseDim * (rH / rW));
-        } else {
-          w = Math.round(baseDim * (rW / rH));
-        }
-      }
-    }
+    // Calculate width/height from imageSize and aspectRatio for the magic string.
+    // _computeWH handles both standard "W:H" ratios and custom "WxH" pixel strings.
+    const { w, h } = _computeWH(aspectRatio, imageSize);
 
     const sizedPrompt = `[${w}x${h}] ${prompt}`;
     let resolvedMask = null;
@@ -621,7 +660,7 @@ ${JSON.stringify(analysis)}`;
       tools: googleSearch ? [{ google_search: {} }] : undefined,
     };
 
-    return await _executeGeminiRequest(url, payload, 'Nano Banana 2');
+    return await _executeGeminiRequest(url, payload, 'Nano Banana 2', options.signal);
   }
 
   async function generateWithGPTImage(prompt, apiKey, size="1024x1024", baseImage=null, options={}) {
@@ -711,6 +750,7 @@ ${JSON.stringify(analysis)}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 90000);
+    linkAbort(controller, options.signal); // user 中斷 aborts the in-flight fetch
 
     let response;
     try {
@@ -721,6 +761,7 @@ ${JSON.stringify(analysis)}`;
         signal: controller.signal
       });
     } catch (fetchErr) {
+      if (isAbortError(fetchErr, options.signal)) { const e = new Error('GPT Image 2 已中斷'); e.aborted = true; throw e; }
       if (fetchErr.name === 'AbortError') throw new Error('GPT Image 2 請求逾時（90秒），請重試');
       throw new Error('網路錯誤：' + fetchErr.message);
     } finally {
@@ -847,7 +888,7 @@ ${JSON.stringify(analysis)}`;
     return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   }
 
-  async function generateWithReplicate(prompt, apiKey, modelVersion, inputParams = {}, corsProxy = '') {
+  async function generateWithReplicate(prompt, apiKey, modelVersion, inputParams = {}, corsProxy = '', signal = null) {
     throw new Error('Replicate 雲端 API 目前在測試中，已暫時禁用。');
     const isLocal = isLocalBackend();
     let url = isLocal ? '/api/ai/replicate/predictions' : 'https://api.replicate.com/v1/predictions';
@@ -870,7 +911,8 @@ ${JSON.stringify(analysis)}`;
         'Content-Type': 'application/json',
         'Authorization': `Token ${apiKey}`
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal
     });
 
     if (!res.ok) {
@@ -886,8 +928,18 @@ ${JSON.stringify(analysis)}`;
     if (!isLocal && corsProxy) {
       statusUrl = corsProxy.trim().replace(/\/+$/, '') + '/' + statusUrl;
     }
+    // Best-effort remote cancel so an aborted prediction stops consuming Replicate credits.
+    let cancelUrl = isLocal ? `/api/ai/replicate/predictions/${predictionId}/cancel` : `https://api.replicate.com/v1/predictions/${predictionId}/cancel`;
+    if (!isLocal && corsProxy) {
+      cancelUrl = corsProxy.trim().replace(/\/+$/, '') + '/' + cancelUrl;
+    }
 
     for (let i = 0; i < 100; i++) {
+      // User 中斷: stop polling and best-effort cancel the remote prediction.
+      if (signal?.aborted) {
+        try { await fetch(cancelUrl, { method: 'POST', headers: { 'Authorization': `Token ${apiKey}` } }); } catch { /* best-effort */ }
+        const e = new Error('Replicate 已中斷'); e.aborted = true; throw e;
+      }
       await new Promise(r => setTimeout(r, 3000));
       const statusRes = await fetch(statusUrl, {
         headers: { 'Authorization': `Token ${apiKey}` }

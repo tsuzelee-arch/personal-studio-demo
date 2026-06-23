@@ -422,7 +422,8 @@
     nanobanana2: {
       label: 'Nano Banana 2',
       params: [
-        { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','21:9','1:4','4:1','1:8','8:1'], default: '1:1' },
+        { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','21:9','1:4','4:1','1:8','8:1', { v: 'fixed', l: '固定（以首圖為準）' }, { v: 'custom', l: '自訂… (Custom)' }], default: '1:1' },
+        { key: 'aspectRatioCustom', label: '自訂比例', type: 'text', placeholder: '例如 16:10 或 1280x800', default: '', showWhen: { key: 'aspectRatio', value: 'custom' } },
         { key: 'imageSize', label: 'Image Size', type: 'select', options: [{ v: '', l: 'Default' }, { v: '512', l: '512px' }, { v: '1K', l: '1K' }, { v: '2K', l: '2K' }, { v: '4K', l: '4K' }], default: '' },
         { key: 'temperature', label: 'Temperature', type: 'range', min: 0, max: 2, step: 0.05, default: 0.4 },
         { key: 'thinkingLevel', label: 'Thinking (思考)', type: 'select', options: [{ v: 'none', l: 'None' }, { v: 'minimal', l: 'Minimal' }, { v: 'high', l: 'High' }], default: 'none' },
@@ -431,7 +432,8 @@
     nanobanana: {
       label: 'Nano Banana Pro',
       params: [
-        { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','21:9','1:4','4:1','1:8','8:1'], default: '1:1' },
+        { key: 'aspectRatio', label: 'Aspect Ratio', type: 'select', options: ['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','21:9','1:4','4:1','1:8','8:1', { v: 'fixed', l: '固定（以首圖為準）' }, { v: 'custom', l: '自訂… (Custom)' }], default: '1:1' },
+        { key: 'aspectRatioCustom', label: '自訂比例', type: 'text', placeholder: '例如 16:10 或 1280x800', default: '', showWhen: { key: 'aspectRatio', value: 'custom' } },
         { key: 'imageSize', label: 'Image Size', type: 'select', options: [{ v: '', l: 'Default' }, { v: '512', l: '512px' }, { v: '1K', l: '1K' }, { v: '2K', l: '2K' }, { v: '4K', l: '4K' }], default: '' },
         { key: 'temperature', label: 'Temperature', type: 'range', min: 0, max: 2, step: 0.05, default: 0.4 },
         { key: 'thinkingLevel', label: 'Thinking (思考)', type: 'select', options: [{ v: 'none', l: 'None' }, { v: 'minimal', l: 'Minimal' }, { v: 'high', l: 'High' }], default: 'none' },
@@ -557,6 +559,70 @@
     area.querySelectorAll('select[data-param="fitMode"], select[data-param="bg"]').forEach(s =>
       s.addEventListener('change', () => updateImageProcessParamVisibility(area)));
     updateImageProcessParamVisibility(area);
+    wireConditionalParamRows(area); // e.g. the custom Aspect Ratio input
+  }
+
+  // Generic show/hide for rows tagged with data-show-when-key / data-show-when-val:
+  // the row is visible only when the named select's current value matches.
+  function updateConditionalParamRows(area) {
+    if (!area) return;
+    area.querySelectorAll('[data-show-when-key]').forEach(row => {
+      const key = row.getAttribute('data-show-when-key');
+      const want = row.getAttribute('data-show-when-val');
+      const ctrl = area.querySelector(`select[data-param="${key}"]`);
+      row.style.display = (ctrl && ctrl.value === want) ? '' : 'none';
+    });
+  }
+  function wireConditionalParamRows(area) {
+    if (!area) return;
+    const keys = new Set();
+    area.querySelectorAll('[data-show-when-key]').forEach(r => keys.add(r.getAttribute('data-show-when-key')));
+    keys.forEach(key => {
+      const ctrl = area.querySelector(`select[data-param="${key}"]`);
+      if (ctrl) ctrl.addEventListener('change', () => updateConditionalParamRows(area));
+    });
+    updateConditionalParamRows(area);
+  }
+
+  // Resolve the effective aspect-ratio string sent to the API. For the custom option
+  // we return the user's free-form value (W:H ratio or WxH pixels); anything that
+  // isn't a valid ratio/pixel pattern falls back to 1:1 so the API never gets garbage.
+  // 'fixed' (lock to first image) is resolved asynchronously by the caller before this
+  // runs, so it should never reach here — treat it defensively as 1:1.
+  function resolveAspectRatio(params) {
+    if (params.aspectRatio === 'fixed') return '1:1';
+    if (params.aspectRatio !== 'custom') return params.aspectRatio || '1:1';
+    const c = (params.aspectRatioCustom || '').trim().replace(/\s+/g, '');
+    if (/^\d+:\d+$/.test(c) || /^\d+[xX]\d+$/.test(c)) return c;
+    return '1:1';
+  }
+
+  // Load an image reference (dataURL / blob: / http(s) / asset path) and return its
+  // natural pixel dimensions, or null on failure. Powers the 'fixed' aspect ratio,
+  // which locks the output to the first reference image's aspect ratio.
+  async function getRefImageDimensions(ref) {
+    if (!ref) return null;
+    try {
+      const url = (await window.AIService?.resolveImageToDataUrl?.(ref)) || ref;
+      return await new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+    } catch { return null; }
+  }
+
+  // Resolve the aspect ratio for Nano Banana, including the async 'fixed' case
+  // (derive a W:H ratio from the first reference image so output keeps its shape).
+  async function resolveNanoAspectRatio(params, firstRef) {
+    if (params.aspectRatio === 'fixed') {
+      const dims = await getRefImageDimensions(firstRef);
+      if (dims && dims.w > 0 && dims.h > 0) return `${dims.w}:${dims.h}`;
+      if (window.showToast) window.showToast('⚠️ 固定比例需要參考圖片，已退回 1:1', 2500);
+      return '1:1';
+    }
+    return resolveAspectRatio(params);
   }
 
   function buildParamsHTML(modelKey, savedParams) {
@@ -616,6 +682,14 @@
       } else if (param.type === 'range') {
         const val = p[param.key] ?? param.default;
         return `<div class="swf-param-row"><label>${param.label}</label><div class="swf-slider-row"><input type="range" data-param="${param.key}" min="${param.min}" max="${param.max}" step="${param.step}" value="${val}"><span class="swf-slider-val">${Number(val).toFixed(2)}</span></div></div>`;
+      } else if (param.type === 'text') {
+        const val = p[param.key] ?? param.default ?? '';
+        // showWhen: only display this row when another param's select equals a value
+        // (e.g. the custom aspect-ratio input appears only when Aspect Ratio = custom).
+        const sw = param.showWhen;
+        const hidden = sw && (p[sw.key] ?? '') !== sw.value;
+        const swAttrs = sw ? ` data-show-when-key="${sw.key}" data-show-when-val="${sw.value}"` : '';
+        return `<div class="swf-param-row"${swAttrs}${hidden ? ' style="display:none;"' : ''}><label>${param.label}</label><input type="text" data-param="${param.key}" value="${val}" placeholder="${param.placeholder || ''}"></div>`;
       }
       return '';
     }).join('');
@@ -790,6 +864,7 @@
         <div class="swf-group-actions">
           <button class="swf-grp-run-btn" title="一般 API 即時執行群組"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>群組執行（API）</button>
           <button class="swf-grp-batch-run-btn" title="OpenAI Batch API 執行群組（較省但較慢）"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>群組執行（Batch）</button>
+          <button class="swf-grp-stop-btn" title="中斷此群組的執行（停止當前請求，尚未開始的節點不會送出）" style="display:none;">⏹ 中斷</button>
           <button class="swf-grp-collapse-btn" title="摺疊/展開群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <button class="swf-grp-del-btn" title="關閉/刪除群組"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
@@ -871,6 +946,7 @@
     el.querySelector('.swf-grp-del-btn').addEventListener('click', () => { saveUndoState(); promptRemoveGroup(group.id); });
     el.querySelector('.swf-grp-run-btn').addEventListener('click', () => executeGroup(group.id, false));
     el.querySelector('.swf-grp-batch-run-btn').addEventListener('click', () => executeGroup(group.id, true));
+    el.querySelector('.swf-grp-stop-btn').addEventListener('click', (e) => { e.stopPropagation(); group._abort?.abort(); });
     el.querySelector('.swf-grp-collapse-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleGroupCollapse(group); });
     el.querySelector('.swf-grp-lock-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleGroupLock(group); });
     el.querySelector('.swf-grp-fit-btn').addEventListener('click', (e) => { e.stopPropagation(); autoFitGroup(group); });
@@ -1583,6 +1659,7 @@
     paramsBox.querySelectorAll('input[type="range"][data-param]').forEach(i => { newParams[i.dataset.param] = parseFloat(i.value); });
     paramsBox.querySelectorAll('input[type="checkbox"][data-param]').forEach(i => { newParams[i.dataset.param] = i.checked; });
     paramsBox.querySelectorAll('input[type="color"][data-param]').forEach(i => { newParams[i.dataset.param] = i.value; });
+    paramsBox.querySelectorAll('input[type="text"][data-param], textarea[data-param]').forEach(i => { newParams[i.dataset.param] = i.value; });
 
     const folder = el.querySelector('.swf-gps-folder')?.value ?? '';
     const namePrefix = (el.querySelector('.swf-gps-prefix')?.value ?? '').trim();
@@ -2250,6 +2327,7 @@
         <div class="swf-run-row">
           <button class="swf-run-btn" data-node="${id}" title="一般 API 即時生成">${ICONS.play} 生成（API）</button>
           <button class="swf-batch-btn" data-node="${id}" title="OpenAI Batch API 生成（較省但較慢）">${ICONS.play} 生成（Batch）</button>
+          <button class="swf-stop-btn" data-node="${id}" title="中斷此節點的生成（停止當前請求）" style="display:none;">⏹ 中斷</button>
         </div>
         <label class="swf-overwrite-row" title="關閉時，同名檔案會自動加上 _1, _2… 而不覆蓋"><input type="checkbox" class="swf-overwrite-cb"> 覆蓋同名檔案</label>
       `;
@@ -2460,10 +2538,12 @@
 
   // Poll an OpenAI batch job until it finishes. Resolves on 'completed',
   // rejects on failed/cancelled/expired. Used to keep dependency waves in order.
-  function waitOpenAIBatch(batchId, apiKey) {
+  function waitOpenAIBatch(batchId, apiKey, signal = null) {
     return new Promise((resolve, reject) => {
       const POLL_MS = 15000;
       const tick = async () => {
+        // User 中斷: stop polling. The caller cancels the remote batch.
+        if (signal?.aborted) { const e = new Error('批次已中斷'); e.aborted = true; reject(e); return; }
         try {
           const s = await window.AIService.getOpenAIBatchStatus(batchId, apiKey);
           window.StudioSettings?.updateBatchJob?.(batchId, { status: s.status, outputFileId: s.outputFileId, errorFileId: s.errorFileId });
@@ -2509,7 +2589,18 @@
     const job = await window.AIService.submitOpenAIBatch([{ customId: 'single', endpoint, body }], apiKey);
     window.StudioSettings?.saveBatchJob?.({ id: job.batchId, batchId: job.batchId, provider: 'openai',
       type: 'image', status: job.status, nodeIds: [], submittedAt: Date.now() });
-    const s = await waitOpenAIBatch(job.batchId, apiKey); // resolves on completed; throws specific reason on fail
+    let s;
+    try {
+      s = await waitOpenAIBatch(job.batchId, apiKey, options.signal); // resolves on completed; throws specific reason on fail
+    } catch (err) {
+      // On 中斷 (or any failure mid-wait) cancel the remote batch so OpenAI stops
+      // processing it and we don't keep consuming the batch quota.
+      if (err.aborted || options.signal?.aborted) {
+        try { await window.AIService.cancelOpenAIBatch(job.batchId, apiKey); } catch { /* best-effort */ }
+        window.StudioSettings?.updateBatchJob?.(job.batchId, { status: 'cancelled' });
+      }
+      throw err;
+    }
     const fileId = s.outputFileId || s.errorFileId;
     if (!fileId) throw new Error('批次完成但無結果檔');
     const resultMap = await window.AIService.getOpenAIBatchResults(fileId, apiKey);
@@ -3102,6 +3193,12 @@
       if (batchBtn) {
         batchBtn.addEventListener('click', async () => await executeSingleNode(node, false, true));
       }
+
+      // 中斷 button = abort this node's in-flight request (no API consumed once aborted).
+      const stopBtn = el.querySelector('.swf-stop-btn');
+      if (stopBtn) {
+        stopBtn.addEventListener('click', (e) => { e.stopPropagation(); node._abort?.abort(); });
+      }
     }
   }
 
@@ -3294,6 +3391,7 @@
     });
     applyModelModeUI(node);
     updateImageProcessParamVisibility(area);
+    wireConditionalParamRows(area); // e.g. the custom Aspect Ratio input
   }
 
   // In 預處理 mode the node runs image processing (no AI prompt), so hide the prompt
@@ -3302,6 +3400,15 @@
     const isPre = node.data.model === 'preprocess';
     const promptSection = node.el.querySelector('.swf-prompt-section');
     if (promptSection) promptSection.style.display = isPre ? 'none' : '';
+    // 預處理 is local image processing (no API call), so collapse the two generate
+    // buttons into a single local 生成 button — hide the Batch variant and relabel.
+    const batchBtn = node.el.querySelector('.swf-batch-btn');
+    if (batchBtn) batchBtn.style.display = isPre ? 'none' : '';
+    const runBtn = node.el.querySelector('.swf-run-btn');
+    if (runBtn && !runBtn.classList.contains('btn-loading')) {
+      runBtn.innerHTML = ICONS.play + (isPre ? ' 生成（本地）' : ' 生成（API）');
+      runBtn.title = isPre ? '本地圖像處理（不消耗 API）' : '一般 API 即時生成';
+    }
   }
 
   // Shrink an image dataURL for storage (<=1024px, JPEG) so saved workflows stay
@@ -3921,12 +4028,25 @@
     return { text: text.trim(), inlineImages };
   }
 
+  // ── Abort / 中斷 support ──
+  // Hierarchy: _globalAbort (executeAll) → group._abort (executeGroup) → node._abort
+  // (executeSingleNode). A parent signal is linked into each child controller so a
+  // higher-level "中斷" cascades down and aborts every in-flight request beneath it.
+  let _globalAbort = null;
+  function linkAbort(controller, parentSignal) {
+    if (!parentSignal) return;
+    if (parentSignal.aborted) { controller.abort(); return; }
+    parentSignal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
   /**
    * Execute a single node
    * @param {Object} node - The node to execute
    * @param {boolean} skipImageReset - When true (called from executeGroup), don't reset node images
+   * @param {boolean} useBatchApi - Route gpt-image through the Batch API
+   * @param {AbortSignal} [parentSignal] - Parent (group/global) abort signal to cascade from
    */
-  async function executeSingleNode(node, skipImageReset, useBatchApi = false) {
+  async function executeSingleNode(node, skipImageReset, useBatchApi = false, parentSignal = null) {
     if (node.type === 'note') return; // note nodes have no generation
     if (node.type === 'mask') {
       // Mask nodes have no run button, their mask is generated manually in the editor modal.
@@ -3937,19 +4057,46 @@
       propagateVisualImages();
       return;
     }
+    // Re-entrancy guard: refuse to start a second concurrent run of the SAME node.
+    // The button-disabled state only blocks UI clicks; programmatic callers
+    // (executeAll / executeGroup / Ctrl+Enter spam) bypass it and would otherwise
+    // re-submit the same node repeatedly — the "重複提交/不斷迴圈" bug.
+    if (node._executing) return;
+    node._executing = true;
+
+    // Per-node abort controller, cascaded from the parent (group/global) signal.
+    node._abort = new AbortController();
+    linkAbort(node._abort, parentSignal);
+    const signal = node._abort.signal;
+
     // The button that triggered this run shows the loading state (生成 vs 生成（Batch）).
     const runBtn = node.el.querySelector(useBatchApi ? '.swf-batch-btn' : '.swf-run-btn');
     const otherBtn = node.el.querySelector(useBatchApi ? '.swf-run-btn' : '.swf-batch-btn');
-    const runBtnLabel = ICONS.play + (useBatchApi ? ' 生成（Batch）' : ' 生成（API）');
+    const stopBtn = node.el.querySelector('.swf-stop-btn');
+    const runBtnLabel = ICONS.play + (node.data.model === 'preprocess' ? ' 生成（本地）' : (useBatchApi ? ' 生成（Batch）' : ' 生成（API）'));
     const placeholder = node.el.querySelector('.swf-preview-placeholder');
     const imgEl = node.el.querySelector('.swf-preview-img');
     const dlBtn = node.el.querySelector('.swf-download-btn');
 
-    if (otherBtn) otherBtn.disabled = true; // prevent firing the other variant mid-run
+    // While running, hide both generate buttons and show 中斷 in their place.
     runBtn.disabled = true; runBtn.classList.add('btn-loading'); runBtn.textContent = 'Generating...';
+    runBtn.style.display = 'none';
+    if (otherBtn) { otherBtn.disabled = true; otherBtn.style.display = 'none'; }
+    if (stopBtn) stopBtn.style.display = '';
     node.el.classList.add('swf-executing');
     placeholder.style.display = 'flex'; placeholder.textContent = 'Generating... (0s)';
     imgEl.style.display = 'none'; dlBtn.style.display = 'none';
+
+    // Already aborted before we even started (parent cascade) — bail without any API call.
+    if (signal.aborted) {
+      node._executing = false; node._abort = null;
+      runBtn.disabled = false; runBtn.classList.remove('btn-loading'); runBtn.innerHTML = runBtnLabel; runBtn.style.display = '';
+      if (otherBtn) { otherBtn.disabled = false; otherBtn.style.display = ''; }
+      if (stopBtn) stopBtn.style.display = 'none';
+      node.el.classList.remove('swf-executing');
+      placeholder.textContent = '⏹ 已中斷';
+      return;
+    }
 
     let secs = 0;
     const timer = setInterval(() => { secs++; placeholder.textContent = `Generating... (${secs}s)`; }, 1000);
@@ -4275,6 +4422,15 @@
         }
         if (!attemptKeys.length) throw new Error('API Key 尚未設定 (' + keyProvider + ')');
 
+        // Pre-resolve the Nano Banana aspect ratio once (the 'fixed' option must read
+        // the first reference image's dimensions asynchronously). Computed outside the
+        // per-key failover loop so we don't re-measure the image on every retry.
+        let nbAspectRatio = null;
+        if (model === 'nanobanana2' || model === 'nanobanana') {
+          const firstRef = allRefs.filter(ref => ref !== maskDataUrl)[0];
+          nbAspectRatio = await resolveNanoAspectRatio(params, firstRef);
+        }
+
         const genOnce = async (apiKey) => {
           if (model === 'gptimage') {
             const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
@@ -4284,13 +4440,15 @@
               quality: params.quality || 'low',
               background: params.gptBackground || 'auto',
               input_fidelity: params.gptFidelity || 'high',
-              mask: maskDataUrl || null
+              mask: maskDataUrl || null,
+              signal
             });
           } else if (model === 'nanobanana2') {
             const refsToSend = allRefs.filter(ref => ref !== maskDataUrl);
             return await window.AIService.generateWithNanoBanana2(text, apiKey, refsToSend.length > 0 ? refsToSend : null, maskDataUrl, {
-              aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
+              aspectRatio: nbAspectRatio, imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
               thinkingLevel: params.thinkingLevel || 'none',
+              signal
             });
           } else if (model === 'replicate') {
             const version = params.modelVersion || 'black-forest-labs/flux-schnell';
@@ -4303,7 +4461,7 @@
               inputParams.image = allRefs[0];
             }
             const corsProxy = window.StudioSettings?.getReplicateCorsProxy?.() || '';
-            return await window.AIService.generateWithReplicate(text, apiKey, version, inputParams, corsProxy);
+            return await window.AIService.generateWithReplicate(text, apiKey, version, inputParams, corsProxy, signal);
           } else if (model === 'fal') {
             let modelId = params.modelId || 'fal-ai/flux/schnell';
             const inputParams = {};
@@ -4323,8 +4481,9 @@
             return await window.AIService.generateWithFal(text, apiKey, modelId, inputParams);
           } else {
             return await window.AIService.generateWithNanoBanana(text, apiKey, {
-              aspectRatio: params.aspectRatio || '1:1', imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
+              aspectRatio: nbAspectRatio, imageSize: params.imageSize || '', temperature: params.temperature ?? 0.4,
               thinkingLevel: params.thinkingLevel || 'none',
+              signal
             });
           }
         };
@@ -4338,6 +4497,8 @@
             break;
           } catch (err) {
             lastErr = err;
+            // A user 中斷 is final — don't burn the remaining keys retrying it.
+            if (signal.aborted || err.aborted || err.name === 'AbortError') break;
             if (ki < attemptKeys.length - 1 && window.showToast) {
               window.showToast(`⚠️ 金鑰 ${ki + 1} 失敗，改用金鑰 ${ki + 2}…`, 2000);
             }
@@ -4349,33 +4510,60 @@
       await saveNodeResult(node, imageUrl, preprocessResults);
       if (window.showToast) window.showToast('✅ 生成完成');
     } catch (err) {
-      console.error(err);
-      placeholder.textContent = '❌ ' + err.message;
-      if (window.showToast) window.showToast('❌ ' + err.message);
+      // User 中斷: show a calm "已中斷" state, not a red error/toast.
+      if (signal.aborted || err.aborted || err.name === 'AbortError') {
+        placeholder.textContent = '⏹ 已中斷';
+      } else {
+        console.error(err);
+        placeholder.textContent = '❌ ' + err.message;
+        if (window.showToast) window.showToast('❌ ' + err.message);
+      }
     } finally {
+      node._executing = false; // release re-entrancy guard
+      node._abort = null;      // release abort controller
       clearInterval(timer);
-      runBtn.disabled = false; runBtn.classList.remove('btn-loading'); runBtn.innerHTML = runBtnLabel;
-      if (otherBtn) otherBtn.disabled = false;
+      runBtn.disabled = false; runBtn.classList.remove('btn-loading'); runBtn.innerHTML = runBtnLabel; runBtn.style.display = '';
+      if (otherBtn) { otherBtn.disabled = false; otherBtn.style.display = ''; }
+      if (stopBtn) stopBtn.style.display = 'none';
       node.el.classList.remove('swf-executing');
+      applyModelModeUI(node); // re-collapse to single button for 預處理 (Batch stays hidden)
       propagateVisualImages(); // visually push the generated image to downstream nodes immediately
     }
   }
 
   /** Group execution: find entry & exit nodes, aggregate results */
-  async function executeGroup(groupId, useBatchApi = false) {
+  async function executeGroup(groupId, useBatchApi = false, parentSignal = null) {
     const group = groups[groupId]; if (!group) return;
+    // Re-entrancy guard: refuse a second concurrent run of the same group.
+    if (group._executing) return;
     const members = getGroupMembers(groupId);
     if (members.length === 0) {
       if (window.showToast) window.showToast('⚠️ 群組內沒有節點', 2000); return;
     }
 
+    group._executing = true;
+    // Per-group abort controller, cascaded from the parent (global) signal.
+    group._abort = new AbortController();
+    linkAbort(group._abort, parentSignal);
+    const signal = group._abort.signal;
     group.el.classList.add('swf-group-executing');
+    // While running, hide both group-run buttons and show 中斷 in their place.
+    const stopBtn = group.el.querySelector('.swf-grp-stop-btn');
+    const grpRunBtn = group.el.querySelector('.swf-grp-run-btn');
+    const grpBatchBtn = group.el.querySelector('.swf-grp-batch-run-btn');
+    if (grpRunBtn) grpRunBtn.style.display = 'none';
+    if (grpBatchBtn) grpBatchBtn.style.display = 'none';
+    if (stopBtn) stopBtn.style.display = '';
 
+    let aborted = false;
+    try {
     const memberIds = new Set(members.map(m => m.id));
 
     // Topological sort within group — pass skipImageReset=true so group-assigned images aren't cleared
     const sorted = topoSort(members.map(m => m.id));
     for (const batch of sorted) {
+      // User 中斷: stop launching the remaining waves so queued nodes never hit the API.
+      if (signal.aborted) { aborted = true; break; }
       await Promise.all(batch.map(id => {
         const n = nodes[id];
         if (!n) return Promise.resolve();
@@ -4387,7 +4575,7 @@
         n.data.images = assembleNodeImages(n, collectNodeUpstreamContribs(n));
 
         // Execute passing true for skipImageReset so it doesn't clear our carefully gathered images
-        return executeSingleNode(n, true, useBatchApi);
+        return executeSingleNode(n, true, useBatchApi, signal);
       }));
     }
 
@@ -4398,8 +4586,19 @@
 
     group.el.classList.remove('swf-group-executing');
     if (group.collapsed) renderCollapsedGroupThumbs(group); // refresh completed-image strip
-    if (window.showToast) window.showToast(`✅ 群組 "${group.title}" 執行完畢 (${group.resultImages.length} 張圖片)`);
+    if (window.showToast) {
+      if (aborted || signal.aborted) window.showToast(`⏹ 群組 "${group.title}" 已中斷`, 2500);
+      else window.showToast(`✅ 群組 "${group.title}" 執行完畢 (${group.resultImages.length} 張圖片)`);
+    }
     propagateVisualImages(); // visually push the group's aggregated images to downstream nodes immediately
+    } finally {
+      group._executing = false; // release re-entrancy guard
+      group._abort = null;      // release abort controller
+      if (stopBtn) stopBtn.style.display = 'none';
+      if (grpRunBtn) grpRunBtn.style.display = '';
+      if (grpBatchBtn) grpBatchBtn.style.display = '';
+      group.el.classList.remove('swf-group-executing');
+    }
   }
 
   /** Topological sort (Kahn's algorithm) for a subset of node IDs */
@@ -4434,13 +4633,27 @@
   /** Execute all: topological sort across all entities */
   // useBatchApi=false → sync "執行全部" (swfRunAll); true → "提交批次" (swfBatchSubmit).
   // Both run the identical topo-wave logic; only gpt-image's underlying API differs.
+  let _isExecutingAll = false; // guards against overlapping executeAll runs (重複提交)
   async function executeAll(useBatchApi = false) {
+    // Re-entrancy guard: Ctrl+Enter (and any non-button caller) bypasses the
+    // button-disabled state, so overlapping executeAll runs would re-submit every
+    // node each time — the runaway "重複提交" loop. Refuse if one is already running.
+    if (_isExecutingAll) return;
+    _isExecutingAll = true;
+    // Global abort controller — the top of the cascade hierarchy.
+    _globalAbort = new AbortController();
+    const signal = _globalAbort.signal;
     const btn = document.getElementById(useBatchApi ? 'swfBatchSubmit' : 'swfRunAll');
+    const stopAllBtn = document.getElementById('swfStopAll');
     const origHTML = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.classList.add('btn-loading'); btn.textContent = useBatchApi ? '批次執行中...' : '執行中...'; }
+    if (stopAllBtn) stopAllBtn.style.display = ''; // reveal 中斷全部 while running
 
     const restore = () => {
+      _isExecutingAll = false; // release re-entrancy guard on every exit path
+      _globalAbort = null;     // release global abort controller
       if (btn) { btn.disabled = false; btn.classList.remove('btn-loading'); btn.innerHTML = origHTML; }
+      if (stopAllBtn) stopAllBtn.style.display = 'none';
     };
 
     // Build list of all executable entities (standalone nodes + groups)
@@ -4461,13 +4674,18 @@
     try {
       const sorted = topoSort(allEntityIds);
       for (const batch of sorted) {
+        // User 中斷: stop launching the remaining waves — queued entities never hit the API.
+        if (signal.aborted) break;
         await Promise.all(batch.map(id => {
-          if (isGroup(id)) return executeGroup(id, useBatchApi);
-          if (nodes[id]) return executeSingleNode(nodes[id], false, useBatchApi);
+          if (isGroup(id)) return executeGroup(id, useBatchApi, signal);
+          if (nodes[id]) return executeSingleNode(nodes[id], false, useBatchApi, signal);
           return Promise.resolve();
         }));
       }
-      if (window.showToast) window.showToast(useBatchApi ? '✅ 批次工作流執行完畢' : '✅ 全部工作流執行完畢');
+      if (window.showToast) {
+        if (signal.aborted) window.showToast(useBatchApi ? '⏹ 批次工作流已中斷' : '⏹ 全部工作流已中斷', 2500);
+        else window.showToast(useBatchApi ? '✅ 批次工作流執行完畢' : '✅ 全部工作流執行完畢');
+      }
     } finally {
       restore();
     }
@@ -5258,6 +5476,9 @@
   document.getElementById('swfAddGroup')?.addEventListener('click', () => { saveUndoState(); createGroup(); });
   document.getElementById('swfRunAll')?.addEventListener('click', () => executeAll(false));
   document.getElementById('swfBatchSubmit')?.addEventListener('click', () => executeAll(true));
+  // 中斷全部: abort the whole run — cascades down to every group & node in flight,
+  // and the wave-loop checks stop any not-yet-started entities from hitting the API.
+  document.getElementById('swfStopAll')?.addEventListener('click', () => _globalAbort?.abort());
   document.getElementById('swfSaveBtn')?.addEventListener('click', saveWorkflow);
   document.getElementById('swfLoadBtn')?.addEventListener('click', loadWorkflow);
   document.getElementById('swfExportBtn')?.addEventListener('click', exportWorkflowJSON);

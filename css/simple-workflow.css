@@ -609,6 +609,19 @@
 .swf-grp-run-btn:hover,
 .swf-grp-batch-run-btn:hover { background: var(--warm-dark) !important; filter: none; }
 
+/* 群組中斷: danger style, auto-width text button (shown only while running). */
+.swf-grp-stop-btn {
+  background: #c0392b !important;
+  color: #fff !important;
+  font-weight: 600;
+  padding: 0 10px !important;
+  width: auto !important;
+  gap: 5px;
+  font-size: 12px !important;
+  border: none !important;
+}
+.swf-grp-stop-btn:hover { background: #a83224 !important; border-color: transparent !important; filter: none; }
+
 /* Group Ports (larger than node ports) */
 .swf-group-port {
   position: absolute;
@@ -1134,8 +1147,10 @@
 }
 .swf-gps-params .swf-param-row { margin-bottom: 6px; }
 .swf-gps-params label { font-size: 11px; color: var(--muted, #888); margin-bottom: 2px; }
-.swf-gps-params select {
+.swf-gps-params select,
+.swf-gps-params input[type="text"] {
   width: 100%;
+  box-sizing: border-box;
   background: var(--node-input-bg, #fafafa);
   color: var(--node-text, #333);
   border: 1px solid var(--node-input-border, #d0d0d0);
@@ -1946,3 +1961,23 @@
 .swf-batch-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
 .swf-batch-btn:hover { background: var(--warm-dark); }
 .swf-batch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 中斷 (abort) — danger style, shown only while a node is generating. Spans the
+   full run-row width since it replaces the run/batch pair during execution. */
+.swf-run-row .swf-stop-btn { flex: 1; min-width: 0; width: auto; box-sizing: border-box; }
+.swf-stop-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #fff;
+  background: #c0392b;
+  transition: background .15s;
+}
+.swf-stop-btn:hover { background: #a83224; }
