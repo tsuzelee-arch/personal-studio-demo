@@ -3104,12 +3104,19 @@
       const fileInput = imagesArea.querySelector('.swf-file-input');
       const uploadBtn = imagesArea.querySelector('.swf-upload-btn');
       uploadBtn.addEventListener('click', () => fileInput.click());
-      fileInput.addEventListener('change', (e) => {
+      fileInput.addEventListener('change', async (e) => {
         saveUndoState();
-        Array.from(e.target.files).forEach(file => {
-          if (node.data.images.length >= 16) return;
-          window.StudioUtils.fileToDataURL(file).then(dataUrl => addNodeImage(node, dataUrl)).catch(() => {});
-        }); fileInput.value = '';
+        // Sequential + awaited: concurrent (non-awaited) intake races against
+        // assembleNodeImages and silently drops later files (4th onward).
+        const files = Array.from(e.target.files);
+        fileInput.value = '';
+        for (const file of files) {
+          if (node.data.images.length >= 16) break;
+          try {
+            const dataUrl = await window.StudioUtils.fileToDataURL(file);
+            await addNodeImage(node, dataUrl);
+          } catch (err) { console.error('上傳圖片失敗:', file.name, err); }
+        }
       });
       imagesArea.addEventListener('dragover', (e) => { e.preventDefault(); imagesArea.classList.add('drag-over'); });
       imagesArea.addEventListener('dragleave', () => imagesArea.classList.remove('drag-over'));
@@ -3153,10 +3160,16 @@
         }
         if (e.dataTransfer.files.length > 0) {
           saveUndoState();
-          Array.from(e.dataTransfer.files).forEach(file => {
-            if (!file.type.startsWith('image/') || node.data.images.length >= 16) return;
-            window.StudioUtils.fileToDataURL(file).then(dataUrl => addNodeImage(node, dataUrl)).catch(() => {});
-          });
+          // Sequential + awaited so dropping multiple files keeps every image.
+          (async () => {
+            for (const file of Array.from(e.dataTransfer.files)) {
+              if (!file.type.startsWith('image/') || node.data.images.length >= 16) continue;
+              try {
+                const dataUrl = await window.StudioUtils.fileToDataURL(file);
+                await addNodeImage(node, dataUrl);
+              } catch (err) { console.error('拖放圖片失敗:', file.name, err); }
+            }
+          })();
         }
       });
       setupImageSorting(node);
