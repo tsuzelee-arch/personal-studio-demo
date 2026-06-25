@@ -3366,7 +3366,7 @@
       });
       node.data.params[inp.dataset.param] = inp.value;
     });
-    area.querySelectorAll('input[type="text"][data-param], textarea[data-param]').forEach(inp => {
+    area.querySelectorAll('input[type="text"][data-param], textarea[data-param], input[type="number"][data-param], input[type="color"][data-param]').forEach(inp => {
       inp.addEventListener('input', () => { node.data.params[inp.dataset.param] = inp.value; });
       if (node.data.params[inp.dataset.param] !== undefined) {
         inp.value = node.data.params[inp.dataset.param];
