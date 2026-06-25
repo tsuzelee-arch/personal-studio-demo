@@ -151,18 +151,18 @@
   // (before equal-priority upstream), so a negative-priority group precedes them.
   // First occurrence wins on dedupe; node-level excluded incoming images are dropped.
   function assembleNodeImages(node, contribs) {
-    // Preprocess intentionally allows the SAME image multiple times (e.g. stitch a
-    // grid of one image), so it must NOT de-duplicate. uploadedImages preserves every
-    // upload (duplicates included) in order; append upstream contributions as-is.
-    if (node.data.model === 'preprocess') {
-      const out = [...node.data.uploadedImages];
-      contribs.forEach(c => (c.images || []).forEach(img => out.push(img)));
-      return out.filter(img => !node.data.excludedIncomingImages.includes(img));
-    }
-
     const uploadedSet = new Set(node.data.uploadedImages);
     const refOrdered = node.data.images.filter(img => uploadedSet.has(img));
     node.data.uploadedImages.forEach(img => { if (!refOrdered.includes(img)) refOrdered.push(img); });
+
+    // Preprocess intentionally allows the SAME image multiple times (e.g. stitch a
+    // grid of one image), so it must NOT de-duplicate. Keep refOrdered (which already
+    // preserves drag order AND duplicates) and append upstream contributions as-is.
+    if (node.data.model === 'preprocess') {
+      const out = [...refOrdered];
+      contribs.forEach(c => (c.images || []).forEach(img => out.push(img)));
+      return out.filter(img => !node.data.excludedIncomingImages.includes(img));
+    }
 
     const items = [{ priority: 0, seq: -1, images: refOrdered }];
     contribs.forEach((c, i) => items.push({ priority: c.priority, seq: i, images: c.images || [] }));
