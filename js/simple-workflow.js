@@ -5570,12 +5570,47 @@
   // ═══════════════════════════════════════════
   let lastSavedStateStr = '';
 
+  // Tiny IndexedDB key/value store for the autosave blob. localStorage (~5MB) is
+  // too small to hold generated images' base64, which is why the old localStorage
+  // autosave dropped resultImages and they vanished on refresh. IndexedDB has no
+  // such limit, so we persist the FULL state (images included) here.
+  const SWF_DB = 'swf_autosave_db', SWF_STORE = 'state', SWF_KEY = 'autosave';
+  function _swfIdbOpen() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(SWF_DB, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(SWF_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function _swfIdbSet(val) {
+    const db = await _swfIdbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SWF_STORE, 'readwrite');
+      tx.objectStore(SWF_STORE).put(val, SWF_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function _swfIdbGet() {
+    const db = await _swfIdbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SWF_STORE, 'readonly');
+      const r = tx.objectStore(SWF_STORE).get(SWF_KEY);
+      r.onsuccess = () => resolve(r.result || null);
+      r.onerror = () => reject(r.error);
+    });
+  }
+
   function triggerAutoSave() {
     try {
-      const stateStr = JSON.stringify(serializeState(true));
-      if (stateStr !== lastSavedStateStr) {
-        localStorage.setItem('swf_autosave_state', stateStr);
-        lastSavedStateStr = stateStr;
+      // Full state (with generated/uploaded images) → IndexedDB so they survive refresh.
+      const fullStr = JSON.stringify(serializeState(false));
+      if (fullStr !== lastSavedStateStr) {
+        lastSavedStateStr = fullStr;
+        _swfIdbSet(fullStr).catch(e => console.warn('IndexedDB autosave failed:', e));
+        // Lightweight structure-only fallback in localStorage (no base64).
+        try { localStorage.setItem('swf_autosave_state', JSON.stringify(serializeState(true))); } catch (e) {}
       }
     } catch (e) {
       console.warn('Auto-save failed:', e);
@@ -5585,19 +5620,30 @@
   setInterval(triggerAutoSave, 3000);
 
   // Init
-  setTimeout(() => {
+  setTimeout(async () => {
     try {
-      const autosaveStr = localStorage.getItem('swf_autosave_state');
-      if (autosaveStr) {
-        if (SWF_DEBUG) console.log('Loading auto-saved state...');
-        loadWorkflowData(autosaveStr, false);
-        lastSavedStateStr = autosaveStr;
-      } else {
-        createMacroNode('t2i', 40, 40);
+      let loaded = false;
+      // Prefer the full IndexedDB state (includes generated images).
+      try {
+        const full = await _swfIdbGet();
+        if (full) {
+          loadWorkflowData(full, false);
+          lastSavedStateStr = full;
+          loaded = true;
+        }
+      } catch (e) { console.warn('IndexedDB autosave load failed:', e); }
+      // Fall back to the legacy localStorage (structure only) on first run / IDB miss.
+      if (!loaded) {
+        const autosaveStr = localStorage.getItem('swf_autosave_state');
+        if (autosaveStr) {
+          loadWorkflowData(autosaveStr, false);
+        } else {
+          createMacroNode('t2i', 40, 40);
+        }
       }
     } catch (err) {
-      console.error('Failed to load autosave, clearing it:', err);
-      localStorage.removeItem('swf_autosave_state');
+      console.error('Failed to load autosave:', err);
+      try { localStorage.removeItem('swf_autosave_state'); } catch (e) {}
       createMacroNode('t2i', 40, 40);
     }
     // Resume auto-polling for any OpenAI batch jobs that were still running
